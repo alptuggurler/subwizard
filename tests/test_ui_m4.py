@@ -177,3 +177,12 @@ def test_rebinding_replaces_the_window_shortcuts(window):
     window.controller.set_hotkey("calibrate", "Ctrl+K")
     keys = {s.key().toString() for s in window._shortcuts}
     assert "Ctrl+K" in keys and "F2" not in keys
+
+
+def test_diagnostics_support_bundle(window, tmp_path):
+    import zipfile
+
+    page = _page(window, "diagnostics")
+    out = page.save_bundle(tmp_path / "s.zip")
+    with zipfile.ZipFile(out) as z:
+        assert "diagnostics.txt" in z.namelist()

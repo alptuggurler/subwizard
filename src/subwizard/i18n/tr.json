@@ -387,5 +387,8 @@
   "settings.wizard": "Kurulum sihirbazı",
   "settings.wizard.desc": "Cihaz, ses, çeviri ve altyazı alanını adım adım yeniden ayarla.",
   "settings.wizard.open": "Sihirbazı aç",
-  "wizard.back": "Geri"
+  "wizard.back": "Geri",
+  "diag.bundle": "Destek paketi",
+  "diag.bundle.saved": "Kaydedildi",
+  "diag.bundle.tip": "Loglar, ayarlar (gizli bilgiler maskeli) ve bu rapor tek bir .zip dosyasında; hata bildirirken ekle. API anahtarları pakete girmez."
 }

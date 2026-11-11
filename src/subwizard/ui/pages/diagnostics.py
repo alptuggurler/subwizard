@@ -6,18 +6,22 @@ Graphs of the last 60 s and CSV export arrive in M5.
 from __future__ import annotations
 
 import platform as py_platform
+import time
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, CaptionLabel, CardWidget, FluentIcon, PushButton, StrongBodyLabel
 
 from subwizard import APP_NAME, __version__
 from subwizard.controller import AppController
 from subwizard.core.metrics import Snapshot
+from subwizard.core.support import make_support_bundle
 from subwizard.i18n import t
 from subwizard.ui.metrics_view import GRADE_COLORS, Row, metric_rows, report_text
 from subwizard.ui.pages.base import BasePage
+from subwizard.utils.paths import default_log_dir
 
 LABEL_COLUMN_WIDTH = 260
 
@@ -75,6 +79,10 @@ class DiagnosticsPage(BasePage):
         top = QHBoxLayout()
         top.addWidget(self._legend, 1)
         top.addWidget(self._copy)
+        self._bundle = PushButton()
+        self._bundle.setIcon(FluentIcon.ZIP_FOLDER)
+        self._bundle.clicked.connect(self._save_bundle)
+        top.addWidget(self._bundle)
         self.body.addLayout(top)
 
         self._sections: list[_Section] = []
@@ -112,9 +120,23 @@ class DiagnosticsPage(BasePage):
         QGuiApplication.clipboard().setText(self.report())
         self._copy.setText(t("diag.copied"))
 
+    def save_bundle(self, dest: Path) -> Path:
+        cfg = self.controller.config
+        return make_support_bundle(dest, cfg, cfg.logging.dir or default_log_dir(), self.report())
+
+    def _save_bundle(self) -> None:
+        name = f"subwizard-support-{time.strftime('%Y%m%d-%H%M')}.zip"
+        path, _ = QFileDialog.getSaveFileName(self, t("diag.bundle"), str(Path.home() / name),
+                                              "*.zip")  # fmt: skip
+        if path:
+            self.save_bundle(Path(path))
+            self._bundle.setText(t("diag.bundle.saved"))
+
     def retranslate(self) -> None:
         super().retranslate()
         self._copy.setText(t("diag.copy_report"))
+        self._bundle.setText(t("diag.bundle"))
+        self._bundle.setToolTip(t("diag.bundle.tip"))
         self._legend.setText(t("diag.legend"))
         for section in self._sections:
             section.retranslate()

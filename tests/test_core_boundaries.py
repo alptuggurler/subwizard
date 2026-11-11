@@ -50,6 +50,7 @@ QT_FREE_MODULES = [
     "subwizard.utils.hotkeys",
     "subwizard.web.server",
     "subwizard.web.qr",
+    "subwizard.core.support",
     "subwizard.utils.logging",
     "subwizard.utils.paths",
 ]

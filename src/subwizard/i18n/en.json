@@ -387,5 +387,8 @@
   "settings.wizard": "Setup wizard",
   "settings.wizard.desc": "Set up device, sound, translation and subtitle region again, step by step.",
   "settings.wizard.open": "Open wizard",
-  "wizard.back": "Back"
+  "wizard.back": "Back",
+  "diag.bundle": "Support bundle",
+  "diag.bundle.saved": "Saved",
+  "diag.bundle.tip": "Logs, settings (secrets masked) and this report in one .zip; attach it to a bug report. API keys are never included."
 }
