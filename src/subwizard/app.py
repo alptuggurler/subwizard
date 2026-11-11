@@ -46,6 +46,8 @@ def create_app(config: AppConfig, config_path: Path) -> tuple[QApplication, Main
 def run_gui(config: AppConfig, config_path: Path, calibrate: bool = False) -> int:
     app, window = create_app(config, config_path)
     window.show()
+    if not config.ui.wizard_done:  # first run: the setup wizard on top of the window
+        QTimer.singleShot(0, window.open_wizard)
     if calibrate:  # --calibrate: start the source and open F2 calibration right away
         QTimer.singleShot(0, window.controller.request_calibration)
     return app.exec()

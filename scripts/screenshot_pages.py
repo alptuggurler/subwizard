@@ -104,6 +104,18 @@ def main() -> int:
                 print(f"could not save {target}", file=sys.stderr)
                 return 1
             print(target)
+        # Setup wizard steps (SPEC 3.12), with the pipeline running when --clip is given.
+        from subwizard.ui.wizard import STEPS
+
+        window.open_wizard()
+        wizard = window.wizard
+        for index, key in enumerate(STEPS):
+            wizard.go(index)
+            _settle(1500 if key in ("capture", "region") else 300)
+            target = args.out / f"wizard-{index + 1}-{key}-{args.lang}-{args.theme}.png"
+            wizard.grab().save(str(target))
+            print(target)
+        wizard.close()
         if args.clip:
             window.controller.stop()
         window.controller.config.ui.close_to_tray = False

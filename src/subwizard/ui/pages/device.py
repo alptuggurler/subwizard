@@ -129,6 +129,8 @@ class DevicePage(BasePage):
         mode_layout.addWidget(self._preview)
         mode_layout.addLayout(mode_text, 1)
         self.body.addWidget(mode_card)
+        self.video_section = [self._video_title, self._kind_row, self._device_row,
+                              self._mode_row, self._file_row, mode_card]  # fmt: skip
 
         # --- audio ---------------------------------------------------------------
         self.body.addSpacing(12)
@@ -172,6 +174,9 @@ class DevicePage(BasePage):
         for row in (self._enabled_row, self._input_row, self._output_row, self._vu_row,
                     self._gain_row, self._muted_row, self._profile_row, self._delay_row):  # fmt: skip
             self.body.addWidget(row)
+        self.audio_section = [self._audio_title, self._audio_notice, self._enabled_row,
+                              self._input_row, self._output_row, self._vu_row, self._gain_row,
+                              self._muted_row, self._profile_row, self._delay_row]  # fmt: skip
 
         self.reload_devices()
 

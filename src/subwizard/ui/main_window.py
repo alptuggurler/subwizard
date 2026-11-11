@@ -70,6 +70,8 @@ class MainWindow(FluentWindow):
         self.calibration: CalibrationWindow | None = None
         self._calibrate_on_frame = False
         controller.calibrateRequested.connect(self.open_calibration)
+        self.wizard = None  # SetupWizard while open
+        controller.wizardRequested.connect(self.open_wizard)
         controller.frameReady.connect(self._frame_for_calibration)
         controller.runningChanged.connect(self._on_running)
 
@@ -114,6 +116,19 @@ class MainWindow(FluentWindow):
     def toggle_history_panel(self) -> None:
         self.home.video.show_history = not self.home.video.show_history
         self.home.video.update()
+
+    # --- setup wizard (SPEC 3.12) -------------------------------------------------------
+    def open_wizard(self) -> None:
+        from subwizard.ui.wizard import SetupWizard
+
+        if self.wizard is not None:
+            self.wizard.raise_()
+            self.wizard.activateWindow()
+            return
+        self.wizard = SetupWizard(self.controller)
+        self.wizard.destroyed.connect(lambda: setattr(self, "wizard", None))
+        self.wizard.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.wizard.show()
 
     # --- F2 calibration ---------------------------------------------------------------
     def open_calibration(self) -> None:

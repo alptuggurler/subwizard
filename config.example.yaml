@@ -8,6 +8,7 @@ ui:
   close_to_tray: true   # kapatma butonu tepsiye kucultur
   perf_overlay: 'off'   # off | compact | detailed (F9 sirayla gecer)
   cursor_hide_ms: 2000  # tam ekranda imlec bu kadar hareketsiz kalinca gizlenir
+  wizard_done: false    # kurulum sihirbazi bitince true; Ayarlar'dan yeniden acilir
 
 logging:
   level: INFO           # DEBUG | INFO | WARNING | ERROR

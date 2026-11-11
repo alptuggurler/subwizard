@@ -115,9 +115,14 @@ class RoiPage(BasePage):
         self._calibrate = PushButton()
         self._calibrate.setIcon(FluentIcon.FULL_SCREEN)
         self._calibrate.clicked.connect(controller.request_calibration)
+        # SPEC 3.12 wizard step 7: freeze on the first frame where OCR finds text.
+        self._wait_freeze = TogglePushButton()
+        self._wait_freeze.setIcon(FluentIcon.STOP_WATCH)
+        self._wait_freeze.toggled.connect(self._on_wait_freeze)
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
-        for widget in (self._template, self._freeze, self._read_now, self._calibrate):
+        for widget in (self._template, self._freeze, self._wait_freeze, self._read_now,
+                       self._calibrate):  # fmt: skip
             toolbar.addWidget(widget)
         toolbar.addStretch(1)
         self.body.addLayout(toolbar)
@@ -158,6 +163,9 @@ class RoiPage(BasePage):
         for row in (self._padding_row, self._hz_row, self._confidence_row,
                     self._white_mask_row, self._contrast_row):  # fmt: skip
             self.body.addWidget(row)
+        self.settings_section = [self._settings_title, self._padding_row, self._hz_row,
+                                 self._confidence_row, self._white_mask_row,
+                                 self._contrast_row]  # fmt: skip
 
         controller.settingsChanged.connect(self._load_settings)
         controller.ocrTick.connect(self._on_tick)
@@ -178,6 +186,19 @@ class RoiPage(BasePage):
 
     def _on_freeze(self, frozen: bool) -> None:
         self.editor.freeze(self.controller.latest_frame() if frozen else None)
+        if frozen and self._wait_freeze.isChecked():
+            self._wait_freeze.setChecked(False)
+
+    def _on_wait_freeze(self, waiting: bool) -> None:
+        if waiting:
+            if self._freeze.isChecked():
+                self._freeze.setChecked(False)
+            if not self.controller.running:
+                self.controller.start()
+            self.controller.force_ocr()
+
+    def wait_and_freeze(self) -> None:
+        self._wait_freeze.setChecked(True)
 
     def _on_running(self, running: bool) -> None:
         if not running and self._freeze.isChecked():
@@ -185,6 +206,8 @@ class RoiPage(BasePage):
         self._refresh_notice()
 
     def _on_tick(self, tick: OCRTick) -> None:
+        if self._wait_freeze.isChecked() and any(line.text.strip() for line in tick.lines):
+            self._freeze.setChecked(True)  # the subtitle is on screen right now
         if not self.isVisible():
             return
         p = self.preview
@@ -233,6 +256,8 @@ class RoiPage(BasePage):
         self._freeze.setText(t("roi.freeze"))
         self._read_now.setText(t("roi.read_now"))
         self._calibrate.setText(t("roi.calibrate"))
+        self._wait_freeze.setText(t("roi.wait_freeze"))
+        self._wait_freeze.setToolTip(t("roi.wait_freeze.tip"))
         self.editor.set_placeholder(t("roi.placeholder"))
         self.preview.retranslate()
         if not self.preview.text.text():

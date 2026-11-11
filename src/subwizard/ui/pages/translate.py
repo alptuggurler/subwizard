@@ -121,6 +121,7 @@ class TranslatePage(BasePage):
         self._usage_row = SettingRow(FluentIcon.SPEED_HIGH, self._cache_label)
         self.body.addWidget(self._cache_row)
         self.body.addWidget(self._usage_row)
+        self.advanced_section = [self._context_row, self._cache_row, self._usage_row]
 
         controller.settingsChanged.connect(self._load)
         controller.translationTested.connect(self._on_tested)

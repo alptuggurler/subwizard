@@ -43,6 +43,8 @@ log = logging.getLogger(__name__)
 
 SAVE_DEBOUNCE_MS = 400  # sliders fire many changes; write the file once they settle
 PERF_OVERLAY_CYCLE: tuple[PerfOverlay, ...] = ("off", "compact", "detailed")
+# Wizard step 6: game profile -> subtitle region template (full profiles: M6).
+GAME_PROFILE_TEMPLATES = {"gta6": "bottom_center", "default": "bottom_wide"}
 # Appearance presets (SPEC 3.12): only the keys they change.
 OVERLAY_PRESETS: dict[str, dict[str, object]] = {
     "netflix": {"text_color": "#FFFFFF", "background_opacity": 0.0, "outline": True,
@@ -76,7 +78,8 @@ class AppController(QObject):
     overlayChanged = Signal()  # an overlay.* setting changed (video + preview repaint)
     hotkeysChanged = Signal()
     historyChanged = Signal()
-    webChanged = Signal()  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
+    webChanged = Signal()
+    wizardRequested = Signal()  # Ayarlar -> "Kurulum sihirbazını aç"  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
     _sourceStateFromThread = Signal(str, str)
@@ -616,6 +619,21 @@ class AppController(QObject):
         self.config.hotkeys.global_hotkeys = enabled
         self._save()
         self.hotkeysChanged.emit()
+
+    # --- setup wizard (SPEC 3.12) ----------------------------------------------------------
+    def set_game_profile(self, name: str) -> None:
+        """Wizard step 6. Full profiles (prompt, glossary) arrive in M6; for now a profile
+        picks its subtitle region template."""
+        self.config.profile = name
+        self.set_roi_template(GAME_PROFILE_TEMPLATES.get(name, "bottom_center"))
+
+    def request_wizard(self) -> None:
+        self.wizardRequested.emit()
+
+    def finish_wizard(self) -> None:
+        if not self.config.ui.wizard_done:
+            self.config.ui.wizard_done = True
+            self._save()
 
     def request_calibration(self) -> None:
         """F2: calibrate on a frozen frame; starts the source first if needed."""

@@ -54,6 +54,18 @@ class BasePage(ScrollArea):
         self.body.addWidget(self._desc)
         self.body.addSpacing(PAGE_SPACING)
 
+    def embed(self, hide: list[QWidget] | None = None) -> None:
+        """Used inside the setup wizard: no page header, no outer margins, and the given
+        sections hidden. Visibility set by the page itself later (notices) still works,
+        because hidden sections are removed from the layout instead of just hidden."""
+        self._title.hide()
+        self._desc.hide()
+        self.body.setContentsMargins(0, 0, 0, 0)
+        for widget in hide or []:
+            self.body.removeWidget(widget)
+            widget.setParent(None)
+            widget.hide()
+
     def retranslate(self) -> None:
         self._title.setText(t(f"nav.{self.key}"))
         self._desc.setText(t(f"page.{self.key}.desc"))

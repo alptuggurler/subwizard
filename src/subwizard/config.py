@@ -38,6 +38,7 @@ class UIConfig(_Section):
     close_to_tray: bool = True
     perf_overlay: PerfOverlay = "off"  # F9 cycles off -> compact -> detailed
     cursor_hide_ms: int = Field(2000, ge=0)  # fullscreen: hide idle cursor after this
+    wizard_done: bool = False  # the setup wizard opens on start until finished or closed
 
 
 class LoggingConfig(_Section):

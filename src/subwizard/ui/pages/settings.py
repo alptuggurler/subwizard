@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
-from qfluentwidgets import ComboBox, FluentIcon, SwitchButton
+from qfluentwidgets import ComboBox, FluentIcon, PushButton, SwitchButton
 
 from subwizard.controller import AppController
 from subwizard.i18n import available_languages, t
@@ -32,7 +32,11 @@ class SettingsPage(BasePage):
         self._language_row = SettingRow(FluentIcon.LANGUAGE, self._language)
         self._theme_row = SettingRow(FluentIcon.PALETTE, self._theme)
         self._tray_row = SettingRow(FluentIcon.MINIMIZE, self._tray)
-        for row in (self._language_row, self._theme_row, self._tray_row):
+        self._wizard = PushButton()
+        self._wizard.setIcon(FluentIcon.ROBOT)
+        self._wizard.clicked.connect(controller.request_wizard)
+        self._wizard_row = SettingRow(FluentIcon.ROBOT, self._wizard)
+        for row in (self._language_row, self._theme_row, self._tray_row, self._wizard_row):
             self.body.addWidget(row)
 
         self.retranslate()
@@ -65,6 +69,8 @@ class SettingsPage(BasePage):
         self._language_row.set_texts(t("settings.language"), t("settings.language.desc"))
         self._theme_row.set_texts(t("settings.theme"), t("settings.theme.desc"))
         self._tray_row.set_texts(t("settings.close_to_tray"), t("settings.close_to_tray.desc"))
+        self._wizard_row.set_texts(t("settings.wizard"), t("settings.wizard.desc"))
+        self._wizard.setText(t("settings.wizard.open"))
 
     def _on_language(self, index: int) -> None:
         self.controller.set_language(self._language_codes[index])
