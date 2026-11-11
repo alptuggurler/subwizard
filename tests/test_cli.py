@@ -50,10 +50,16 @@ def test_invalid_config_exits_with_message(tmp_path, capsys):
     assert "source.fps" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("flag", ["--headless"])
-def test_unbuilt_flags_fail_loudly_instead_of_opening_gui(tmp_path, monkeypatch, flag):
+def test_headless_runs_without_the_gui(tmp_path, monkeypatch):
+    import subwizard.app
+
     monkeypatch.setattr(cli, "default_log_dir", lambda: tmp_path / "logs")
-    assert cli.main(["--config", str(tmp_path / "config.yaml"), flag]) == cli.EXIT_NOT_IMPLEMENTED
+    seen = {}
+    monkeypatch.setattr(subwizard.app, "run_headless",
+                        lambda config, path: seen.setdefault("mode", config.display.mode) and 0)
+    monkeypatch.setattr(subwizard.app, "run_gui", lambda *a, **k: pytest.fail("GUI opened"))
+    assert cli.main(["--config", str(tmp_path / "config.yaml"), "--headless"]) == 0
+    assert seen["mode"] == "window"  # run_headless itself switches to web
 
 
 def test_calibrate_flag_opens_gui_with_calibration(tmp_path, monkeypatch):

@@ -41,6 +41,8 @@ def main() -> int:
     parser.add_argument("--clip", type=Path, help="run the pipeline on this video")
     parser.add_argument("--overlay", choices=["off", "compact", "detailed"], default="off")
     parser.add_argument("--warmup", type=float, default=3.0, help="seconds before grabbing")
+    parser.add_argument("--display", choices=["window", "web", "both"], default="both",
+                        help="display mode (both: the Web page shows its QR code)")
     parser.add_argument("--offline-translation", action="store_true",
                         help="replace Google Translate with a local stand-in (no network): "
                              "measures the pipeline itself, not the translation service")
@@ -57,7 +59,8 @@ def main() -> int:
         os.environ["XDG_CONFIG_HOME"] = os.environ["APPDATA"] = tmp
         config_path = Path(tmp) / "config.yaml"
         overrides = {
-            "ui": {"language": args.lang, "theme": args.theme, "perf_overlay": args.overlay}
+            "ui": {"language": args.lang, "theme": args.theme, "perf_overlay": args.overlay},
+            "display": {"mode": args.display},
         }
         if args.clip:
             # OCR's "N of M skipped" summary lines go to the console (SPEC M2 acceptance).

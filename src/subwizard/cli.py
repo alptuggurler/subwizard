@@ -116,13 +116,10 @@ def main(argv: list[str] | None = None) -> int:
         print_devices()
         return EXIT_OK
 
-    pending = {
-        "--headless": (args.headless, "M4.5"),
-    }
-    for flag, (given, milestone) in pending.items():
-        if given:
-            log.error("%s henüz hazır değil (%s kilometre taşında gelecek).", flag, milestone)
-            return EXIT_NOT_IMPLEMENTED
+    if args.headless:
+        from subwizard.app import run_headless
+
+        return run_headless(config, config_path)
 
     from subwizard.app import run_gui  # lazy: keeps the CLI importable without Qt
 

@@ -237,8 +237,25 @@ class HotkeysConfig(_Section):
     keys: dict[str, str] = Field(default_factory=_default_hotkeys)
 
 
+DisplayMode = Literal["window", "web", "both"]
+
+
 class DisplayConfig(_Section):
-    mode: Literal["window", "web", "both"] = "window"
+    mode: DisplayMode = "window"
+
+
+class WebConfig(_Section):
+    """Web overlay for a phone / tablet / OBS (SPEC 3.10). Runs when display.mode is
+    `web` or `both`."""
+
+    host: str = "0.0.0.0"  # local network; 127.0.0.1 = this PC only
+    port: int = Field(8787, ge=0, le=65535)  # 0 = any free port
+    token: str = ""  # optional: pages and /ws then need ?t=<token>
+    font_px: int = Field(48, ge=8, le=200)  # page defaults, overridable with ?font=&lines=&source=
+    lines: int = Field(3, ge=1, le=10)
+    show_source: bool = False
+    reconnect_ms: int = Field(1000, ge=100, le=60000)  # page retries the WebSocket this often
+    heartbeat_s: float = Field(10.0, gt=0)  # WebSocket ping: notices a phone that went away
 
 
 class AppConfig(BaseSettings):
@@ -261,6 +278,7 @@ class AppConfig(BaseSettings):
     overlay: OverlayConfig = OverlayConfig()
     hotkeys: HotkeysConfig = HotkeysConfig()
     display: DisplayConfig = DisplayConfig()
+    web: WebConfig = WebConfig()
     profile: str = "default"
     debug: bool = False
 

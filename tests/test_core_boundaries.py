@@ -48,6 +48,8 @@ QT_FREE_MODULES = [
     "subwizard.platform",
     "subwizard.utils.timing",
     "subwizard.utils.hotkeys",
+    "subwizard.web.server",
+    "subwizard.web.qr",
     "subwizard.utils.logging",
     "subwizard.utils.paths",
 ]

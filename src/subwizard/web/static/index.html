@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>SubWizard</title>
+<style>
+  :root { --font: 48px; --bg: #000; --fg: #fff; --dim: rgba(255,255,255,.45); --speaker: #ffd24a; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
+  body { display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+    padding: 4vh 4vw calc(4vh + env(safe-area-inset-bottom)); box-sizing: border-box; }
+  #lines { display: flex; flex-direction: column; gap: .35em; font-size: var(--font); line-height: 1.25; }
+  .line { transition: opacity .25s; text-align: center; overflow-wrap: anywhere; }
+  .line.old { color: var(--dim); font-size: .62em; }
+  .line .speaker { display: block; font-size: .5em; font-weight: 700; color: var(--speaker); letter-spacing: .04em; }
+  .line .src { display: block; font-size: .45em; color: var(--dim); margin-top: .15em; }
+  .line .fb { font-size: .4em; color: var(--dim); margin-left: .4em; }
+  .line.current { font-weight: 600; }
+  #status { position: fixed; top: 10px; right: 12px; font-size: 13px; color: var(--dim); }
+  #status::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; background: #e5484d; vertical-align: middle; }
+  #status.ok::before { background: #30a46c; }
+  #status.ok { opacity: 0; transition: opacity 2s 1s; }
+  body.obs { --bg: transparent; justify-content: flex-end; }
+  body.obs .line { text-shadow: 0 0 4px #000, 0 0 2px #000, 1px 1px 2px #000; }
+  body.obs #status { display: none; }
+</style>
+</head>
+<body>
+<div id="status">…</div>
+<div id="lines"></div>
+<script>
+"use strict";
+const DEFAULTS = /*DEFAULTS*/{};
+const TEXT = Object.assign({connected: "connected", reconnecting: "reconnecting…", fallback: "(fallback)"},
+                           DEFAULTS.text || {});
+const q = new URLSearchParams(location.search);
+const num = (k, d) => (q.has(k) && !isNaN(+q.get(k))) ? +q.get(k) : d;
+const opt = {
+  font: num("font", DEFAULTS.font || 48),
+  lines: Math.max(1, num("lines", DEFAULTS.lines || 3)),
+  source: num("source", DEFAULTS.source || 0) === 1,
+  reconnect: DEFAULTS.reconnect || 1000,
+  obs: location.pathname.replace(/\/$/, "").endsWith("/obs") || q.get("obs") === "1",
+};
+document.documentElement.style.setProperty("--font", opt.font + "px");
+if (opt.obs) document.body.classList.add("obs");
+
+const box = document.getElementById("lines");
+const status = document.getElementById("status");
+let history = [];      // finished + current lines, oldest first
+let showing = false;   // is the newest line still on the game screen?
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+
+function render() {
+  box.replaceChildren();
+  const keep = opt.obs ? (showing ? 1 : 0) : opt.lines;
+  history.slice(-keep).forEach((ev, i, arr) => {
+    const current = showing && i === arr.length - 1;
+    const line = el("div", "line " + (current ? "current" : "old"));
+    if (ev.speaker) line.append(el("span", "speaker", ev.speaker));
+    line.append(document.createTextNode(ev.translation));
+    if (ev.fallback) line.append(el("span", "fb", TEXT.fallback));
+    if (opt.source && ev.source) line.append(el("span", "src", ev.source));
+    box.append(line);
+  });
+}
+
+function onEvent(ev) {
+  if (ev.type === "hello") {
+    history = ev.lines || [];
+    showing = !!ev.showing;
+  } else if (ev.type === "subtitle") {
+    const last = history[history.length - 1];
+    if (last && last.id === ev.id) history[history.length - 1] = ev; else history.push(ev);
+    history = history.slice(-20);
+    showing = true;
+  } else if (ev.type === "clear") {
+    showing = false;
+  }
+  render();
+}
+
+let delay = opt.reconnect;
+function connect() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const token = q.get("t") ? "?t=" + encodeURIComponent(q.get("t")) : "";
+  const ws = new WebSocket(proto + "//" + location.host + "/ws" + token);
+  ws.onopen = () => { status.textContent = TEXT.connected; status.className = "ok"; delay = opt.reconnect; };
+  ws.onmessage = (m) => { try { onEvent(JSON.parse(m.data)); } catch (e) { console.error(e); } };
+  ws.onclose = () => {
+    status.textContent = TEXT.reconnecting; status.className = "";
+    setTimeout(connect, delay);
+    delay = Math.min(delay * 2, 10000);  // back off while the PC is off, recover fast after
+  };
+  ws.onerror = () => ws.close();
+}
+// Keep a phone screen awake while the page is open (where supported).
+if (navigator.wakeLock) {
+  const lock = () => navigator.wakeLock.request("screen").catch(() => {});
+  lock(); document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && lock());
+}
+connect();
+</script>
+</body>
+</html>

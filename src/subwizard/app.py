@@ -6,7 +6,9 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+import signal
+
+from PySide6.QtCore import QCoreApplication, QTimer
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from subwizard import APP_NAME
@@ -46,4 +48,28 @@ def run_gui(config: AppConfig, config_path: Path, calibrate: bool = False) -> in
     window.show()
     if calibrate:  # --calibrate: start the source and open F2 calibration right away
         QTimer.singleShot(0, window.controller.request_calibration)
+    return app.exec()
+
+
+SIGNAL_POLL_MS = 200  # lets Python see Ctrl+C while the Qt loop runs
+
+
+def run_headless(config: AppConfig, config_path: Path) -> int:
+    """`--headless`: no window; capture + OCR + translation, translations on the web
+    overlay only (SPEC 5). Ctrl+C stops."""
+    app = QCoreApplication.instance() or QCoreApplication(sys.argv[:1])
+    app.setApplicationName(APP_NAME)
+    if config.display.mode == "window":
+        config.display.mode = "web"  # without a window, the web page is the only display
+    controller = AppController(config, config_path, parent=app)
+    if not controller.web.running:
+        log.error("Web overlay başlatılamadı: %s", controller.web.error)
+        controller.shutdown()
+        return 1
+    controller.start()
+    signal.signal(signal.SIGINT, lambda *_: app.quit())
+    poll = QTimer()
+    poll.timeout.connect(lambda: None)
+    poll.start(SIGNAL_POLL_MS)
+    print("Ctrl+C: çıkış", flush=True)
     return app.exec()

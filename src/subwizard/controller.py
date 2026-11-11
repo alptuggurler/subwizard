@@ -16,8 +16,9 @@ from subwizard import platform
 from subwizard.audio.devices import guess_capture_input, list_audio_devices
 from subwizard.config import (
     AppConfig,
-    HotkeysConfig,
     AudioProfileName,
+    DisplayMode,
+    HotkeysConfig,
     Language,
     PerfOverlay,
     ThemeMode,
@@ -33,6 +34,8 @@ from subwizard.ocr.worker import OCRState, OCRTick
 from subwizard.pipeline.board import SubtitleView
 from subwizard.translator.test_run import TestOutcome, run_test
 from subwizard.utils.hotkeys import normalize_key
+from subwizard.web.qr import qr_text
+from subwizard.web.server import WebOverlayServer
 from subwizard.sources.base import Frame, SourceError, VideoMode
 from subwizard.sources.runner import SourceState
 
@@ -72,7 +75,8 @@ class AppController(QObject):
     pauseChanged = Signal(bool)  # F8: translation paused
     overlayChanged = Signal()  # an overlay.* setting changed (video + preview repaint)
     hotkeysChanged = Signal()
-    historyChanged = Signal()  # a history entry changed outside the session (retranslate, mark)
+    historyChanged = Signal()
+    webChanged = Signal()  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
     _sourceStateFromThread = Signal(str, str)
@@ -95,6 +99,7 @@ class AppController(QObject):
         i18n.set_language(self.resolved_language())
 
         self.metrics = MetricsHub(config.metrics.short_window_s, config.metrics.long_window_s)
+        self.web = WebOverlayServer(config.web, self.metrics)
         self._sysmon = SystemMonitor(self.metrics)
         self._session = Session(
             config,
@@ -104,7 +109,7 @@ class AppController(QObject):
             on_audio_state=lambda state, msg: self._audioStateFromThread.emit(state.value, msg),
             on_ocr_tick=self._on_ocr_tick,
             on_ocr_state=lambda state, msg: self._ocrStateFromThread.emit(state.value, msg),
-            on_subtitle=self._subtitleFromThread.emit,
+            on_subtitle=self._publish_subtitle,
             on_translated=self.translated.emit,
         )
         self._sourceStateFromThread.connect(self._on_source_state)
@@ -126,6 +131,7 @@ class AppController(QObject):
         app = QCoreApplication.instance()
         if app is not None:
             app.aboutToQuit.connect(self.shutdown)
+        self._apply_display_mode()
 
     # --- persistence ----------------------------------------------------------
     def _save(self, debounce: bool = False) -> None:
@@ -147,6 +153,49 @@ class AppController(QObject):
         if self._save_timer.isActive():
             self.flush()
         self._session.stop()
+        self.web.stop()
+
+    # --- display mode + web overlay (SPEC 3.10) -----------------------------------------
+    def _publish_subtitle(self, view: SubtitleView | None) -> None:
+        """Translator thread: the web page gets the line now, the Qt side via the event
+        loop, so both appear together (M4.5 acceptance: < 100 ms apart)."""
+        self.web.publish_view(view)
+        self._subtitleFromThread.emit(view)
+
+    @property
+    def web_enabled(self) -> bool:
+        return self.config.display.mode in ("web", "both")
+
+    def _apply_display_mode(self) -> None:
+        if self.web_enabled:
+            if not self.web.running and self.web.start():
+                url = self.web.url()
+                # SPEC 3.10: URL + QR on the console too, for scanning with a phone.
+                print(f"\nWeb overlay: {url}\nOBS: {self.web.url('/obs')}\n{qr_text(url)}",
+                      flush=True)  # fmt: skip
+            if self.subtitle is not None:
+                self.web.publish_view(self.subtitle)
+        else:
+            self.web.stop()
+        self.webChanged.emit()
+
+    def set_display_mode(self, mode: DisplayMode) -> None:
+        if mode == self.config.display.mode:
+            return
+        self.config.display.mode = mode
+        self._save()
+        self._apply_display_mode()
+        self.overlayChanged.emit()  # web-only mode hides the subtitle on the PC video
+
+    def set_web_option(self, key: str, value: object) -> None:
+        """Port / host / token need a restart; page defaults apply on the next page load."""
+        setattr(self.config.web, key, value)
+        self._save(debounce=key not in ("port", "host", "token"))
+        if key in ("port", "host", "token") and self.web_enabled:
+            self.web.stop()
+            self._apply_display_mode()
+        else:
+            self.webChanged.emit()
 
     # --- general settings -------------------------------------------------------
     def resolved_language(self) -> str:

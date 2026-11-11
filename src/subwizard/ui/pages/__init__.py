@@ -21,6 +21,7 @@ from subwizard.ui.pages.hotkeys import HotkeysPage
 from subwizard.ui.pages.roi import RoiPage
 from subwizard.ui.pages.settings import SettingsPage
 from subwizard.ui.pages.translate import TranslatePage
+from subwizard.ui.pages.web import WebPage
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,7 @@ PAGES: tuple[PageSpec, ...] = (
     PageSpec(TranslatePage, FluentIcon.LANGUAGE),
     PageSpec(AppearancePage, FluentIcon.PALETTE),
     PageSpec(_placeholder("profiles", "M6"), FluentIcon.GAME),
-    PageSpec(_placeholder("web", "M4.5"), FluentIcon.GLOBE),
+    PageSpec(WebPage, FluentIcon.GLOBE),
     PageSpec(DevicePage, FluentIcon.VIDEO),
     PageSpec(DiagnosticsPage, FluentIcon.SPEED_HIGH),
     PageSpec(HotkeysPage, FluentIcon.COMMAND_PROMPT),

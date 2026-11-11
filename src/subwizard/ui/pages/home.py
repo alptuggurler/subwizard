@@ -51,6 +51,15 @@ def translator_state(c: AppController) -> tuple[str, Grade | None]:
     return t("home.translator.off"), "bad"
 
 
+def web_state(c: AppController) -> tuple[str, Grade | None]:
+    web = c.web
+    if not web.running:
+        if web.error:
+            return t("web.state.error"), "bad"
+        return t("home.state.off"), None
+    return t("web.state.clients", n=web.client_count), "ok" if web.client_count else "warn"
+
+
 class StatusCard(CardWidget):
     """One subsystem: icon, title, colored dot and a one-line state."""
 
@@ -165,6 +174,7 @@ class HomePage(BasePage):
     def _refresh_live(self) -> None:
         """The parts that change with every metrics tick."""
         c, snap = self.controller, self._snapshot
+        self._web_card.set_content(t("home.card.web"), *web_state(c))
         source_state = c.source_state
 
         capture_text = t(f"source.state.{source_state}")
@@ -233,5 +243,4 @@ class HomePage(BasePage):
         self._mode.setText(t("home.mode", mode=t(f"home.mode.{c.config.display.mode}")))
         self._fullscreen.setToolTip(t("home.fullscreen"))
         self._translator_card.set_content(t("home.card.translator"), *translator_state(c))
-        self._web_card.set_content(t("home.card.web"), t("home.state.off"), None)
         self._refresh_live()

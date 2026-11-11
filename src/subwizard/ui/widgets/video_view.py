@@ -149,8 +149,8 @@ class VideoView(QWidget):
     def _draw_subtitle(self, painter: QPainter, target: QRectF, frame: Frame) -> None:
         c = self._controller
         cfg, view = c.config.overlay, c.subtitle
-        if not cfg.visible or view is None:
-            return
+        if not cfg.visible or view is None or c.config.display.mode == "web":
+            return  # Mode B: the game is on the TV; the translation goes to the web page
         dpr = self.devicePixelRatioF()
         roi = c.config.roi
         cover = self._replace_area(frame, target) if cfg.position == "replace" else None

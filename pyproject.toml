@@ -24,6 +24,8 @@ dependencies = [
     "deep-translator>=1.11.4",
     "keyring>=25.7",
     "pynput>=1.8",
+    "aiohttp>=3.10",
+    "qrcode>=8.0",
 ]
 
 [project.scripts]

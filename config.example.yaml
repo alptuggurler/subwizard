@@ -158,5 +158,15 @@ hotkeys:
 display:
   mode: window          # window (Mod A) | web (Mod B) | both
 
+web:                    # web overlay (display.mode web/both): telefon, tablet, OBS
+  host: 0.0.0.0         # yerel ag; 127.0.0.1 = yalnizca bu PC
+  port: 8787
+  token: ""             # doluysa sayfalar ve /ws ?t=<token> ister
+  font_px: 48           # sayfa varsayilanlari; URL ile degisir: ?font=&lines=&source=
+  lines: 3
+  show_source: false
+  reconnect_ms: 1000    # baglanti koparsa sayfa bu aralikla yeniden dener
+  heartbeat_s: 10.0     # WebSocket ping araligi
+
 profile: default
 debug: false
