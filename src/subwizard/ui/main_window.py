@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtGui import QCloseEvent, QShowEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut, QShowEvent
 from PySide6.QtWidgets import QApplication
 from qfluentwidgets import FluentWindow, NavigationItemPosition
 
@@ -16,6 +17,8 @@ from subwizard.ui.pages.base import BasePage
 DEFAULT_SIZE = (1180, 760)
 MIN_SIZE = (900, 600)
 NAV_EXPAND_WIDTH = 240
+HOTKEY_PERF_OVERLAY = "F9"
+HOTKEY_FULLSCREEN = "F11"
 
 
 class MainWindow(FluentWindow):
@@ -43,6 +46,17 @@ class MainWindow(FluentWindow):
             self._nav_items.append(item)
 
         controller.languageChanged.connect(self.retranslate)
+
+        # Window-level keys for now; rebinding and global hotkeys (pynput) arrive in M4.
+        self.home = self.pages[0]
+        for key, action in (
+            (HOTKEY_PERF_OVERLAY, controller.cycle_perf_overlay),
+            (HOTKEY_FULLSCREEN, self.home.toggle_fullscreen),
+        ):
+            shortcut = QShortcut(QKeySequence(key), self)
+            # Application-wide so they also work in the detached fullscreen video window.
+            shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+            shortcut.activated.connect(action)
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)

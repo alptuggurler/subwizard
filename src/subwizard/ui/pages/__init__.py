@@ -12,6 +12,8 @@ from qfluentwidgets import FluentIcon
 
 from subwizard.ui.pages.about import AboutPage
 from subwizard.ui.pages.base import BasePage, PlaceholderPage
+from subwizard.ui.pages.device import DevicePage
+from subwizard.ui.pages.diagnostics import DiagnosticsPage
 from subwizard.ui.pages.home import HomePage
 from subwizard.ui.pages.settings import SettingsPage
 
@@ -35,8 +37,8 @@ PAGES: tuple[PageSpec, ...] = (
     PageSpec(_placeholder("appearance", "M4"), FluentIcon.PALETTE),
     PageSpec(_placeholder("profiles", "M6"), FluentIcon.GAME),
     PageSpec(_placeholder("web", "M4.5"), FluentIcon.GLOBE),
-    PageSpec(_placeholder("device", "M1"), FluentIcon.VIDEO),
-    PageSpec(_placeholder("diagnostics", "M1"), FluentIcon.SPEED_HIGH),
+    PageSpec(DevicePage, FluentIcon.VIDEO),
+    PageSpec(DiagnosticsPage, FluentIcon.SPEED_HIGH),
     PageSpec(_placeholder("hotkeys", "M4"), FluentIcon.COMMAND_PROMPT),
     PageSpec(SettingsPage, FluentIcon.SETTING, bottom=True),
     PageSpec(AboutPage, FluentIcon.INFO, bottom=True),

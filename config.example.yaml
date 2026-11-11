@@ -6,6 +6,8 @@ ui:
   language: auto        # auto | tr | en
   theme: dark           # auto | dark | light
   close_to_tray: true   # kapatma butonu tepsiye kucultur
+  perf_overlay: 'off'   # off | compact | detailed (F9 sirayla gecer)
+  cursor_hide_ms: 2000  # tam ekranda imlec bu kadar hareketsiz kalinca gizlenir
 
 logging:
   level: INFO           # DEBUG | INFO | WARNING | ERROR
@@ -20,11 +22,39 @@ source:
   fps: 60
   fourcc: MJPG
   buffer_size: 1
+  loop: true            # kind: file icin klip bitince basa sar
+  reconnect_initial_s: 0.5   # cihaz kopunca ilk bekleme (her denemede ikiye katlanir)
+  reconnect_max_s: 8.0
+  max_read_failures: 30      # art arda bu kadar kare okunamazsa cihaz kopmus sayilir
 
 audio:
   mode: passthrough     # passthrough | off
-  input_device: null
-  delay_ms: 0           # -200 .. 500
+  input_device: null    # capture card ses girisi (null = secilmedi)
+  output_device: null   # null = sistem varsayilani
+  sample_rate: 48000
+  channels: 2
+  profile: balanced     # low | balanced | safe
+  profiles:             # block: geri cagri basina ornek; buffer_ms: temel gecikme
+    low: {block: 128, buffer_ms: 15}
+    balanced: {block: 256, buffer_ms: 30}
+    safe: {block: 512, buffer_ms: 60}
+  delay_ms: 0           # A/V senkron, -200 .. 500 (ses yalnizca geciktirilebilir)
+  gain_db: 0.0          # -60 .. +6
+  muted: false
+  silence_db: -60.0     # silence_s boyunca bunun altindaysa "ses gelmiyor" uyarisi
+  silence_s: 3.0
+  clip_db: -0.1         # bu seviyede veya ustunde clipping uyarisi
+
+metrics:
+  short_window_s: 2.0
+  long_window_s: 60.0
+  ui_hz: 4.0            # arayuze saniyede kac kez metrik gider
+  fps_warn_ratio: 0.965 # istenen FPS'in bu oraninin alti sari (60 icin 58)
+  fps_bad_ratio: 0.8    # alti kirmizi
+  frame_age_warn_ms: 20.0
+  frame_age_bad_ms: 50.0
+  audio_latency_warn_ms: 80.0
+  audio_latency_bad_ms: 150.0
 
 translator:
   engine: gemini        # gemini | deep

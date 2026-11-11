@@ -1,0 +1,167 @@
+"""Session: one run of the pipeline, from Start to Stop. Qt-free.
+
+M1 wires video source + audio passthrough; OCR and translation hook in here later.
+Callbacks fire on worker threads — the controller turns them into Qt signals.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Callable
+from enum import StrEnum
+
+from subwizard import platform
+from subwizard.audio.base import AudioError, BaseAudioPassthrough
+from subwizard.audio.devices import find_device
+from subwizard.audio.meter import LevelMeter
+from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
+from subwizard.config import AppConfig
+from subwizard.core.metrics import MetricsHub
+from subwizard.sources.base import BaseSource, Frame, LatestSlot, SourceError, VideoMode
+from subwizard.sources.capture_card import CaptureCardSource
+from subwizard.sources.runner import SourceRunner, SourceState
+from subwizard.sources.video_file import VideoFileSource
+
+log = logging.getLogger(__name__)
+
+MAX_AUDIO_DELAY_MS = 500  # upper bound of audio.delay_ms; sizes the delay buffer
+STOP_JOIN_TIMEOUT_S = 3.0
+
+
+class AudioState(StrEnum):
+    OFF = "off"  # disabled in settings, or not applicable (video file)
+    NOT_CONFIGURED = "not_configured"  # no input device chosen yet
+    RUNNING = "running"
+    ERROR = "error"
+
+
+def build_source(config: AppConfig) -> BaseSource:
+    src = config.source
+    if src.kind == "file":
+        if src.path is None:
+            raise SourceError("error.file_not_set")
+        return VideoFileSource(src.path, loop=src.loop)
+    if src.kind == "capture":
+        return CaptureCardSource(
+            src.device,
+            VideoMode(src.width, src.height, float(src.fps), src.fourcc),
+            src.buffer_size,
+            resolve_name=platform.find_video_device,
+        )
+    raise SourceError("error.source_unsupported", kind=src.kind)
+
+
+def build_passthrough(config: AppConfig, metrics: MetricsHub) -> BaseAudioPassthrough:
+    audio = config.audio
+    input_index = find_device(audio.input_device, "input")
+    if input_index is None:
+        raise AudioError("error.audio_input_missing", name=audio.input_device)
+    output_index = find_device(audio.output_device, "output")
+    if audio.output_device and output_index is None:
+        log.warning("Ses çıkışı '%s' bulunamadı; varsayılan kullanılıyor.", audio.output_device)
+    if audio.delay_ms < 0:
+        log.warning("audio.delay_ms negatif (%d): ses öne alınamaz, 0 uygulanıyor.", audio.delay_ms)
+    profile = audio.profiles[audio.profile]
+    settings = PassthroughSettings(
+        input_device=input_index,
+        output_device=output_index,
+        sample_rate=audio.sample_rate,
+        channels=audio.channels,
+        block=profile.block,
+        buffer_ms=profile.buffer_ms,
+        delay_ms=audio.delay_ms,
+        max_delay_ms=MAX_AUDIO_DELAY_MS,
+        gain_db=audio.gain_db,
+        muted=audio.muted,
+    )
+    meter = LevelMeter(metrics, audio.silence_db, audio.silence_s, audio.clip_db)
+    return SoundDevicePassthrough(settings, metrics, meter)
+
+
+class Session:
+    def __init__(
+        self,
+        config: AppConfig,
+        metrics: MetricsHub,
+        *,
+        on_frame: Callable[[], None],
+        on_source_state: Callable[[SourceState, str], None],
+        on_audio_state: Callable[[AudioState, str], None],
+        source_factory: Callable[[AppConfig], BaseSource] = build_source,
+        audio_factory: Callable[[AppConfig, MetricsHub], BaseAudioPassthrough] = build_passthrough,
+    ) -> None:
+        self._config = config
+        self._metrics = metrics
+        self._on_frame = on_frame
+        self._on_source_state = on_source_state
+        self._on_audio_state = on_audio_state
+        self._source_factory = source_factory
+        self._audio_factory = audio_factory
+        self._slot = LatestSlot()
+        self._runner: SourceRunner | None = None
+        self.audio: BaseAudioPassthrough | None = None
+
+    @property
+    def running(self) -> bool:
+        return self._runner is not None
+
+    def latest_frame(self) -> Frame | None:
+        return self._slot.get()
+
+    def start(self) -> None:
+        """Raises SourceError if the source cannot even be constructed."""
+        if self._runner is not None:
+            return
+        self._metrics.clear()
+        source = self._source_factory(self._config)
+        src = self._config.source
+        self._runner = SourceRunner(
+            source,
+            self._slot,
+            self._metrics,
+            on_frame=self._on_frame,
+            on_state=self._on_source_state,
+            reconnect_initial_s=src.reconnect_initial_s,
+            reconnect_max_s=src.reconnect_max_s,
+            max_read_failures=src.max_read_failures,
+        )
+        self._runner.start()
+        self.start_audio()
+
+    def stop(self) -> None:
+        self.stop_audio()
+        runner, self._runner = self._runner, None
+        if runner is not None:
+            runner.stop()
+            runner.join(STOP_JOIN_TIMEOUT_S)
+            if runner.is_alive():
+                log.warning("Kaynak thread'i zamanında durmadı.")
+        self._slot.put(None)
+
+    # --- audio (independent of video: an audio problem never stops the picture) --
+    def start_audio(self) -> None:
+        self.stop_audio(notify=False)
+        audio = self._config.audio
+        if audio.mode == "off" or self._config.source.kind != "capture":
+            self._on_audio_state(AudioState.OFF, "")
+            return
+        if not audio.input_device:
+            self._on_audio_state(AudioState.NOT_CONFIGURED, "")
+            return
+        try:
+            passthrough = self._audio_factory(self._config, self._metrics)
+            passthrough.start()
+        except AudioError as exc:
+            log.error("%s", exc.message)
+            self._on_audio_state(AudioState.ERROR, exc.message)
+            return
+        self.audio = passthrough
+        self._on_audio_state(AudioState.RUNNING, "")
+
+    def stop_audio(self, notify: bool = True) -> None:
+        if self.audio is not None:
+            self.audio.stop()
+            self.audio = None
+        self._metrics.clear("audio.")
+        if notify:
+            self._on_audio_state(AudioState.OFF, "")

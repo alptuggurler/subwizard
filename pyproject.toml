@@ -13,6 +13,11 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "PyYAML>=6.0",
+    "opencv-python-headless>=4.10",
+    "numpy>=2",
+    "sounddevice>=0.5",
+    "psutil>=6",
+    "pygrabber>=0.2 ; sys_platform == 'win32'",
 ]
 
 [project.scripts]
@@ -30,6 +35,7 @@ packages = ["src/subwizard"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "hardware: needs a real capture card / audio device (excluded by default)",
     "ui: needs Qt (runs offscreen)",

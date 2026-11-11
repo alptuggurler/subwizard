@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from subwizard.core.errors import UserError
 
-class AudioError(Exception):
-    """Audio device could not be opened (message is user-facing)."""
+
+class AudioError(UserError):
+    """Audio device could not be opened (carries a solution-oriented i18n message)."""
 
 
 class BaseAudioPassthrough(ABC):

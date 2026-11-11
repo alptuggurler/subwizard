@@ -50,7 +50,7 @@ def test_invalid_config_exits_with_message(tmp_path, capsys):
     assert "source.fps" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("flag", ["--list-devices", "--calibrate", "--headless"])
+@pytest.mark.parametrize("flag", ["--calibrate", "--headless"])
 def test_unbuilt_flags_fail_loudly_instead_of_opening_gui(tmp_path, monkeypatch, flag):
     monkeypatch.setattr(cli, "default_log_dir", lambda: tmp_path / "logs")
     assert cli.main(["--config", str(tmp_path / "config.yaml"), flag]) == cli.EXIT_NOT_IMPLEMENTED

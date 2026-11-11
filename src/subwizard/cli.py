@@ -10,6 +10,7 @@ from typing import Any
 
 from subwizard import APP_NAME, __version__
 from subwizard.config import ConfigError, load_config
+from subwizard.i18n import detect_system_language, i18n
 from subwizard.utils.logging import setup_logging
 from subwizard.utils.paths import default_config_path, default_log_dir
 
@@ -68,6 +69,27 @@ def overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
     return out
 
 
+def print_devices() -> None:
+    """--list-devices: video + audio devices, as the names config.yaml accepts."""
+    from subwizard import platform
+    from subwizard.audio.devices import list_audio_devices
+    from subwizard.i18n import t
+
+    print(t("cli.video_devices"))
+    video = platform.list_video_devices()
+    if not video:
+        print("  " + t("cli.no_video_devices"))
+    for device in video:
+        print(f"  [{device.index}] {device.name}")
+        for mode in platform.list_video_modes(device.index):
+            print(f"        {mode}")
+    for kind, title in (("input", "cli.audio_inputs"), ("output", "cli.audio_outputs")):
+        print(t(title))
+        for device in list_audio_devices(kind):
+            default = " *" if device.is_default else ""
+            print(f"  [{device.index}] {device.name} ({device.hostapi}, {device.sample_rate} Hz){default}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -81,12 +103,20 @@ def main(argv: list[str] | None = None) -> int:
         print(exc, file=sys.stderr)
         return EXIT_CONFIG_ERROR
 
+    # Messages printed before the UI exists (errors, --list-devices) follow the
+    # configured language too; the controller refines "auto" via Qt later.
+    language = config.ui.language
+    i18n.set_language(detect_system_language() if language == "auto" else language)
+
     log_file = setup_logging(config.logging.level, config.logging.dir or default_log_dir())
     log.info("%s %s başlıyor (ayar: %s, log: %s)", APP_NAME, __version__, config_path, log_file)
 
     # Not built yet: say so and exit non-zero rather than silently opening the GUI.
+    if args.list_devices:
+        print_devices()
+        return EXIT_OK
+
     pending = {
-        "--list-devices": (args.list_devices, "M1"),
         "--calibrate": (args.calibrate, "M2"),
         "--headless": (args.headless, "M4.5"),
     }

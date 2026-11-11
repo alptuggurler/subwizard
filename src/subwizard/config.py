@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 
 Language = Literal["auto", "tr", "en"]
 ThemeMode = Literal["auto", "dark", "light"]
+PerfOverlay = Literal["off", "compact", "detailed"]
+AudioProfileName = Literal["low", "balanced", "safe"]
 
 
 class ConfigError(Exception):
@@ -34,6 +36,8 @@ class UIConfig(_Section):
     language: Language = "auto"
     theme: ThemeMode = "dark"
     close_to_tray: bool = True
+    perf_overlay: PerfOverlay = "off"  # F9 cycles off -> compact -> detailed
+    cursor_hide_ms: int = Field(2000, ge=0)  # fullscreen: hide idle cursor after this
 
 
 class LoggingConfig(_Section):
@@ -50,12 +54,52 @@ class SourceConfig(_Section):
     fps: int = Field(60, gt=0)
     fourcc: str = Field("MJPG", min_length=4, max_length=4)
     buffer_size: int = Field(1, ge=1)
+    loop: bool = True  # kind: file — restart the clip when it ends
+    reconnect_initial_s: float = Field(0.5, gt=0)  # backoff after a lost device
+    reconnect_max_s: float = Field(8.0, gt=0)
+    max_read_failures: int = Field(30, ge=1)  # consecutive failed reads = device lost
+
+
+class AudioProfile(_Section):
+    block: int = Field(gt=0)  # frames per callback
+    buffer_ms: int = Field(ge=0)  # baseline delay between input and output
+
+
+def _default_profiles() -> dict[str, AudioProfile]:
+    return {
+        "low": AudioProfile(block=128, buffer_ms=15),
+        "balanced": AudioProfile(block=256, buffer_ms=30),
+        "safe": AudioProfile(block=512, buffer_ms=60),
+    }
 
 
 class AudioConfig(_Section):
     mode: Literal["passthrough", "off"] = "passthrough"
-    input_device: str | None = None
-    delay_ms: int = Field(0, ge=-200, le=500)
+    input_device: str | None = None  # null = not chosen yet
+    output_device: str | None = None  # null = system default
+    sample_rate: int = Field(48000, gt=0)
+    channels: int = Field(2, ge=1, le=2)
+    profile: AudioProfileName = "balanced"
+    profiles: dict[str, AudioProfile] = Field(default_factory=_default_profiles)
+    delay_ms: int = Field(0, ge=-200, le=500)  # A/V sync; audio can only be delayed
+    gain_db: float = Field(0.0, ge=-60.0, le=6.0)
+    muted: bool = False
+    silence_db: float = -60.0  # below this for silence_s = "no audio" warning
+    silence_s: float = Field(3.0, gt=0)
+    clip_db: float = -0.1  # at or above this = clipping warning
+
+
+class MetricsConfig(_Section):
+    short_window_s: float = Field(2.0, gt=0)
+    long_window_s: float = Field(60.0, gt=0)
+    ui_hz: float = Field(4.0, gt=0)  # how often the UI gets a snapshot
+    # Color thresholds (green / yellow / red). FPS is relative to the requested rate.
+    fps_warn_ratio: float = Field(0.965, gt=0, le=1)  # 58 of 60
+    fps_bad_ratio: float = Field(0.8, gt=0, le=1)
+    frame_age_warn_ms: float = Field(20.0, gt=0)
+    frame_age_bad_ms: float = Field(50.0, gt=0)
+    audio_latency_warn_ms: float = Field(80.0, gt=0)
+    audio_latency_bad_ms: float = Field(150.0, gt=0)
 
 
 class TranslatorConfig(_Section):
@@ -81,6 +125,7 @@ class AppConfig(BaseSettings):
     logging: LoggingConfig = LoggingConfig()
     source: SourceConfig = SourceConfig()
     audio: AudioConfig = AudioConfig()
+    metrics: MetricsConfig = MetricsConfig()
     translator: TranslatorConfig = TranslatorConfig()
     display: DisplayConfig = DisplayConfig()
     profile: str = "default"
