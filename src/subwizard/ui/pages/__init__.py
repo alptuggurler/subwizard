@@ -17,6 +17,7 @@ from subwizard.ui.pages.diagnostics import DiagnosticsPage
 from subwizard.ui.pages.home import HomePage
 from subwizard.ui.pages.roi import RoiPage
 from subwizard.ui.pages.settings import SettingsPage
+from subwizard.ui.pages.translate import TranslatePage
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ PAGES: tuple[PageSpec, ...] = (
     PageSpec(HomePage, FluentIcon.HOME),
     PageSpec(_placeholder("history", "M4"), FluentIcon.HISTORY),
     PageSpec(RoiPage, FluentIcon.ZOOM_IN),
-    PageSpec(_placeholder("translate", "M3"), FluentIcon.LANGUAGE),
+    PageSpec(TranslatePage, FluentIcon.LANGUAGE),
     PageSpec(_placeholder("appearance", "M4"), FluentIcon.PALETTE),
     PageSpec(_placeholder("profiles", "M6"), FluentIcon.GAME),
     PageSpec(_placeholder("web", "M4.5"), FluentIcon.GLOBE),

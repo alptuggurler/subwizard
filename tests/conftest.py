@@ -44,3 +44,49 @@ class FakeClock:
 @pytest.fixture
 def clock() -> FakeClock:
     return FakeClock()
+
+
+class MemoryKeyring:
+    """Stands in for the OS credential store: tests never touch the real Keychain."""
+
+    def __init__(self) -> None:
+        self.store: dict[tuple[str, str], str] = {}
+
+    def get_password(self, service, user):
+        return self.store.get((service, user))
+
+    def set_password(self, service, user, password):
+        self.store[(service, user)] = password
+
+    def delete_password(self, service, user):
+        from keyring.errors import PasswordDeleteError
+
+        if self.store.pop((service, user), None) is None:
+            raise PasswordDeleteError("not set")
+
+
+def fake_google_translate(self, text: str) -> str:
+    return f"[tr] {text}"
+
+
+@pytest.fixture(autouse=True)
+def isolated_user_state(tmp_path, monkeypatch, request):
+    """Every test gets its own user data dir (config, logs, translation cache), no real
+    API keys, an in-memory keyring and an offline fallback translator. Tests marked
+    `network` keep the real fallback."""
+    import keyring
+
+    data = tmp_path / "userdata"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(data))
+    monkeypatch.setenv("APPDATA", str(data))
+    for name in ("GEMINI_API_KEY", "GEMINI_API_KEYS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.chdir(tmp_path)  # a developer's ./.env must not leak into tests
+    memory = MemoryKeyring()
+    for name in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, name, getattr(memory, name))
+    if request.node.get_closest_marker("network") is None:
+        from subwizard.translator.deep import DeepTranslatorFallback
+
+        monkeypatch.setattr(DeepTranslatorFallback, "_google", fake_google_translate)
+    return memory

@@ -16,6 +16,7 @@ from PySide6.QtGui import (
     QPainter,
     QPaintEvent,
     QPen,
+    QPixmap,
 )
 from PySide6.QtWidgets import QWidget
 
@@ -25,6 +26,7 @@ from subwizard.i18n import t
 from subwizard.ocr.roi import Rect
 from subwizard.sources.base import Frame
 from subwizard.ui.metrics_view import GRADE_COLORS, metric_rows
+from subwizard.ui.subtitle_paint import PaintKey, place, render_subtitle
 from subwizard.utils import timing
 
 OVERLAY_MARGIN = 12
@@ -54,6 +56,8 @@ class VideoView(QWidget):
         self._last_painted = -1
         self._snapshot: Snapshot | None = None
         self._placeholder = ""
+        self._subtitle_key: PaintKey | None = None
+        self._subtitle_pixmap: QPixmap | None = None
         self.fullscreen = False
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -67,6 +71,7 @@ class VideoView(QWidget):
         controller.runningChanged.connect(self.update)
         controller.perfOverlayChanged.connect(self.update)
         controller.metricsUpdated.connect(self._on_metrics)
+        controller.subtitleChanged.connect(self.update)
 
     def set_placeholder(self, text: str) -> None:
         """Shown centered while there is no frame (stopped, connecting, error)."""
@@ -113,6 +118,8 @@ class VideoView(QWidget):
         painter.drawImage(target, qimage)
         if self._measure and self._controller.config.ui.perf_overlay == "detailed":
             self._draw_region(painter, target)
+        if self._controller.subtitle is not None:
+            self._draw_subtitle(painter, target)
 
         if self._measure and frame.index != self._last_painted:
             # Count only frames that are new on screen: repainting the same frame
@@ -121,6 +128,20 @@ class VideoView(QWidget):
             metrics = self._controller.metrics
             metrics.tick(M.RENDER_FPS)
             metrics.observe(M.RENDER_FRAME_AGE_MS, timing.ms_since(frame.timestamp))
+
+    def _draw_subtitle(self, painter: QPainter, target: QRectF) -> None:
+        view = self._controller.subtitle
+        dpr = self.devicePixelRatioF()
+        key = PaintKey(view.line_id, view.text, round(target.width()), round(target.height()), dpr)
+        if key != self._subtitle_key:  # re-rendered only when text or size changes
+            self._subtitle_key = key
+            self._subtitle_pixmap = render_subtitle(view, key.width, key.height, dpr,
+                                                    t("subtitle.fallback"))  # fmt: skip
+        pixmap = self._subtitle_pixmap
+        roi = self._controller.config.roi
+        box = place(pixmap.width() / dpr, pixmap.height() / dpr, target,
+                    roi.rect[1], roi.rect[1] + roi.rect[3])  # fmt: skip
+        painter.drawPixmap(box.topLeft(), pixmap)
 
     def _draw_region(self, painter: QPainter, target: QRectF) -> None:
         """Debug view: where OCR is looking (solid) and what it really reads (dashed)."""

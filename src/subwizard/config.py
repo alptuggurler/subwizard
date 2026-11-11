@@ -144,13 +144,56 @@ class MetricsConfig(_Section):
     audio_latency_bad_ms: float = Field(150.0, gt=0)
     ocr_ms_warn: float = Field(250.0, gt=0)  # one OCR call
     ocr_ms_bad: float = Field(600.0, gt=0)
+    translate_ms_warn: float = Field(1000.0, gt=0)  # one translation (cache misses)
+    translate_ms_bad: float = Field(2500.0, gt=0)
+    subtitle_ms_warn: float = Field(1500.0, gt=0)  # subtitle seen -> translation shown
+    subtitle_ms_bad: float = Field(3000.0, gt=0)
+
+
+class SubtitleConfig(_Section):
+    """The subtitle state machine (SPEC 3.5)."""
+
+    similarity: float = Field(0.85, ge=0, le=1)  # same line if at least this similar
+    stable_repeats: int = Field(1, ge=0)  # extra sightings before a line is final
+    empty_ticks: int = Field(2, ge=1)  # empty reads before the line counts as gone
+    min_chars: int = Field(3, ge=0)  # shorter texts are noise
+    min_letter_ratio: float = Field(0.5, ge=0, le=1)  # share of letters among non-spaces
+    ignore_phrases: list[str] = Field(default_factory=list)  # regexes, removed before use
+    # "LUCIA: ...", "Jason: ...": 1-3 capitalised words before a colon.
+    speaker_pattern: str = r"^((?:[A-Z][\w'.-]*\s?){1,3}):\s+"
+    min_display_ms: int = Field(1500, ge=0)  # a shown translation stays at least this long
+
+
+class ModelPrice(_Section):
+    input: float = Field(ge=0)  # USD per 1M tokens
+    output: float = Field(ge=0)  # USD per 1M tokens, thinking tokens included
+
+
+def _default_prices() -> dict[str, ModelPrice]:
+    # Paid tier, standard, checked against ai.google.dev pricing on 2026-11-12.
+    return {
+        "gemini-3.5-flash-lite": ModelPrice(input=0.30, output=2.50),
+        "gemini-3.1-flash-lite": ModelPrice(input=0.25, output=1.50),
+        "gemini-3.6-flash": ModelPrice(input=0.75, output=3.75),
+    }
 
 
 class TranslatorConfig(_Section):
     engine: Literal["gemini", "deep"] = "gemini"
     model: str = "gemini-3.5-flash-lite"
+    source_language: str = "en"
+    target_language: str = "tr"
     context_lines: int = Field(5, ge=0)
-    timeout_s: float = Field(2.5, gt=0)
+    timeout_s: float = Field(2.5, gt=0)  # per Gemini request; on timeout -> fallback
+    retries: int = Field(1, ge=0)  # extra tries on server / network errors
+    thinking_level: Literal["minimal", "low", "medium", "high"] = "minimal"
+    quota_cooldown_s: float = Field(60.0, ge=0)  # a key that hit 429 rests this long
+    system_prompt: str = ""  # empty = built-in prompt (translator/prompt.py)
+    fallback: bool = True  # use deep-translator when Gemini fails or has no key
+    fallback_timeout_s: float = Field(4.0, gt=0)
+    cache_size: int = Field(2000, ge=0)  # in-memory LRU entries
+    disk_cache: bool = True  # cache/translations.sqlite, kept across sessions
+    prices: dict[str, ModelPrice] = Field(default_factory=_default_prices)
 
 
 class DisplayConfig(_Section):
@@ -172,6 +215,7 @@ class AppConfig(BaseSettings):
     metrics: MetricsConfig = MetricsConfig()
     roi: RoiConfig = RoiConfig()
     ocr: OCRConfig = OCRConfig()
+    subtitle: SubtitleConfig = SubtitleConfig()
     translator: TranslatorConfig = TranslatorConfig()
     display: DisplayConfig = DisplayConfig()
     profile: str = "default"

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -40,10 +41,20 @@ def main() -> int:
     parser.add_argument("--clip", type=Path, help="run the pipeline on this video")
     parser.add_argument("--overlay", choices=["off", "compact", "detailed"], default="off")
     parser.add_argument("--warmup", type=float, default=3.0, help="seconds before grabbing")
+    parser.add_argument("--offline-translation", action="store_true",
+                        help="replace Google Translate with a local stand-in (no network): "
+                             "measures the pipeline itself, not the translation service")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
+    if args.offline_translation:
+        from subwizard.translator.deep import DeepTranslatorFallback
+
+        DeepTranslatorFallback._google = lambda self, text: f"[TR] {text}"
+
     with tempfile.TemporaryDirectory() as tmp:
+        # Throwaway user data dir too: the translation cache must not touch the real one.
+        os.environ["XDG_CONFIG_HOME"] = os.environ["APPDATA"] = tmp
         config_path = Path(tmp) / "config.yaml"
         overrides = {
             "ui": {"language": args.lang, "theme": args.theme, "perf_overlay": args.overlay}
@@ -76,6 +87,12 @@ def main() -> int:
             print(f"OCR: {runs.long:.2f} runs/s of {ticks.long:.2f} checks/s "
                   f"({skipped:.0%} skipped), {ms.mean_long:.0f} ms avg / "
                   f"{ms.worst_long:.0f} ms worst, text: {snap.gauge(M.OCR_TEXT)!r}")
+            sub, tr = snap.stat(M.SUB_LATENCY_MS), snap.stat(M.TR_MS)
+            print(f"subtitle seen -> translated: {sub.mean_long:.0f} ms avg / "
+                  f"{sub.worst_long:.0f} ms worst; translation call {tr.mean_long:.0f} ms avg; "
+                  f"lines {snap.rate(M.SUB_LINES).long * 60:.0f}/min, "
+                  f"fallbacks {snap.counter(M.TR_FALLBACKS)}, errors {snap.counter(M.TR_ERRORS)}; "
+                  f"last: {snap.gauge(M.TR_TEXT)!r}")
         for page in window.pages:
             window.switchTo(page)
             _settle()

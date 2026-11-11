@@ -22,12 +22,15 @@ from subwizard.config import (
     ThemeMode,
     save_config,
 )
+from subwizard.core import secrets
 from subwizard.core.metrics import MetricsHub, Snapshot
 from subwizard.core.session import AudioState, Session
 from subwizard.core.sysmon import SystemMonitor
 from subwizard.i18n import i18n, match_language
 from subwizard.ocr.roi import TEMPLATES, Rect
 from subwizard.ocr.worker import OCRState, OCRTick
+from subwizard.pipeline.board import SubtitleView
+from subwizard.translator.test_run import TestOutcome, run_test
 from subwizard.sources.base import Frame, SourceError, VideoMode
 from subwizard.sources.runner import SourceState
 
@@ -50,11 +53,15 @@ class AppController(QObject):
     ocrTick = Signal(object)  # OCRTick, from the OCR thread at up to `ocr.hz`
     ocrStateChanged = Signal(str, str)  # OCRState value, error message ("" if none)
     calibrateRequested = Signal()  # F2 / --calibrate: open the region calibration
+    subtitleChanged = Signal(object)  # SubtitleView | None: the translation on screen
+    translated = Signal(object)  # Translated: every finished line (history, M4)
+    translationTested = Signal(object)  # TestOutcome from test_translation()
 
     # Worker threads emit these; the slots then run on the Qt thread.
     _sourceStateFromThread = Signal(str, str)
     _audioStateFromThread = Signal(str, str)
     _ocrStateFromThread = Signal(str, str)
+    _subtitleFromThread = Signal(object)
 
     def __init__(self, config: AppConfig, config_path: Path, parent: QObject | None = None):
         super().__init__(parent)
@@ -80,10 +87,15 @@ class AppController(QObject):
             on_audio_state=lambda state, msg: self._audioStateFromThread.emit(state.value, msg),
             on_ocr_tick=self._on_ocr_tick,
             on_ocr_state=lambda state, msg: self._ocrStateFromThread.emit(state.value, msg),
+            on_subtitle=self._subtitleFromThread.emit,
+            on_translated=self.translated.emit,
         )
         self._sourceStateFromThread.connect(self._on_source_state)
         self._audioStateFromThread.connect(self._on_audio_state)
         self._ocrStateFromThread.connect(self._on_ocr_state)
+        self._subtitleFromThread.connect(self._on_subtitle)
+        self.subtitle: SubtitleView | None = None
+        self._key_status: tuple[int, str] | None = None
 
         self._metrics_timer = QTimer(self)
         self._metrics_timer.setInterval(int(1000 / config.metrics.ui_hz))
@@ -234,6 +246,11 @@ class AppController(QObject):
         self.ocr_state, self.ocr_message = state, message
         self.ocrStateChanged.emit(state, message)
 
+    @Slot(object)
+    def _on_subtitle(self, view: SubtitleView | None) -> None:
+        self.subtitle = view
+        self.subtitleChanged.emit(view)
+
     def force_ocr(self) -> None:
         self._session.force_ocr()
 
@@ -368,6 +385,82 @@ class AppController(QObject):
         setattr(prep, key, value)
         self.force_ocr()
         self._save()
+
+    # --- translation (SPEC 3.6) -------------------------------------------------------
+    def _translation_changed(self) -> None:
+        self._save()
+        self._session.restart_translation()
+        self.settingsChanged.emit()
+
+    def set_translator_engine(self, engine: str) -> None:
+        self.config.translator.engine = engine
+        self._translation_changed()
+
+    def set_translator_model(self, model: str) -> None:
+        self.config.translator.model = model
+        self._translation_changed()
+
+    def set_context_lines(self, lines: int) -> None:
+        self.config.translator.context_lines = lines
+        self._save(debounce=True)  # read per request: no restart needed
+
+    def set_fallback_enabled(self, enabled: bool) -> None:
+        self.config.translator.fallback = enabled
+        self._translation_changed()
+
+    def api_key_status(self) -> tuple[int, str]:
+        """(number of keys, where from: "env" | "keyring" | ""). Cached: the credential
+        store is slow to ask and pages ask on every refresh."""
+        if self._key_status is None:
+            keys, source = secrets.load_api_keys()
+            self._key_status = (len(keys), source)
+        return self._key_status
+
+    def set_api_keys(self, text: str) -> None:
+        """Comma or newline separated; empty removes the saved keys."""
+        keys = secrets.split_keys(text)
+        secrets.save_api_keys(keys)
+        self._key_status = None
+        log.info("API anahtarları kaydedildi: %d anahtar (%s)", len(keys),
+                 ", ".join(secrets.mask(k) for k in keys) or "yok")  # fmt: skip
+        self._session.restart_translation()
+        self.settingsChanged.emit()
+
+    def test_translation(self, text: str) -> None:
+        """Translate `text` once with the current settings on a helper thread; the
+        outcome arrives through `translationTested`. Bypasses the cache."""
+        import threading
+
+        config = self.config.model_copy(deep=True)
+        threading.Thread(
+            target=lambda: self.translationTested.emit(run_test(config, text)),
+            name="translate-test", daemon=True,
+        ).start()  # fmt: skip
+
+    def translation_cache_size(self) -> int:
+        service = self._session.translation
+        if service is not None:
+            return len(service.cache)
+        from subwizard.translator.service import open_cache
+
+        cache = open_cache(self.config)
+        try:
+            return len(cache)
+        finally:
+            cache.close()
+
+    def clear_translation_cache(self) -> None:
+        service = self._session.translation
+        if service is not None:
+            service.cache.clear()
+        else:
+            from subwizard.translator.service import open_cache
+
+            cache = open_cache(self.config)
+            cache.clear()
+            cache.close()
+        log.info("Çeviri önbelleği temizlendi.")
+        self.settingsChanged.emit()
 
     def request_calibration(self) -> None:
         """F2: calibrate on a frozen frame; starts the source first if needed."""

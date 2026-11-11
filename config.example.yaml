@@ -57,6 +57,10 @@ metrics:
   audio_latency_bad_ms: 150.0
   ocr_ms_warn: 250.0    # tek OCR cagrisinin suresi
   ocr_ms_bad: 600.0
+  translate_ms_warn: 1000.0   # tek ceviri (onbellekte yoksa)
+  translate_ms_bad: 2500.0
+  subtitle_ms_warn: 1500.0    # altyazi goruldu -> ceviri ekranda
+  subtitle_ms_bad: 3000.0
 
 roi:
   template: bottom_center   # bottom_center | bottom_wide | lower_half | top | custom
@@ -91,11 +95,35 @@ ocr:
       mask_min_value: 180
       mask_max_saturation: 60
 
+subtitle:                   # altyazi durum makinesi
+  similarity: 0.85          # en az bu kadar benzer metin "ayni satir" sayilir
+  stable_repeats: 1         # satir kesinlesmeden once kac kez daha gorulmeli
+  empty_ticks: 2            # alan bu kadar okuma bos kalinca altyazi bitti sayilir
+  min_chars: 3              # daha kisa metinler gurultu
+  min_letter_ratio: 0.5     # harf orani bunun altindaysa gurultu
+  ignore_phrases: []        # cevrilmeyecek ifadeler (regex), or. "Press .* to skip"
+  speaker_pattern: "^((?:[A-Z][\\w'.-]*\\s?){1,3}):\\s+"   # "LUCIA: ..." konusmaci adi
+  min_display_ms: 1500      # ceviri ekranda en az bu kadar kalir
+
 translator:
-  engine: gemini        # gemini | deep
+  engine: gemini            # gemini | deep (deep = anahtarsiz, ucretsiz, daha dusuk kalite)
   model: gemini-3.5-flash-lite
-  context_lines: 5
-  timeout_s: 2.5
+  source_language: en
+  target_language: tr
+  context_lines: 5          # son kac satir baglam olarak gonderilir
+  timeout_s: 2.5            # Gemini istegi bu surede donmezse yedek cevirmen
+  retries: 1                # sunucu/ag hatasinda tekrar deneme sayisi
+  thinking_level: minimal   # minimal | low | medium | high (dusuk = hizli)
+  quota_cooldown_s: 60.0    # kotasi dolan anahtar bu kadar dinlendirilir
+  system_prompt: ""         # bos = yerlesik prompt
+  fallback: true            # Gemini olmazsa deep-translator kullan
+  fallback_timeout_s: 4.0
+  cache_size: 2000          # bellekteki ceviri onbellegi
+  disk_cache: true          # cache/translations.sqlite (oturumlar arasi)
+  prices:                   # USD / 1M token (ucretli katman, 2026-11-12)
+    gemini-3.5-flash-lite: {input: 0.30, output: 2.50}
+    gemini-3.1-flash-lite: {input: 0.25, output: 1.50}
+    gemini-3.6-flash: {input: 0.75, output: 3.75}
 
 display:
   mode: window          # window (Mod A) | web (Mod B) | both

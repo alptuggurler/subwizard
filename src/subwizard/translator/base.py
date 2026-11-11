@@ -22,6 +22,8 @@ class TranslationResult:
     cached: bool = False
     input_tokens: int = 0
     output_tokens: int = 0
+    fallback: bool = False  # produced by the fallback engine (overlay shows "(yedek)")
+    cost_usd: float = 0.0
 
 
 class TranslationError(Exception):

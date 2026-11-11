@@ -110,8 +110,9 @@ def metric_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
                     f"{under} / {over}" if under is not None else DASH,
                     ("warn" if under or over else "ok") if under is not None else None))  # fmt: skip
 
-    # --- OCR
+    # --- OCR, translation
     rows.extend(_ocr_rows(snap, config))
+    rows.extend(_translation_rows(snap, config))
 
     # --- system
     cpu_proc, cpu_total = snap.gauge(M.SYS_CPU_PROC, 0.0), snap.gauge(M.SYS_CPU_TOTAL, 0.0)
@@ -151,6 +152,40 @@ def _ocr_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
     if text and len(text) > OCR_TEXT_MAX_CHARS:
         text = text[: OCR_TEXT_MAX_CHARS - 1] + "…"
     rows.append(Row(ocr, "diag.ocr_text", text or DASH))
+    return rows
+
+
+def _ms_pair(stat) -> tuple[float, float]:  # noqa: ANN001
+    """Short window if it has samples, else the long one (translations are sparse)."""
+    return (stat.mean, stat.worst) if stat.count else (stat.mean_long, stat.worst_long)
+
+
+def _translation_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
+    m = config.metrics
+    sec = "diag.section.translation"
+    rows = [Row(sec, "diag.tr_engine", snap.gauge(M.TR_ENGINE) or DASH)]
+    mean, worst = _ms_pair(snap.stat(M.SUB_LATENCY_MS))
+    rows.append(Row(sec, "diag.sub_latency",
+                    f"{mean:.0f} / {worst:.0f} ms" if mean else DASH,
+                    grade(mean, m.subtitle_ms_warn, m.subtitle_ms_bad) if mean else None,
+                    compact=True))  # fmt: skip
+    mean, worst = _ms_pair(snap.stat(M.TR_MS))
+    rows.append(Row(sec, "diag.tr_ms", f"{mean:.0f} / {worst:.0f} ms" if mean else DASH,
+                    grade(mean, m.translate_ms_warn, m.translate_ms_bad) if mean else None))  # fmt: skip
+    requests, hits = snap.counter(M.TR_REQUESTS), snap.counter(M.TR_CACHE_HITS)
+    fallbacks, errors = snap.counter(M.TR_FALLBACKS), snap.counter(M.TR_ERRORS)
+    rows.append(Row(sec, "diag.tr_counts", f"{requests} / {hits} / {fallbacks} / {errors}",
+                    "warn" if fallbacks or errors else None))  # fmt: skip
+    rows.append(Row(sec, "diag.tr_tokens",
+                    f"{snap.counter(M.TR_TOKENS_IN)} / {snap.counter(M.TR_TOKENS_OUT)}"))  # fmt: skip
+    cost, per_hour = snap.gauge(M.TR_COST), snap.gauge(M.TR_COST_PER_HOUR)
+    rows.append(Row(sec, "diag.tr_cost",
+                    f"${cost:.4f}  (~${per_hour or 0:.3f}/h)" if cost is not None else DASH,
+                    compact=True))  # fmt: skip
+    text = snap.gauge(M.TR_TEXT)
+    if text and len(text) > OCR_TEXT_MAX_CHARS:
+        text = text[: OCR_TEXT_MAX_CHARS - 1] + "…"
+    rows.append(Row(sec, "diag.tr_text", text or DASH))
     return rows
 
 

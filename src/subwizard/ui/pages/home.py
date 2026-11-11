@@ -38,6 +38,19 @@ SOURCE_GRADES: dict[str, Grade | None] = {
 }
 
 
+def translator_state(c: AppController) -> tuple[str, Grade | None]:
+    """One line for the Home card: which engine will translate, and is it set up."""
+    tr = c.config.translator
+    if tr.engine == "deep":
+        return t("home.translator.deep"), "ok"
+    keys, _source = c.api_key_status()
+    if keys:
+        return t("home.translator.gemini", model=tr.model, keys=keys), "ok"
+    if tr.fallback:
+        return t("home.translator.no_key"), "warn"
+    return t("home.translator.off"), "bad"
+
+
 class StatusCard(CardWidget):
     """One subsystem: icon, title, colored dot and a one-line state."""
 
@@ -219,8 +232,6 @@ class HomePage(BasePage):
         self._status.setText(t("home.status.running") if c.running else t("home.status.idle"))
         self._mode.setText(t("home.mode", mode=t(f"home.mode.{c.config.display.mode}")))
         self._fullscreen.setToolTip(t("home.fullscreen"))
-        self._translator_card.set_content(
-            t("home.card.translator"), t("home.state.not_configured"), None
-        )
+        self._translator_card.set_content(t("home.card.translator"), *translator_state(c))
         self._web_card.set_content(t("home.card.web"), t("home.state.off"), None)
         self._refresh_live()

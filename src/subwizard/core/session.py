@@ -1,6 +1,6 @@
 """Session: one run of the pipeline, from Start to Stop. Qt-free.
 
-M1 wires video source + audio passthrough; OCR and translation hook in here later.
+Wires video source, audio passthrough, OCR, the subtitle state machine and translation.
 Callbacks fire on worker threads — the controller turns them into Qt signals.
 """
 
@@ -16,13 +16,18 @@ from subwizard.audio.devices import AudioDevice, find_device, list_audio_devices
 from subwizard.audio.meter import LevelMeter
 from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
 from subwizard.config import AppConfig
-from subwizard.core.metrics import MetricsHub
+from subwizard.core.metrics import M, MetricsHub
 from subwizard.ocr.base import BaseOCR
 from subwizard.ocr.worker import OCRState, OCRTick, OCRWorker, build_ocr
+from subwizard.pipeline.board import SubtitleBoard, SubtitleView
+from subwizard.pipeline.subtitle_state import LineCleared, LineStable, SubtitleStateMachine
+from subwizard.pipeline.translate_worker import TranslateWorker, Translated
+from subwizard.translator.service import TranslationService, build_service
 from subwizard.sources.base import BaseSource, Frame, LatestSlot, SourceError, VideoMode
 from subwizard.sources.capture_card import CaptureCardSource
 from subwizard.sources.runner import SourceRunner, SourceState
 from subwizard.sources.video_file import VideoFileSource
+from subwizard.utils import timing
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +116,11 @@ class Session:
         source_factory: Callable[[AppConfig], BaseSource] = build_source,
         audio_factory: Callable[[AppConfig, MetricsHub], BaseAudioPassthrough] = build_passthrough,
         ocr_factory: Callable[[AppConfig], BaseOCR] | None = build_ocr,
+        on_subtitle: Callable[[SubtitleView | None], None] = lambda view: None,
+        on_translated: Callable[[Translated], None] = lambda item: None,
+        translate_factory: Callable[[AppConfig, MetricsHub], TranslationService] | None = (
+            build_service
+        ),
     ) -> None:
         self._config = config
         self._metrics = metrics
@@ -123,6 +133,12 @@ class Session:
         self._on_ocr_tick = on_ocr_tick
         self._on_ocr_state = on_ocr_state
         self._ocr: OCRWorker | None = None
+        self._on_subtitle = on_subtitle
+        self._on_translated = on_translated
+        self._translate_factory = translate_factory  # None disables translation
+        self._translator: TranslateWorker | None = None
+        self._states = SubtitleStateMachine(config.subtitle)
+        self._board = SubtitleBoard(config.subtitle.min_display_ms)
         self._slot = LatestSlot()
         self._runner: SourceRunner | None = None
         self.audio: BaseAudioPassthrough | None = None
@@ -153,13 +169,69 @@ class Session:
         )
         self._runner.start()
         self.start_audio()
+        self._states = SubtitleStateMachine(self._config.subtitle)
+        self._board = SubtitleBoard(self._config.subtitle.min_display_ms)
+        self._start_translator()
         if self._ocr_factory is not None:
             self._ocr = OCRWorker(
                 self._config, self._metrics, self._slot.get,
                 engine_factory=self._ocr_factory,
-                on_tick=self._on_ocr_tick, on_state=self._on_ocr_state,
+                on_tick=self._ocr_tick, on_state=self._on_ocr_state,
             )  # fmt: skip
             self._ocr.start()
+
+    def _start_translator(self) -> None:
+        if self._translate_factory is not None:
+            self._translator = TranslateWorker(
+                self._config, self._metrics, self._translate_factory, self._translation_done
+            )
+            self._translator.start()
+
+    def _stop_translator(self) -> None:
+        translator, self._translator = self._translator, None
+        if translator is not None:
+            translator.stop()
+            translator.join(STOP_JOIN_TIMEOUT_S)  # a request in flight ends by its timeout
+
+    def restart_translation(self) -> None:
+        """Engine, model or keys changed: new translator, video and OCR keep running."""
+        if self._runner is None:
+            return
+        self._stop_translator()
+        self._start_translator()
+
+    @property
+    def translation(self) -> TranslationService | None:
+        return self._translator.service if self._translator is not None else None
+
+    # --- subtitle pipeline (OCR thread -> state machine -> translator thread) -------
+    def _ocr_tick(self, tick: OCRTick) -> None:
+        self._on_ocr_tick(tick)
+        changed = False
+        for event in self._states.feed(tick.text, tick.frame_timestamp):
+            if isinstance(event, LineStable):
+                line = event.line
+                self._metrics.tick(M.SUB_LINES)
+                log.debug("Kararlı satır #%d%s: %r", line.id,
+                          f" (#{line.replaces} uzadı)" if line.replaces else "", line.full_text)  # fmt: skip
+                self._board.line_stable(line)
+                if self._translator is not None:
+                    self._translator.submit(line)
+            elif isinstance(event, LineCleared):
+                changed |= self._board.cleared(event.line_id, timing.now())
+        changed |= self._board.tick(timing.now())
+        if changed:
+            self._on_subtitle(self._board.shown)
+
+    def _translation_done(self, item: Translated) -> None:
+        self._on_translated(item)
+        if item.result is None:
+            return
+        if self._board.translated(item.line, item.result, timing.now()):
+            view = self._board.shown
+            if view is not None:
+                self._metrics.observe(M.SUB_LATENCY_MS, view.latency_ms)
+            self._on_subtitle(view)
 
     def force_ocr(self) -> None:
         if self._ocr is not None:
@@ -171,6 +243,10 @@ class Session:
         if ocr is not None:
             ocr.stop()
             ocr.join(STOP_JOIN_TIMEOUT_S)  # an OCR call in flight finishes first (~0.1 s)
+        self._stop_translator()
+        self._states.reset()
+        if self._board.reset():
+            self._on_subtitle(None)
         runner, self._runner = self._runner, None
         if runner is not None:
             runner.stop()
