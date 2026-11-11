@@ -1,0 +1,39 @@
+# SubWizard ornek ayar dosyasi.
+# Normal kullanimda bu dosyayi elle duzenlemek gerekmez; arayuz her degisikligi
+# kendisi kaydeder. Tum alanlar opsiyoneldir, yazilmayanlar varsayilan degeri alir.
+
+ui:
+  language: auto        # auto | tr | en
+  theme: dark           # auto | dark | light
+  close_to_tray: true   # kapatma butonu tepsiye kucultur
+
+logging:
+  level: INFO           # DEBUG | INFO | WARNING | ERROR
+  dir: null             # null = kullanici veri klasoru/logs
+
+source:
+  kind: capture         # capture | file | screen (Faz 2)
+  device: 0             # cihaz index'i veya adi
+  path: null            # kind: file icin .mp4 yolu
+  width: 1920
+  height: 1080
+  fps: 60
+  fourcc: MJPG
+  buffer_size: 1
+
+audio:
+  mode: passthrough     # passthrough | off
+  input_device: null
+  delay_ms: 0           # -200 .. 500
+
+translator:
+  engine: gemini        # gemini | deep
+  model: gemini-3.5-flash-lite
+  context_lines: 5
+  timeout_s: 2.5
+
+display:
+  mode: window          # window (Mod A) | web (Mod B) | both
+
+profile: default
+debug: false
