@@ -26,6 +26,8 @@ from subwizard.core.metrics import MetricsHub, Snapshot
 from subwizard.core.session import AudioState, Session
 from subwizard.core.sysmon import SystemMonitor
 from subwizard.i18n import i18n, match_language
+from subwizard.ocr.roi import TEMPLATES, Rect
+from subwizard.ocr.worker import OCRState, OCRTick
 from subwizard.sources.base import Frame, SourceError, VideoMode
 from subwizard.sources.runner import SourceState
 
@@ -45,10 +47,14 @@ class AppController(QObject):
     audioStateChanged = Signal(str, str)  # AudioState value, user-facing message ("" if none)
     perfOverlayChanged = Signal(str)
     settingsChanged = Signal()  # some source/audio setting changed (pages refresh their controls)
+    ocrTick = Signal(object)  # OCRTick, from the OCR thread at up to `ocr.hz`
+    ocrStateChanged = Signal(str, str)  # OCRState value, error message ("" if none)
+    calibrateRequested = Signal()  # F2 / --calibrate: open the region calibration
 
     # Worker threads emit these; the slots then run on the Qt thread.
     _sourceStateFromThread = Signal(str, str)
     _audioStateFromThread = Signal(str, str)
+    _ocrStateFromThread = Signal(str, str)
 
     def __init__(self, config: AppConfig, config_path: Path, parent: QObject | None = None):
         super().__init__(parent)
@@ -59,6 +65,9 @@ class AppController(QObject):
         self.source_problem = ""
         self.audio_state = AudioState.OFF.value
         self.audio_message = ""
+        self.ocr_state = OCRState.OFF.value
+        self.ocr_message = ""
+        self.last_ocr: OCRTick | None = None
         i18n.set_language(self.resolved_language())
 
         self.metrics = MetricsHub(config.metrics.short_window_s, config.metrics.long_window_s)
@@ -69,9 +78,12 @@ class AppController(QObject):
             on_frame=self.frameReady.emit,
             on_source_state=lambda state, key: self._sourceStateFromThread.emit(state.value, key),
             on_audio_state=lambda state, msg: self._audioStateFromThread.emit(state.value, msg),
+            on_ocr_tick=self._on_ocr_tick,
+            on_ocr_state=lambda state, msg: self._ocrStateFromThread.emit(state.value, msg),
         )
         self._sourceStateFromThread.connect(self._on_source_state)
         self._audioStateFromThread.connect(self._on_audio_state)
+        self._ocrStateFromThread.connect(self._on_ocr_state)
 
         self._metrics_timer = QTimer(self)
         self._metrics_timer.setInterval(int(1000 / config.metrics.ui_hz))
@@ -185,6 +197,7 @@ class AppController(QObject):
         if not self._running:
             return
         self._session.stop()
+        self.last_ocr = None
         self._running = False
         self.runningChanged.emit(False)
 
@@ -210,6 +223,19 @@ class AppController(QObject):
     def _on_audio_state(self, state: str, message: str) -> None:
         self.audio_state, self.audio_message = state, message
         self.audioStateChanged.emit(state, message)
+
+    def _on_ocr_tick(self, tick: OCRTick) -> None:
+        # Runs on the OCR thread: store the reference, hand the rest to Qt.
+        self.last_ocr = tick
+        self.ocrTick.emit(tick)
+
+    @Slot(str, str)
+    def _on_ocr_state(self, state: str, message: str) -> None:
+        self.ocr_state, self.ocr_message = state, message
+        self.ocrStateChanged.emit(state, message)
+
+    def force_ocr(self) -> None:
+        self._session.force_ocr()
 
     def _publish_metrics(self) -> None:
         self._sysmon.sample()
@@ -306,3 +332,46 @@ class AppController(QObject):
             self._session.audio.set_muted(muted)
         self._save()
         self.settingsChanged.emit()
+
+    # --- region & OCR settings (read by the OCR thread every tick: applied live) -----
+    def set_roi_template(self, template: str) -> None:
+        roi = self.config.roi
+        if template != "custom":
+            roi.rect = TEMPLATES[template].as_list()
+        roi.template = template
+        self._save()
+        self.settingsChanged.emit()
+
+    def set_roi_rect(self, rect: Rect) -> None:
+        if not rect.usable:
+            return
+        self.config.roi.rect = rect.as_list()
+        self.config.roi.template = "custom"
+        self._save()
+        self.settingsChanged.emit()
+
+    def set_roi_padding(self, padding_pct: float) -> None:
+        self.config.roi.padding_pct = padding_pct
+        self._save(debounce=True)
+
+    def set_ocr_hz(self, hz: float) -> None:
+        self.config.ocr.hz = hz
+        self._save(debounce=True)
+
+    def set_ocr_min_confidence(self, value: float) -> None:
+        self.config.ocr.min_confidence = value
+        self.force_ocr()  # re-read now so the effect is visible at once
+        self._save(debounce=True)
+
+    def set_preprocess_option(self, key: str, value: object) -> None:
+        prep = self.config.ocr.preprocess[self.config.ocr.engine]
+        setattr(prep, key, value)
+        self.force_ocr()
+        self._save()
+
+    def request_calibration(self) -> None:
+        """F2: calibrate on a frozen frame; starts the source first if needed."""
+        if not self._running:
+            self.start()
+        if self._running:
+            self.calibrateRequested.emit()

@@ -7,12 +7,22 @@ and the paint path does no OCR, I/O or locking beyond reading the latest-only sl
 from __future__ import annotations
 
 from PySide6.QtCore import QRect, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QImage, QKeyEvent, QMouseEvent, QPainter, QPaintEvent
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QImage,
+    QKeyEvent,
+    QMouseEvent,
+    QPainter,
+    QPaintEvent,
+    QPen,
+)
 from PySide6.QtWidgets import QWidget
 
 from subwizard.controller import AppController
 from subwizard.core.metrics import M, Snapshot
 from subwizard.i18n import t
+from subwizard.ocr.roi import Rect
 from subwizard.sources.base import Frame
 from subwizard.ui.metrics_view import GRADE_COLORS, metric_rows
 from subwizard.utils import timing
@@ -25,6 +35,8 @@ OVERLAY_BACKGROUND = QColor(0, 0, 0, 170)
 OVERLAY_TEXT = QColor(235, 235, 235)
 OVERLAY_RADIUS = 8
 PLACEHOLDER_COLOR = QColor(150, 150, 150)
+REGION_COLOR = QColor(0, 200, 255)  # same colors as the region editor
+PADDING_COLOR = QColor(0, 200, 255, 160)
 
 
 class VideoView(QWidget):
@@ -99,6 +111,8 @@ class VideoView(QWidget):
         )
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.drawImage(target, qimage)
+        if self._measure and self._controller.config.ui.perf_overlay == "detailed":
+            self._draw_region(painter, target)
 
         if self._measure and frame.index != self._last_painted:
             # Count only frames that are new on screen: repainting the same frame
@@ -107,6 +121,20 @@ class VideoView(QWidget):
             metrics = self._controller.metrics
             metrics.tick(M.RENDER_FPS)
             metrics.observe(M.RENDER_FRAME_AGE_MS, timing.ms_since(frame.timestamp))
+
+    def _draw_region(self, painter: QPainter, target: QRectF) -> None:
+        """Debug view: where OCR is looking (solid) and what it really reads (dashed)."""
+        roi = self._controller.config.roi
+        region = Rect(*roi.rect)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for rect, pen in (
+            (region, QPen(REGION_COLOR, 2)),
+            (region.padded(roi.padding_pct), QPen(PADDING_COLOR, 1, Qt.PenStyle.DashLine)),
+        ):
+            painter.setPen(pen)
+            painter.drawRect(QRectF(target.left() + rect.x * target.width(),
+                                    target.top() + rect.y * target.height(),
+                                    rect.w * target.width(), rect.h * target.height()))  # fmt: skip
 
     def _draw_overlay(self, painter: QPainter, compact: bool) -> None:
         rows = [

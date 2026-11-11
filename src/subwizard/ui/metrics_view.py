@@ -110,11 +110,47 @@ def metric_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
                     f"{under} / {over}" if under is not None else DASH,
                     ("warn" if under or over else "ok") if under is not None else None))  # fmt: skip
 
+    # --- OCR
+    rows.extend(_ocr_rows(snap, config))
+
     # --- system
     cpu_proc, cpu_total = snap.gauge(M.SYS_CPU_PROC, 0.0), snap.gauge(M.SYS_CPU_TOTAL, 0.0)
     rows.append(Row(system, "diag.cpu", f"{cpu_proc:.0f}% / {cpu_total:.0f}%"))
     ram_proc, ram_total = snap.gauge(M.SYS_RAM_PROC_MB, 0.0), snap.gauge(M.SYS_RAM_TOTAL, 0.0)
     rows.append(Row(system, "diag.ram", f"{ram_proc:.0f} MB / {ram_total:.0f}%"))
+    return rows
+
+
+OCR_TEXT_MAX_CHARS = 70  # longer text is cut in the overlay / Diagnostics
+
+
+def _ocr_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
+    m = config.metrics
+    ocr = "diag.section.ocr"
+    runs, ticks = snap.rate(M.OCR_RUNS), snap.rate(M.OCR_TICKS)
+    active = ticks.long > 0
+    rows = [Row(ocr, "diag.ocr_rate",
+                f"{runs.short:.1f} / {ticks.short:.1f}" if active else DASH, compact=True)]  # fmt: skip
+    # Share of looked-at frames that needed no OCR call, over the long window.
+    skipped = max(0.0, 1.0 - runs.long / ticks.long) if active else None
+    rows.append(Row(ocr, "diag.ocr_skipped",
+                    f"{skipped * 100:.0f}%  ({snap.counter(M.OCR_SKIPPED)})"
+                    if skipped is not None else DASH))  # fmt: skip
+    # OCR only runs when the subtitle changes, so the 2 s window is often empty:
+    # fall back to the 60 s one rather than showing nothing.
+    ms = snap.stat(M.OCR_MS)
+    mean, worst = (ms.mean, ms.worst) if ms.count else (ms.mean_long, ms.worst_long)
+    rows.append(Row(ocr, "diag.ocr_ms",
+                    f"{mean:.0f} / {worst:.0f} ms" if mean else DASH,
+                    grade(mean, m.ocr_ms_warn, m.ocr_ms_bad) if mean else None,
+                    compact=True))  # fmt: skip
+    confidence = snap.gauge(M.OCR_CONFIDENCE)
+    rows.append(Row(ocr, "diag.ocr_confidence",
+                    f"{confidence * 100:.0f}%" if confidence else DASH))  # fmt: skip
+    text = snap.gauge(M.OCR_TEXT)
+    if text and len(text) > OCR_TEXT_MAX_CHARS:
+        text = text[: OCR_TEXT_MAX_CHARS - 1] + "…"
+    rows.append(Row(ocr, "diag.ocr_text", text or DASH))
     return rows
 
 

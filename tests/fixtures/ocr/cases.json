@@ -1,0 +1,56 @@
+[
+  {
+    "file": "dialogue_outline.jpg",
+    "text": "Jason: We need to get out of here, now.",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "two_lines.jpg",
+    "text": "I told you, the money's in the trunk. Just keep driving and don't look back.",
+    "lines": 2,
+    "template": "bottom_center"
+  },
+  {
+    "file": "bright_sky.jpg",
+    "text": "Where the hell did you park the car?",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "small_font.jpg",
+    "text": "You hear that? Somebody called the cops.",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "yellow_speaker.jpg",
+    "text": "LUCIA: Not without the money.",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "numbers_punct.jpg",
+    "text": "Meet me at 7:30 on 42nd Street. Don't be late!",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "serif.jpg",
+    "text": "It's not about the cash, it's about respect.",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "box_background.jpg",
+    "text": "Press the gas, we're losing them!",
+    "lines": 1,
+    "template": "bottom_center"
+  },
+  {
+    "file": "empty.jpg",
+    "text": "",
+    "lines": 0,
+    "template": "bottom_center"
+  }
+]

@@ -89,6 +89,48 @@ class AudioConfig(_Section):
     clip_db: float = -0.1  # at or above this = clipping warning
 
 
+class RoiConfig(_Section):
+    template: Literal["bottom_center", "bottom_wide", "lower_half", "top", "custom"] = "bottom_center"
+    # x, y, w, h as fractions of the frame; templates fill this in, F2 draws it.
+    rect: list[float] = Field(default_factory=lambda: [0.15, 0.78, 0.70, 0.18],
+                              min_length=4, max_length=4)  # fmt: skip
+    padding_pct: float = Field(4.0, ge=0, le=50)  # grow every side by this % of the region
+
+
+class PreprocessConfig(_Section):
+    grayscale: bool = True
+    contrast_stretch: bool = False
+    threshold: Literal["none", "otsu", "adaptive"] = "none"
+    upscale_below_px: int = Field(48, ge=0)  # regions shorter than this are enlarged 2x
+    white_text_mask: bool = False  # keep only bright, unsaturated (white) text
+    mask_min_value: int = Field(180, ge=0, le=255)
+    mask_max_saturation: int = Field(60, ge=0, le=255)
+
+
+def _default_preprocess() -> dict[str, PreprocessConfig]:
+    return {
+        "rapid": PreprocessConfig(),
+        "tesseract": PreprocessConfig(contrast_stretch=True, threshold="otsu",
+                                      upscale_below_px=400),  # fmt: skip
+    }
+
+
+class OCRConfig(_Section):
+    engine: Literal["rapid"] = "rapid"
+    hz: float = Field(4.0, gt=0, le=30)
+    min_confidence: float = Field(0.6, ge=0, le=1)  # lines below this are dropped
+    change_threshold: float = Field(2.0, ge=0)  # mean abs diff (0-255) below which OCR is skipped
+    change_thumb_width: int = Field(160, ge=16)
+    # "gray": compare the whole region (SPEC 3.3). "bright": compare only pixels at least
+    # `change_bright_min` bright, i.e. where subtitle letters are; a moving game scene
+    # behind the subtitle then no longer counts as a change (measured in M2).
+    change_mode: Literal["gray", "bright"] = "bright"
+    change_bright_min: int = Field(180, ge=0, le=255)
+    det_max_side: int = Field(960, ge=64)  # detection input is scaled down to this
+    threads: int = Field(0, ge=0)  # 0 = onnxruntime decides
+    preprocess: dict[str, PreprocessConfig] = Field(default_factory=_default_preprocess)
+
+
 class MetricsConfig(_Section):
     short_window_s: float = Field(2.0, gt=0)
     long_window_s: float = Field(60.0, gt=0)
@@ -100,6 +142,8 @@ class MetricsConfig(_Section):
     frame_age_bad_ms: float = Field(50.0, gt=0)
     audio_latency_warn_ms: float = Field(80.0, gt=0)
     audio_latency_bad_ms: float = Field(150.0, gt=0)
+    ocr_ms_warn: float = Field(250.0, gt=0)  # one OCR call
+    ocr_ms_bad: float = Field(600.0, gt=0)
 
 
 class TranslatorConfig(_Section):
@@ -126,6 +170,8 @@ class AppConfig(BaseSettings):
     source: SourceConfig = SourceConfig()
     audio: AudioConfig = AudioConfig()
     metrics: MetricsConfig = MetricsConfig()
+    roi: RoiConfig = RoiConfig()
+    ocr: OCRConfig = OCRConfig()
     translator: TranslatorConfig = TranslatorConfig()
     display: DisplayConfig = DisplayConfig()
     profile: str = "default"

@@ -36,8 +36,9 @@ class BaseOCR(ABC):
     name: str
 
     @abstractmethod
-    def recognize(self, image: np.ndarray) -> OCRResult:
-        """Read text from an already cropped + preprocessed ROI image."""
+    def recognize(self, image: np.ndarray, scale: float = 1.0) -> OCRResult:
+        """Read text from an already cropped + preprocessed ROI image. `scale` is how
+        much preprocessing enlarged it; boxes come back in unscaled crop coordinates."""
 
     def close(self) -> None:  # engines holding native resources override this
         return None

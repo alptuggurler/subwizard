@@ -117,7 +117,6 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_OK
 
     pending = {
-        "--calibrate": (args.calibrate, "M2"),
         "--headless": (args.headless, "M4.5"),
     }
     for flag, (given, milestone) in pending.items():
@@ -127,4 +126,4 @@ def main(argv: list[str] | None = None) -> int:
 
     from subwizard.app import run_gui  # lazy: keeps the CLI importable without Qt
 
-    return run_gui(config, config_path)
+    return run_gui(config, config_path, calibrate=args.calibrate)

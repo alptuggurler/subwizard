@@ -14,7 +14,6 @@ from qfluentwidgets import (
     ComboBox,
     FluentIcon,
     PushButton,
-    Slider,
     StrongBodyLabel,
     SubtitleLabel,
     SwitchButton,
@@ -32,12 +31,11 @@ from subwizard.sources.capture_card import mode_hints
 from subwizard.ui.metrics_view import DASH, target_fps
 from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.widgets.notice import Notice
+from subwizard.ui.widgets.value_slider import SLIDER_WIDTH, VALUE_WIDTH, ValueSlider
 from subwizard.ui.widgets.video_view import VideoView
 from subwizard.ui.widgets.vu_meter import VUMeter
 
 COMBO_WIDTH = 300
-SLIDER_WIDTH = 240
-VALUE_WIDTH = 64
 PREVIEW_HEIGHT = 200
 PREVIEW_WIDTH = int(PREVIEW_HEIGHT * 16 / 9)
 SOURCE_KINDS = ("capture", "file")
@@ -70,34 +68,6 @@ def _combo() -> ComboBox:
     combo = ComboBox()
     combo.setFixedWidth(COMBO_WIDTH)
     return combo
-
-
-class _SliderControl(QWidget):
-    """A slider with its current value shown next to it."""
-
-    def __init__(self, value_range: tuple[int, int], unit: str):
-        super().__init__()
-        self._unit = unit
-        self.slider = Slider(Qt.Orientation.Horizontal)
-        self.slider.setRange(*value_range)
-        self.slider.setFixedWidth(SLIDER_WIDTH)
-        self._value = BodyLabel()
-        self._value.setFixedWidth(VALUE_WIDTH)
-        self._value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.addWidget(self.slider)
-        row.addWidget(self._value)
-        self.slider.valueChanged.connect(self._show)
-
-    def _show(self, value: int) -> None:
-        self._value.setText(f"{value:+d} {self._unit}")
-
-    def set_value(self, value: int) -> None:
-        self.slider.blockSignals(True)
-        self.slider.setValue(value)
-        self.slider.blockSignals(False)
-        self._show(value)
 
 
 class DevicePage(BasePage):
@@ -188,7 +158,7 @@ class DevicePage(BasePage):
         vu_layout.addWidget(self._vu_value)
         self._vu_row = SettingRow(FluentIcon.HEADPHONE, vu_control)
 
-        self._gain = _SliderControl(GAIN_RANGE_DB, "dB")
+        self._gain = ValueSlider(GAIN_RANGE_DB, lambda v: f"{v:+d} dB")
         self._gain_row = SettingRow(FluentIcon.VOLUME, self._gain)
         self._muted = SwitchButton()
         self._muted.setOnText("")
@@ -196,7 +166,7 @@ class DevicePage(BasePage):
         self._muted_row = SettingRow(FluentIcon.MUTE, self._muted)
         self._profile = _combo()
         self._profile_row = SettingRow(FluentIcon.SPEED_HIGH, self._profile)
-        self._delay = _SliderControl(DELAY_RANGE_MS, "ms")
+        self._delay = ValueSlider(DELAY_RANGE_MS, lambda v: f"{v:+d} ms")
         self._delay_row = SettingRow(FluentIcon.HISTORY, self._delay)
 
         for row in (self._enabled_row, self._input_row, self._output_row, self._vu_row,

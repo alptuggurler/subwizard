@@ -18,6 +18,8 @@ dependencies = [
     "sounddevice>=0.5",
     "psutil>=6",
     "pygrabber>=0.2 ; sys_platform == 'win32'",
+    "rapidocr>=3.10",
+    "onnxruntime>=1.20",
 ]
 
 [project.scripts]

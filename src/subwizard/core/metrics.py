@@ -43,6 +43,12 @@ class M:
     AUDIO_LATENCY_MS = "audio.latency_ms"
     AUDIO_SAMPLE_RATE = "audio.sample_rate"
     AUDIO_BLOCK = "audio.block"
+    OCR_TICKS = "ocr.ticks"  # new frames looked at
+    OCR_RUNS = "ocr.runs"  # OCR calls actually made
+    OCR_SKIPPED = "ocr.skipped"  # ticks skipped because the region did not change
+    OCR_MS = "ocr.ms"
+    OCR_TEXT = "ocr.text"
+    OCR_CONFIDENCE = "ocr.confidence"
     SYS_CPU_PROC = "sys.cpu_proc_pct"
     SYS_CPU_TOTAL = "sys.cpu_total_pct"
     SYS_RAM_PROC_MB = "sys.ram_proc_mb"

@@ -50,7 +50,18 @@ def test_invalid_config_exits_with_message(tmp_path, capsys):
     assert "source.fps" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("flag", ["--calibrate", "--headless"])
+@pytest.mark.parametrize("flag", ["--headless"])
 def test_unbuilt_flags_fail_loudly_instead_of_opening_gui(tmp_path, monkeypatch, flag):
     monkeypatch.setattr(cli, "default_log_dir", lambda: tmp_path / "logs")
     assert cli.main(["--config", str(tmp_path / "config.yaml"), flag]) == cli.EXIT_NOT_IMPLEMENTED
+
+
+def test_calibrate_flag_opens_gui_with_calibration(tmp_path, monkeypatch):
+    import subwizard.app
+
+    calls = []
+    monkeypatch.setattr(cli, "default_log_dir", lambda: tmp_path / "logs")
+    monkeypatch.setattr(subwizard.app, "run_gui",
+                        lambda config, path, calibrate=False: calls.append(calibrate) or 0)  # fmt: skip
+    assert cli.main(["--config", str(tmp_path / "config.yaml"), "--calibrate"]) == cli.EXIT_OK
+    assert calls == [True]

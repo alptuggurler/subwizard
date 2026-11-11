@@ -6,6 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from subwizard import APP_NAME
@@ -40,7 +41,9 @@ def create_app(config: AppConfig, config_path: Path) -> tuple[QApplication, Main
     return app, window
 
 
-def run_gui(config: AppConfig, config_path: Path) -> int:
+def run_gui(config: AppConfig, config_path: Path, calibrate: bool = False) -> int:
     app, window = create_app(config, config_path)
     window.show()
+    if calibrate:  # --calibrate: start the source and open F2 calibration right away
+        QTimer.singleShot(0, window.controller.request_calibration)
     return app.exec()

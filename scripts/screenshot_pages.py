@@ -11,6 +11,7 @@ Uses a throwaway config so the user's real settings are never touched.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import tempfile
 from pathlib import Path
@@ -48,6 +49,8 @@ def main() -> int:
             "ui": {"language": args.lang, "theme": args.theme, "perf_overlay": args.overlay}
         }
         if args.clip:
+            # OCR's "N of M skipped" summary lines go to the console (SPEC M2 acceptance).
+            logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")
             overrides["source"] = {"kind": "file", "path": str(args.clip)}
         config = load_config(None, overrides)
         app, window = create_app(config, config_path)
@@ -68,6 +71,11 @@ def main() -> int:
             print(f"frame age: {age.mean_long:.1f} ms avg / {age.worst_long:.1f} ms worst")
             print(f"dropped / repeated: {snap.counter(M.SOURCE_DROPPED)} / "
                   f"{snap.counter(M.SOURCE_REPEATED)}")
+            ticks, runs, ms = snap.rate(M.OCR_TICKS), snap.rate(M.OCR_RUNS), snap.stat(M.OCR_MS)
+            skipped = max(0.0, 1 - runs.long / ticks.long) if ticks.long else 0.0
+            print(f"OCR: {runs.long:.2f} runs/s of {ticks.long:.2f} checks/s "
+                  f"({skipped:.0%} skipped), {ms.mean_long:.0f} ms avg / "
+                  f"{ms.worst_long:.0f} ms worst, text: {snap.gauge(M.OCR_TEXT)!r}")
         for page in window.pages:
             window.switchTo(page)
             _settle()

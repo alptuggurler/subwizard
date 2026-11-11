@@ -10,6 +10,7 @@ from qfluentwidgets import FluentWindow, NavigationItemPosition
 from subwizard import APP_NAME
 from subwizard.controller import AppController
 from subwizard.i18n import t
+from subwizard.ui.calibration import CalibrationWindow
 from subwizard.ui.icon import make_app_icon
 from subwizard.ui.pages import PAGES
 from subwizard.ui.pages.base import BasePage
@@ -19,6 +20,7 @@ MIN_SIZE = (900, 600)
 NAV_EXPAND_WIDTH = 240
 HOTKEY_PERF_OVERLAY = "F9"
 HOTKEY_FULLSCREEN = "F11"
+HOTKEY_CALIBRATE = "F2"
 
 
 class MainWindow(FluentWindow):
@@ -52,11 +54,47 @@ class MainWindow(FluentWindow):
         for key, action in (
             (HOTKEY_PERF_OVERLAY, controller.cycle_perf_overlay),
             (HOTKEY_FULLSCREEN, self.home.toggle_fullscreen),
+            (HOTKEY_CALIBRATE, controller.request_calibration),
         ):
             shortcut = QShortcut(QKeySequence(key), self)
             # Application-wide so they also work in the detached fullscreen video window.
             shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
             shortcut.activated.connect(action)
+
+        self.calibration: CalibrationWindow | None = None
+        self._calibrate_on_frame = False
+        controller.calibrateRequested.connect(self.open_calibration)
+        controller.frameReady.connect(self._frame_for_calibration)
+        controller.runningChanged.connect(self._on_running)
+
+    # --- F2 calibration ---------------------------------------------------------------
+    def open_calibration(self) -> None:
+        """Freeze the current frame full screen; if none has arrived yet (the source is
+        still connecting), open as soon as the first one does."""
+        if self.calibration is not None:
+            return
+        frame = self.controller.latest_frame()
+        if frame is None:
+            self._calibrate_on_frame = True
+            return
+        self._calibrate_on_frame = False
+        if self.home.video.fullscreen:
+            self.home.toggle_fullscreen()  # one full-screen window at a time
+        self.calibration = CalibrationWindow(self.controller, frame)
+        self.calibration.closed.connect(self._calibration_closed)
+        screen = (self.screen() or QApplication.primaryScreen()).geometry()
+        self.calibration.open_on(screen)
+
+    def _frame_for_calibration(self) -> None:
+        if self._calibrate_on_frame:
+            self.open_calibration()
+
+    def _on_running(self, running: bool) -> None:
+        if not running:
+            self._calibrate_on_frame = False
+
+    def _calibration_closed(self) -> None:
+        self.calibration = None
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)

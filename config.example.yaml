@@ -55,6 +55,41 @@ metrics:
   frame_age_bad_ms: 50.0
   audio_latency_warn_ms: 80.0
   audio_latency_bad_ms: 150.0
+  ocr_ms_warn: 250.0    # tek OCR cagrisinin suresi
+  ocr_ms_bad: 600.0
+
+roi:
+  template: bottom_center   # bottom_center | bottom_wide | lower_half | top | custom
+  rect: [0.15, 0.78, 0.7, 0.18]   # x, y, genislik, yukseklik (karenin orani, 0-1)
+  padding_pct: 4.0          # kesik kelimeler icin alan her yonde bu % kadar buyutulur
+
+ocr:
+  engine: rapid
+  hz: 4.0                   # saniyede kac kez okunur
+  min_confidence: 0.6       # bu guvenin altindaki satirlar atilir
+  change_threshold: 2.0     # alan bundan az degistiyse OCR atlanir (0-255 ortalama fark)
+  change_thumb_width: 160
+  change_mode: bright       # bright: yalnizca parlak (yazi) pikselleri karsilastir; gray: tum alan
+  change_bright_min: 180    # "bright" modunda yazi sayilan en dusuk parlaklik (0-255)
+  det_max_side: 960         # metin bulma girdisi bu boyuta kucultulur (hiz icin)
+  threads: 0                # 0 = otomatik
+  preprocess:               # motor basina on isleme
+    rapid:
+      grayscale: true
+      contrast_stretch: false
+      threshold: none       # none | otsu | adaptive
+      upscale_below_px: 48  # bundan alcak alanlar 2x buyutulur
+      white_text_mask: false
+      mask_min_value: 180
+      mask_max_saturation: 60
+    tesseract:
+      grayscale: true
+      contrast_stretch: true
+      threshold: otsu
+      upscale_below_px: 400
+      white_text_mask: false
+      mask_min_value: 180
+      mask_max_saturation: 60
 
 translator:
   engine: gemini        # gemini | deep

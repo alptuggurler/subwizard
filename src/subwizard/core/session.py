@@ -17,6 +17,8 @@ from subwizard.audio.meter import LevelMeter
 from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
 from subwizard.config import AppConfig
 from subwizard.core.metrics import MetricsHub
+from subwizard.ocr.base import BaseOCR
+from subwizard.ocr.worker import OCRState, OCRTick, OCRWorker, build_ocr
 from subwizard.sources.base import BaseSource, Frame, LatestSlot, SourceError, VideoMode
 from subwizard.sources.capture_card import CaptureCardSource
 from subwizard.sources.runner import SourceRunner, SourceState
@@ -104,8 +106,11 @@ class Session:
         on_frame: Callable[[], None],
         on_source_state: Callable[[SourceState, str], None],
         on_audio_state: Callable[[AudioState, str], None],
+        on_ocr_tick: Callable[[OCRTick], None] = lambda tick: None,
+        on_ocr_state: Callable[[OCRState, str], None] = lambda state, msg: None,
         source_factory: Callable[[AppConfig], BaseSource] = build_source,
         audio_factory: Callable[[AppConfig, MetricsHub], BaseAudioPassthrough] = build_passthrough,
+        ocr_factory: Callable[[AppConfig], BaseOCR] | None = build_ocr,
     ) -> None:
         self._config = config
         self._metrics = metrics
@@ -114,6 +119,10 @@ class Session:
         self._on_audio_state = on_audio_state
         self._source_factory = source_factory
         self._audio_factory = audio_factory
+        self._ocr_factory = ocr_factory  # None disables OCR (e.g. tests of video only)
+        self._on_ocr_tick = on_ocr_tick
+        self._on_ocr_state = on_ocr_state
+        self._ocr: OCRWorker | None = None
         self._slot = LatestSlot()
         self._runner: SourceRunner | None = None
         self.audio: BaseAudioPassthrough | None = None
@@ -144,9 +153,24 @@ class Session:
         )
         self._runner.start()
         self.start_audio()
+        if self._ocr_factory is not None:
+            self._ocr = OCRWorker(
+                self._config, self._metrics, self._slot.get,
+                engine_factory=self._ocr_factory,
+                on_tick=self._on_ocr_tick, on_state=self._on_ocr_state,
+            )  # fmt: skip
+            self._ocr.start()
+
+    def force_ocr(self) -> None:
+        if self._ocr is not None:
+            self._ocr.force()
 
     def stop(self) -> None:
         self.stop_audio()
+        ocr, self._ocr = self._ocr, None
+        if ocr is not None:
+            ocr.stop()
+            ocr.join(STOP_JOIN_TIMEOUT_S)  # an OCR call in flight finishes first (~0.1 s)
         runner, self._runner = self._runner, None
         if runner is not None:
             runner.stop()

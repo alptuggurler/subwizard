@@ -15,6 +15,7 @@ from subwizard.ui.pages.base import BasePage, PlaceholderPage
 from subwizard.ui.pages.device import DevicePage
 from subwizard.ui.pages.diagnostics import DiagnosticsPage
 from subwizard.ui.pages.home import HomePage
+from subwizard.ui.pages.roi import RoiPage
 from subwizard.ui.pages.settings import SettingsPage
 
 
@@ -32,7 +33,7 @@ def _placeholder(key: str, milestone: str) -> type[BasePage]:
 PAGES: tuple[PageSpec, ...] = (
     PageSpec(HomePage, FluentIcon.HOME),
     PageSpec(_placeholder("history", "M4"), FluentIcon.HISTORY),
-    PageSpec(_placeholder("roi", "M2"), FluentIcon.ZOOM_IN),
+    PageSpec(RoiPage, FluentIcon.ZOOM_IN),
     PageSpec(_placeholder("translate", "M3"), FluentIcon.LANGUAGE),
     PageSpec(_placeholder("appearance", "M4"), FluentIcon.PALETTE),
     PageSpec(_placeholder("profiles", "M6"), FluentIcon.GAME),
