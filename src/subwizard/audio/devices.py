@@ -76,3 +76,30 @@ def find_device(name: str | None, kind: Kind, devices: list[AudioDevice] | None 
         if lowered in device.name.lower():
             return device.index
     return None
+
+
+def guess_capture_input(video_device_name: str, devices: list[AudioDevice]) -> str | None:
+    """The capture card's own audio input, recognised by the card's name inside it,
+    e.g. video "V-Z632" -> audio "Dijital Ses Arabirimi (V-Z632)". This is what OBS
+    users pick by hand as "Use custom audio device"."""
+    needle = video_device_name.strip().lower()
+    if not needle:
+        return None
+    for device in devices:
+        if needle in device.name.lower():
+            return device.name
+    return None
+
+
+def wasapi_settings():
+    """Shared-mode WASAPI with the system sample-rate converter enabled.
+
+    Without it a stream only opens at the device mixer's own rate: an output whose
+    Windows format is 96 kHz (e.g. SteelSeries Sonar) rejects a 48 kHz stream.
+    None on other platforms.
+    """
+    if sys.platform != "win32":
+        return None
+    import sounddevice as sd
+
+    return sd.WasapiSettings(auto_convert=True)

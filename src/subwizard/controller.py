@@ -12,6 +12,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QLocale, QObject, QTimer, Signal, Slot
 
+from subwizard import platform
+from subwizard.audio.devices import guess_capture_input, list_audio_devices
 from subwizard.config import (
     AppConfig,
     AudioProfileName,
@@ -150,9 +152,26 @@ class AppController(QObject):
     def latest_frame(self) -> Frame | None:
         return self._session.latest_frame()
 
+    def _autoselect_capture_audio(self) -> None:
+        """If no audio input was chosen yet, pick the capture card's own one."""
+        src, audio = self.config.source, self.config.audio
+        if audio.input_device or src.kind != "capture" or audio.mode == "off":
+            return
+        name = src.device
+        if isinstance(name, int):
+            devices = platform.list_video_devices()
+            name = devices[name].name if name < len(devices) else ""
+        guess = guess_capture_input(name, list_audio_devices("input"))
+        if guess:
+            log.info("Capture card ses girişi otomatik seçildi: %s", guess)
+            audio.input_device = guess
+            self._save()
+            self.settingsChanged.emit()
+
     def start(self) -> None:
         if self._running:
             return
+        self._autoselect_capture_audio()
         try:
             self._session.start()
         except SourceError as exc:
@@ -213,6 +232,7 @@ class AppController(QObject):
         if device == self.config.source.device:
             return
         self.config.source.device = device
+        self._autoselect_capture_audio()
         self._source_changed()
 
     def set_source_path(self, path: Path) -> None:

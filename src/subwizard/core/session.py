@@ -12,7 +12,7 @@ from enum import StrEnum
 
 from subwizard import platform
 from subwizard.audio.base import AudioError, BaseAudioPassthrough
-from subwizard.audio.devices import find_device
+from subwizard.audio.devices import AudioDevice, find_device, list_audio_devices
 from subwizard.audio.meter import LevelMeter
 from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
 from subwizard.config import AppConfig
@@ -53,12 +53,14 @@ def build_source(config: AppConfig) -> BaseSource:
 
 def build_passthrough(config: AppConfig, metrics: MetricsHub) -> BaseAudioPassthrough:
     audio = config.audio
-    input_index = find_device(audio.input_device, "input")
+    inputs, outputs = list_audio_devices("input"), list_audio_devices("output")
+    input_index = find_device(audio.input_device, "input", inputs)
     if input_index is None:
         raise AudioError("error.audio_input_missing", name=audio.input_device)
-    output_index = find_device(audio.output_device, "output")
+    output_index = find_device(audio.output_device, "output", outputs)
     if audio.output_device and output_index is None:
         log.warning("Ses çıkışı '%s' bulunamadı; varsayılan kullanılıyor.", audio.output_device)
+    channels = _channels(audio.channels, input_index, output_index, inputs, outputs)
     if audio.delay_ms < 0:
         log.warning("audio.delay_ms negatif (%d): ses öne alınamaz, 0 uygulanıyor.", audio.delay_ms)
     profile = audio.profiles[audio.profile]
@@ -66,7 +68,7 @@ def build_passthrough(config: AppConfig, metrics: MetricsHub) -> BaseAudioPassth
         input_device=input_index,
         output_device=output_index,
         sample_rate=audio.sample_rate,
-        channels=audio.channels,
+        channels=channels,
         block=profile.block,
         buffer_ms=profile.buffer_ms,
         delay_ms=audio.delay_ms,
@@ -76,6 +78,21 @@ def build_passthrough(config: AppConfig, metrics: MetricsHub) -> BaseAudioPassth
     )
     meter = LevelMeter(metrics, audio.silence_db, audio.silence_s, audio.clip_db)
     return SoundDevicePassthrough(settings, metrics, meter)
+
+
+def _channels(
+    wanted: int,
+    input_index: int,
+    output_index: int | None,
+    inputs: list[AudioDevice],
+    outputs: list[AudioDevice],
+) -> int:
+    """Both streams share one buffer, so they need the same channel count: the
+    configured one, limited by what each device has (a mono capture input works)."""
+    limits = [d.inputs for d in inputs if d.index == input_index]
+    limits += [d.outputs for d in outputs if d.index == output_index or
+               (output_index is None and d.is_default)]  # fmt: skip
+    return max(1, min([wanted, *[n for n in limits if n > 0]]))
 
 
 class Session:

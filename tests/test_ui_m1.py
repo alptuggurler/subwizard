@@ -181,3 +181,28 @@ def test_metrics_reach_the_ui_on_a_timer(window):
     window.controller.metricsUpdated.connect(got.append)
     assert wait_until(lambda: len(got) >= 2, timeout=2.0)
     assert got[-1].gauge(M.SYS_RAM_PROC_MB) > 0
+
+
+def test_start_picks_the_capture_cards_own_audio_input(tmp_path, monkeypatch):
+    from subwizard import controller as controller_module
+    from subwizard.audio.devices import AudioDevice
+    from subwizard.platform import VideoDevice
+
+    monkeypatch.setattr(controller_module.platform, "list_video_devices",
+                        lambda: [VideoDevice(0, "Webcam"), VideoDevice(1, "V-Z632")])  # fmt: skip
+    monkeypatch.setattr(controller_module, "list_audio_devices", lambda kind: [
+        AudioDevice(46, "Dijital Ses Arabirimi (V-Z632)", "Windows WASAPI", 2, 0, 48000)
+    ])  # fmt: skip
+    app, win = _window(tmp_path, {"source": {"kind": "capture", "device": 1}})
+    try:
+        c = win.controller
+        c._autoselect_capture_audio()
+        assert c.config.audio.input_device == "Dijital Ses Arabirimi (V-Z632)"
+        assert load_config(win.config_path).audio.input_device == c.config.audio.input_device
+
+        c.config.audio.input_device = "Mikrofon"  # a user's own choice is never replaced
+        c._autoselect_capture_audio()
+        assert c.config.audio.input_device == "Mikrofon"
+    finally:
+        win.controller.shutdown()
+        win.close()
