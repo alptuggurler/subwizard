@@ -77,12 +77,13 @@ class TranslationService:
         return (result.input_tokens * price.input
                 + result.output_tokens * price.output) / TOKENS_PER_PRICE_UNIT  # fmt: skip
 
-    def translate(self, request: TranslationRequest) -> TranslationResult:
-        """Raises TranslationError only when neither engine produced anything."""
+    def translate(self, request: TranslationRequest, force: bool = False) -> TranslationResult:
+        """Raises TranslationError only when neither engine produced anything. `force`
+        skips the cache lookup (F7); the new result replaces the cached one."""
         tr = self._config.translator
         m = self._metrics
         key = cache_key(request.text, tr.target_language)
-        hit = self.cache.get(key)
+        hit = None if force else self.cache.get(key)
         # A fallback translation is cached too, but when Gemini is available it gets a
         # chance to do better next time instead of the weaker result living forever.
         if hit is not None and (hit.engine != "deep" or self.primary is None):

@@ -48,15 +48,16 @@ class TranslateWorker(threading.Thread):
         self._lock = threading.Lock()
         self._wake = threading.Event()
         self._stop_event = threading.Event()
-        self._pending: SubtitleLine | None = None
+        self._pending: tuple[SubtitleLine, bool] | None = None
         self._history: deque[tuple[str, str]] = deque(maxlen=max(1, config.translator.context_lines))
         self.service: TranslationService | None = None
 
-    def submit(self, line: SubtitleLine) -> None:
+    def submit(self, line: SubtitleLine, force: bool = False) -> None:
+        """`force` skips the cache (F7: retranslate)."""
         with self._lock:
             if self._pending is not None:
-                log.debug("Çeviri sırası: %r atlandı, yerine %r", self._pending.text, line.text)
-            self._pending = line
+                log.debug("Çeviri sırası: %r atlandı, yerine %r", self._pending[0].text, line.text)
+            self._pending = (line, force)
         self._wake.set()
 
     def stop(self) -> None:
@@ -79,18 +80,18 @@ class TranslateWorker(threading.Thread):
                 self._wake.wait(IDLE_WAIT_S)
                 self._wake.clear()
                 with self._lock:
-                    line, self._pending = self._pending, None
-                if line is None or self._stop_event.is_set():
+                    pending, self._pending = self._pending, None
+                if pending is None or self._stop_event.is_set():
                     continue
-                self._translate(line)
+                self._translate(*pending)
         finally:
             log.info("Çeviri oturum özeti: %s", self.service.summary())
             self.service.close()
 
-    def _translate(self, line: SubtitleLine) -> None:
+    def _translate(self, line: SubtitleLine, force: bool = False) -> None:
         request = TranslationRequest(line.text, self._context(), line.speaker)
         try:
-            result: TranslationResult | None = self.service.translate(request)
+            result: TranslationResult | None = self.service.translate(request, force=force)
         except TranslationError:
             result = None
         except Exception:  # one bad line must not end translation for the session

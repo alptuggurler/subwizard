@@ -125,6 +125,36 @@ translator:
     gemini-3.1-flash-lite: {input: 0.25, output: 1.50}
     gemini-3.6-flash: {input: 0.75, output: 3.75}
 
+overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
+  visible: true             # F10
+  position: bottom          # bottom (orijinalin ustu) | top | replace (orijinalin yerine)
+  font_family: ""           # bos = Segoe UI Variable -> Segoe UI -> Arial
+  font_size_pct: 4.5        # video yuksekliginin %'si
+  bold: true
+  max_width_pct: 80.0       # satir bu genislikte kaydirilir
+  margin_pct: 1.5
+  text_color: "#FFFFFF"
+  background_color: "#000000"
+  background_opacity: 0.65
+  speaker_color: "#FFD24A"
+  outline: true
+  auto_bg: true             # replace modunda Ingilizce yazi cevre rengiyle kapatilir
+  show_source: false        # Ingilizce satiri da kucuk goster
+  history_lines: 10         # F12 paneli
+
+hotkeys:
+  global_hotkeys: true      # oyun odaktayken de calisir (Windows, pynput)
+  keys:
+    calibrate: F2
+    copy_last: F5
+    mute: F6
+    retranslate: F7
+    pause_translation: F8
+    perf_overlay: F9
+    toggle_subtitles: F10
+    fullscreen: F11
+    history_panel: F12
+
 display:
   mode: window          # window (Mod A) | web (Mod B) | both
 

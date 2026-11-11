@@ -25,6 +25,7 @@ QT_FREE_MODULES = [
     "subwizard.ocr.roi",
     "subwizard.ocr.worker",
     "subwizard.pipeline.board",
+    "subwizard.pipeline.history",
     "subwizard.pipeline.subtitle_state",
     "subwizard.pipeline.text_utils",
     "subwizard.pipeline.translate_worker",
@@ -46,6 +47,7 @@ QT_FREE_MODULES = [
     "subwizard.audio.devices",
     "subwizard.platform",
     "subwizard.utils.timing",
+    "subwizard.utils.hotkeys",
     "subwizard.utils.logging",
     "subwizard.utils.paths",
 ]

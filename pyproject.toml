@@ -23,6 +23,7 @@ dependencies = [
     "google-genai>=3.2",
     "deep-translator>=1.11.4",
     "keyring>=25.7",
+    "pynput>=1.8",
 ]
 
 [project.scripts]

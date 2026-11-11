@@ -10,6 +10,7 @@ Four kinds of metric, all thread-safe:
 from __future__ import annotations
 
 import math
+import statistics
 import threading
 from collections import deque
 from collections.abc import Callable
@@ -83,6 +84,8 @@ class Stat:
     mean_long: float = 0.0
     worst_long: float = 0.0
     count: int = 0  # samples in the short window (0 = nothing measured recently)
+    p50_long: float = 0.0  # median over the long window (sparse events: latencies)
+    count_long: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,8 +192,10 @@ class MetricsHub:
         if not long_values:
             return Stat()
         mean_long = sum(long_values) / len(long_values)
+        p50_long = statistics.median(long_values)
         if not short_values:
-            return Stat(last=long_values[-1], mean_long=mean_long, worst_long=max(long_values))
+            return Stat(last=long_values[-1], mean_long=mean_long, worst_long=max(long_values),
+                        p50_long=p50_long, count_long=len(long_values))  # fmt: skip
         mean = sum(short_values) / len(short_values)
         variance = sum((v - mean) ** 2 for v in short_values) / len(short_values)
         return Stat(
@@ -201,6 +206,8 @@ class MetricsHub:
             mean_long=mean_long,
             worst_long=max(long_values),
             count=len(short_values),
+            p50_long=p50_long,
+            count_long=len(long_values),
         )
 
     def snapshot(self) -> Snapshot:

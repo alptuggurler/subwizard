@@ -10,9 +10,13 @@ from PySide6.QtCore import QRectF  # noqa: E402
 from subwizard.pipeline.board import SubtitleView  # noqa: E402
 from subwizard.ui.pages.home import translator_state  # noqa: E402
 from subwizard.ui.pages.translate import TranslatePage  # noqa: E402
-from subwizard.ui.subtitle_paint import place, render_subtitle  # noqa: E402
+from subwizard.config import OverlayConfig  # noqa: E402
+from subwizard.ui.subtitle_paint import Style, place, render_subtitle  # noqa: E402
 from subwizard.ui.metrics_view import metric_rows  # noqa: E402
 from tests.test_ui_m1 import _page, wait_until, window  # noqa: E402, F401
+
+
+STYLE = Style.from_config(OverlayConfig(), 1280, 720)
 
 
 def _view(text="Kafanı eğ, polisler her yerde. ğüşıöçİ", speaker="LUCIA", fallback=True):
@@ -58,7 +62,7 @@ def test_test_button_shows_result_and_latency(window):
 
 
 def test_subtitle_pixmap_renders_turkish_text():
-    pixmap = render_subtitle(_view(), 1280, 720, 1.0, "(yedek)")
+    pixmap = render_subtitle(_view(), STYLE, 1.0, "(yedek)")
     assert not pixmap.isNull()
     assert pixmap.width() < 1280 * 0.8 + 1  # wraps at 80% of the video width
     image = pixmap.toImage()
@@ -66,18 +70,18 @@ def test_subtitle_pixmap_renders_turkish_text():
 
 
 def test_long_subtitle_wraps_onto_more_lines():
-    short = render_subtitle(_view("Kısa.", speaker=None), 1280, 720, 1.0, "")
+    short = render_subtitle(_view("Kısa.", speaker=None), STYLE, 1.0, "")
     long = render_subtitle(_view("Bu çok uzun bir altyazı satırı " * 6, speaker=None),
-                           1280, 720, 1.0, "")  # fmt: skip
+                           STYLE, 1.0, "")  # fmt: skip
     line_h = 720 * 0.045
     assert long.height() >= short.height() + 2 * line_h  # at least three lines
 
 
 def test_subtitle_goes_above_the_region_or_below_when_no_room():
     video = QRectF(0, 0, 1000, 500)
-    above = place(400, 60, video, roi_top=0.78, roi_bottom=0.96)
+    above = place("bottom", 400, 60, video, 0.78, 0.96, 1.5)
     assert above.bottom() <= 0.78 * 500
-    below = place(400, 60, video, roi_top=0.02, roi_bottom=0.18)
+    below = place("bottom", 400, 60, video, 0.02, 0.18, 1.5)
     assert below.top() >= 0.18 * 500
 
 

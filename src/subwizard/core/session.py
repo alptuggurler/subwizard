@@ -7,6 +7,7 @@ Callbacks fire on worker threads — the controller turns them into Qt signals.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from enum import StrEnum
 
@@ -20,6 +21,7 @@ from subwizard.core.metrics import M, MetricsHub
 from subwizard.ocr.base import BaseOCR
 from subwizard.ocr.worker import OCRState, OCRTick, OCRWorker, build_ocr
 from subwizard.pipeline.board import SubtitleBoard, SubtitleView
+from subwizard.pipeline.history import SubtitleHistory
 from subwizard.pipeline.subtitle_state import LineCleared, LineStable, SubtitleStateMachine
 from subwizard.pipeline.translate_worker import TranslateWorker, Translated
 from subwizard.translator.service import TranslationService, build_service
@@ -28,6 +30,7 @@ from subwizard.sources.capture_card import CaptureCardSource
 from subwizard.sources.runner import SourceRunner, SourceState
 from subwizard.sources.video_file import VideoFileSource
 from subwizard.utils import timing
+from subwizard.utils.paths import default_log_dir
 
 log = logging.getLogger(__name__)
 
@@ -139,6 +142,9 @@ class Session:
         self._translator: TranslateWorker | None = None
         self._states = SubtitleStateMachine(config.subtitle)
         self._board = SubtitleBoard(config.subtitle.min_display_ms)
+        self.history = SubtitleHistory(timing.now())
+        self.translation_paused = False  # F8: lines are still recorded, not translated
+        self.write_subtitle_log = True
         self._slot = LatestSlot()
         self._runner: SourceRunner | None = None
         self.audio: BaseAudioPassthrough | None = None
@@ -171,6 +177,7 @@ class Session:
         self.start_audio()
         self._states = SubtitleStateMachine(self._config.subtitle)
         self._board = SubtitleBoard(self._config.subtitle.min_display_ms)
+        self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
         self._start_translator()
         if self._ocr_factory is not None:
             self._ocr = OCRWorker(
@@ -179,6 +186,21 @@ class Session:
                 on_tick=self._ocr_tick, on_state=self._on_ocr_state,
             )  # fmt: skip
             self._ocr.start()
+
+    def _subtitle_log_path(self):  # noqa: ANN202
+        if not self.write_subtitle_log:
+            return None
+        log_dir = self._config.logging.dir or default_log_dir()
+        return log_dir / time.strftime("subtitles-%Y%m%d-%H%M.srt")
+
+    def retranslate_current(self) -> bool:
+        """F7: translate the line on screen again, skipping the cache."""
+        line = self._states.current
+        if line is None or self._translator is None:
+            return False
+        self._board.line_stable(line)
+        self._translator.submit(line, force=True)
+        return True
 
     def _start_translator(self) -> None:
         if self._translate_factory is not None:
@@ -214,16 +236,22 @@ class Session:
                 self._metrics.tick(M.SUB_LINES)
                 log.debug("Kararlı satır #%d%s: %r", line.id,
                           f" (#{line.replaces} uzadı)" if line.replaces else "", line.full_text)  # fmt: skip
+                self.history.add(line)
+                if self.translation_paused:
+                    continue
                 self._board.line_stable(line)
                 if self._translator is not None:
                     self._translator.submit(line)
             elif isinstance(event, LineCleared):
+                self.history.close(event.line_id)
                 changed |= self._board.cleared(event.line_id, timing.now())
         changed |= self._board.tick(timing.now())
         if changed:
             self._on_subtitle(self._board.shown)
 
     def _translation_done(self, item: Translated) -> None:
+        if item.result is not None:
+            self.history.translated(item.line.id, item.result)
         self._on_translated(item)
         if item.result is None:
             return
@@ -245,6 +273,7 @@ class Session:
             ocr.join(STOP_JOIN_TIMEOUT_S)  # an OCR call in flight finishes first (~0.1 s)
         self._stop_translator()
         self._states.reset()
+        self.history.close_all()
         if self._board.reset():
             self._on_subtitle(None)
         runner, self._runner = self._runner, None

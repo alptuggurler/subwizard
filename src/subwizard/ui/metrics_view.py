@@ -164,11 +164,13 @@ def _translation_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
     m = config.metrics
     sec = "diag.section.translation"
     rows = [Row(sec, "diag.tr_engine", snap.gauge(M.TR_ENGINE) or DASH)]
-    mean, worst = _ms_pair(snap.stat(M.SUB_LATENCY_MS))
+    # M4 acceptance target is the median (p50) over the last minute.
+    sub = snap.stat(M.SUB_LATENCY_MS)
     rows.append(Row(sec, "diag.sub_latency",
-                    f"{mean:.0f} / {worst:.0f} ms" if mean else DASH,
-                    grade(mean, m.subtitle_ms_warn, m.subtitle_ms_bad) if mean else None,
-                    compact=True))  # fmt: skip
+                    f"{sub.p50_long:.0f} / {sub.worst_long:.0f} ms  (n={sub.count_long})"
+                    if sub.count_long else DASH,
+                    grade(sub.p50_long, m.subtitle_ms_warn, m.subtitle_ms_bad)
+                    if sub.count_long else None, compact=True))  # fmt: skip
     mean, worst = _ms_pair(snap.stat(M.TR_MS))
     rows.append(Row(sec, "diag.tr_ms", f"{mean:.0f} / {worst:.0f} ms" if mean else DASH,
                     grade(mean, m.translate_ms_warn, m.translate_ms_bad) if mean else None))  # fmt: skip

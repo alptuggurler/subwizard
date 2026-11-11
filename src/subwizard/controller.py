@@ -16,6 +16,7 @@ from subwizard import platform
 from subwizard.audio.devices import guess_capture_input, list_audio_devices
 from subwizard.config import (
     AppConfig,
+    HotkeysConfig,
     AudioProfileName,
     Language,
     PerfOverlay,
@@ -31,6 +32,7 @@ from subwizard.ocr.roi import TEMPLATES, Rect
 from subwizard.ocr.worker import OCRState, OCRTick
 from subwizard.pipeline.board import SubtitleView
 from subwizard.translator.test_run import TestOutcome, run_test
+from subwizard.utils.hotkeys import normalize_key
 from subwizard.sources.base import Frame, SourceError, VideoMode
 from subwizard.sources.runner import SourceState
 
@@ -38,6 +40,17 @@ log = logging.getLogger(__name__)
 
 SAVE_DEBOUNCE_MS = 400  # sliders fire many changes; write the file once they settle
 PERF_OVERLAY_CYCLE: tuple[PerfOverlay, ...] = ("off", "compact", "detailed")
+# Appearance presets (SPEC 3.12): only the keys they change.
+OVERLAY_PRESETS: dict[str, dict[str, object]] = {
+    "netflix": {"text_color": "#FFFFFF", "background_opacity": 0.0, "outline": True,
+                "bold": False, "font_size_pct": 4.5, "speaker_color": "#FFFFFF"},
+    "ingame": {"text_color": "#FFFFFF", "background_color": "#000000",
+               "background_opacity": 0.65, "outline": True, "bold": True,
+               "font_size_pct": 4.5, "speaker_color": "#FFD24A"},
+    "high_contrast": {"text_color": "#FFFF00", "background_color": "#000000",
+                      "background_opacity": 1.0, "outline": False, "bold": True,
+                      "font_size_pct": 6.0, "speaker_color": "#00FFFF"},
+}  # fmt: skip
 
 
 class AppController(QObject):
@@ -56,6 +69,10 @@ class AppController(QObject):
     subtitleChanged = Signal(object)  # SubtitleView | None: the translation on screen
     translated = Signal(object)  # Translated: every finished line (history, M4)
     translationTested = Signal(object)  # TestOutcome from test_translation()
+    pauseChanged = Signal(bool)  # F8: translation paused
+    overlayChanged = Signal()  # an overlay.* setting changed (video + preview repaint)
+    hotkeysChanged = Signal()
+    historyChanged = Signal()  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
     _sourceStateFromThread = Signal(str, str)
@@ -461,6 +478,95 @@ class AppController(QObject):
             cache.close()
         log.info("Çeviri önbelleği temizlendi.")
         self.settingsChanged.emit()
+
+    # --- history, hotkey actions (SPEC 3.8, 3.9) ---------------------------------------
+    @property
+    def history(self):  # noqa: ANN201 - SubtitleHistory
+        return self._session.history
+
+    @property
+    def translation_paused(self) -> bool:
+        return self._session.translation_paused
+
+    def toggle_translation_pause(self) -> None:
+        paused = not self._session.translation_paused
+        self._session.translation_paused = paused
+        log.info("Çeviri %s.", "duraklatıldı" if paused else "devam ediyor")
+        self.pauseChanged.emit(paused)
+
+    def retranslate_current(self) -> bool:
+        return self._session.retranslate_current()
+
+    def retranslate_entry(self, line_id: int) -> bool:
+        """History page: translate a past line again with the current settings, bypassing
+        the cache, on a helper thread; `historyChanged` follows."""
+        import threading
+
+        entry = self.history.get(line_id)
+        if entry is None:
+            return False
+        text = entry.source
+        if entry.speaker and text.startswith(f"{entry.speaker}: "):
+            text = text[len(entry.speaker) + 2:]
+        config = self.config.model_copy(deep=True)
+
+        def work() -> None:
+            outcome = run_test(config, text)
+            if outcome.text:
+                self.history.set_translation(line_id, outcome.text, outcome.engine,
+                                             outcome.fallback)  # fmt: skip
+            self.historyChanged.emit()
+
+        threading.Thread(target=work, name="retranslate", daemon=True).start()
+        return True
+
+    def mark_bad(self, line_id: int, bad: bool = True) -> None:
+        self.history.mark_bad(line_id, bad)
+        self.historyChanged.emit()
+
+    def toggle_mute(self) -> None:
+        self.set_audio_muted(not self.config.audio.muted)
+
+    def last_translation(self) -> str:
+        if self.subtitle is not None:
+            return self.subtitle.text
+        done = [e for e in self.history.entries() if e.translation]
+        return done[-1].translation if done else ""
+
+    def toggle_subtitles(self) -> None:
+        self.set_overlay_option("visible", not self.config.overlay.visible)
+
+    def set_overlay_option(self, key: str, value: object) -> None:
+        setattr(self.config.overlay, key, value)
+        self._save(debounce=True)
+        self.overlayChanged.emit()
+
+    def apply_overlay_preset(self, name: str) -> None:
+        for key, value in OVERLAY_PRESETS[name].items():
+            setattr(self.config.overlay, key, value)
+        self._save()
+        self.overlayChanged.emit()
+        self.settingsChanged.emit()
+
+    def set_hotkey(self, action: str, key: str) -> list[str]:
+        """Bind `key` to `action`; returns the other actions already using that key (the
+        UI warns; the binding is saved anyway so the user can then fix the other one)."""
+        key = normalize_key(key)
+        self.config.hotkeys.keys = {**self.config.hotkeys.keys, action: key}
+        self._save()
+        self.hotkeysChanged.emit()
+        return [a for a, k in self.config.hotkeys.keys.items()
+                if a != action and key and normalize_key(k) == key]  # fmt: skip
+
+    def reset_hotkeys(self) -> None:
+        self.config.hotkeys.keys = HotkeysConfig().keys
+        self._save()
+        self.hotkeysChanged.emit()
+
+    def set_global_hotkeys(self, enabled: bool) -> None:
+        self.config.hotkeys.global_hotkeys = enabled
+        self._save()
+        self.hotkeysChanged.emit()
 
     def request_calibration(self) -> None:
         """F2: calibrate on a frozen frame; starts the source first if needed."""
