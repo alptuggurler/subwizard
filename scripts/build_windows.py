@@ -34,7 +34,7 @@ DATA = [
 HIDDEN = ["subwizard.ui.wizard", "subwizard.app", "rapidocr", "deep_translator",
           "pynput.keyboard._win32", "keyring.backends.Windows",
           "subwizard.platform.windows.ocr_winrt", "subwizard.platform.windows.tts_sapi",
-          "pyttsx3.drivers.sapi5"]  # fmt: skip
+          "pyttsx3.drivers.sapi5", "subwizard.tts.edge", "edge_tts", "miniaudio"]  # fmt: skip
 # winrt: namespace packages with native modules; collected whole (M7 Windows OCR).
 COLLECT = ["rapidocr", "qfluentwidgets", "winrt"]  # packages with model / resource files
 

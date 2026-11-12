@@ -10,10 +10,16 @@ from subwizard.tts.base import BaseTTS
 log = logging.getLogger(__name__)
 
 
-def build_tts(engine: str, voice: str = "") -> BaseTTS | None:
-    """`auto`: SAPI on Windows, `say` on macOS (development); None when unavailable."""
+def build_tts(engine: str, voice: str = "", output_device: str | None = None) -> BaseTTS | None:
+    """`auto`: SAPI on Windows, `say` on macOS (development); `edge`: online neural voices
+    anywhere. None when unavailable."""
     if engine == "auto":
         engine = {"win32": "sapi", "darwin": "say"}.get(sys.platform, "")
+    if engine == "edge":
+        from subwizard.audio.devices import find_device
+        from subwizard.tts.edge import EdgeTTS
+
+        return EdgeTTS(voice, find_device(output_device, "output"))
     if engine == "sapi" and sys.platform == "win32":
         from subwizard.platform.windows.tts_sapi import SapiTTS
 

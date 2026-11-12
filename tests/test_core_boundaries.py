@@ -59,6 +59,7 @@ QT_FREE_MODULES = [
     "subwizard.audio.avsync",
     "subwizard.tts",
     "subwizard.tts.base",
+    "subwizard.tts.edge",
     "subwizard.tts.say",
     "subwizard.tts.worker",
     "subwizard.utils.paths",

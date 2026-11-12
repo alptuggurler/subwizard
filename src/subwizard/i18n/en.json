@@ -456,12 +456,14 @@
   "device.av_measure.done": "Picture is late: audio delayed by {ms} ms ({events} events).",
   "device.av_measure.sound_late": "Sound arrives after the picture; it cannot be advanced, delay set to {ms} ms ({events} events).",
   "translate.tts": "Read aloud (experimental)",
-  "translate.tts.desc": "Reads subtitles aloud. Skips old lines when they pile up. Uses SAPI voices on Windows; Turkish needs the Turkish voice pack installed.",
+  "translate.tts.desc": "Reads subtitles aloud; skips old lines when they pile up. System voice: SAPI on Windows (Turkish needs the Turkish voice pack). Edge: natural voices over the internet, only the line being read is sent.",
   "translate.tts.off": "Off",
   "translate.tts.translation": "Read translation",
   "translate.tts.source": "Read English (no translation)",
   "roi.engine": "OCR engine",
   "roi.engine.desc": "Windows OCR (experimental) is Windows' own engine, no model download; Windows only, RapidOCR is used elsewhere. It gives no confidence score.",
   "roi.engine.rapid": "RapidOCR",
-  "roi.engine.windows": "Windows OCR (experimental)"
+  "roi.engine.windows": "Windows OCR (experimental)",
+  "translate.tts.engine.auto": "System voice",
+  "translate.tts.engine.edge": "Edge (online)"
 }

@@ -129,7 +129,7 @@ class Session:
         translate_factory: Callable[[AppConfig, MetricsHub], TranslationService] | None = (
             build_service
         ),
-        tts_factory: Callable[[str, str], BaseTTS | None] = build_tts,
+        tts_factory: Callable[[str, str, str | None], BaseTTS | None] = build_tts,
     ) -> None:
         self._config = config
         self._metrics = metrics
@@ -208,7 +208,7 @@ class Session:
         tts = self._config.tts
         if tts.mode == "off" or self._runner is None:
             return
-        engine = self._tts_factory(tts.engine, tts.voice)
+        engine = self._tts_factory(tts.engine, tts.voice, self._config.audio.output_device)
         if engine is None:
             return
         self._tts = TTSWorker(engine, tts.rate, tts.catch_up)

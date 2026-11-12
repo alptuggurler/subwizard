@@ -456,12 +456,14 @@
   "device.av_measure.done": "Görüntü gecikiyor: ses {ms} ms geciktirildi ({events} olay).",
   "device.av_measure.sound_late": "Ses görüntüden geç geliyor; öne alınamaz, gecikme {ms} ms yapıldı ({events} olay).",
   "translate.tts": "Sesli okuma (deneysel)",
-  "translate.tts.desc": "Altyazıyı sesli okur. Satırlar birikirse eskileri atlar. Windows'ta SAPI sesleri; Türkçe için Windows'a Türkçe ses paketi kurulu olmalı.",
+  "translate.tts.desc": "Altyazıyı sesli okur; satırlar birikirse eskileri atlar. Sistem sesi: Windows'ta SAPI (Türkçe için Türkçe ses paketi gerekir). Edge: internetten doğal Türkçe ses, yalnızca okunan satır gönderilir.",
   "translate.tts.off": "Kapalı",
   "translate.tts.translation": "Çeviriyi oku",
   "translate.tts.source": "İngilizceyi oku (çevirme)",
   "roi.engine": "OCR motoru",
   "roi.engine.desc": "Windows OCR (deneysel) Windows'un kendi motorudur, model indirmez; yalnızca Windows'ta çalışır, başka yerde RapidOCR kullanılır. Güven puanı vermez.",
   "roi.engine.rapid": "RapidOCR",
-  "roi.engine.windows": "Windows OCR (deneysel)"
+  "roi.engine.windows": "Windows OCR (deneysel)",
+  "translate.tts.engine.auto": "Sistem sesi",
+  "translate.tts.engine.edge": "Edge (çevrimiçi)"
 }

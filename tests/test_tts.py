@@ -113,7 +113,7 @@ def _session_said(clip, mode):
     session = Session(config, MetricsHub(), on_frame=lambda: None,
                       on_source_state=lambda s, m: None, on_audio_state=lambda s, m: None,
                       ocr_factory=lambda cfg: ScriptedOCR(), on_translated=translated.append,
-                      tts_factory=lambda engine_name, voice: engine)  # fmt: skip
+                      tts_factory=lambda engine_name, voice, output: engine)  # fmt: skip
     session.start()
     try:
         _wait(lambda: len(engine.said) >= 2, timeout=10)
@@ -131,3 +131,40 @@ def test_source_mode_reads_the_english_and_does_not_translate(clip):
     said, translated, lines = _session_said(clip, "source")
     assert said[:2] == [(lines[0], "en", 1.0), (lines[1], "en", 1.0)]
     assert translated == []
+
+
+def test_edge_rate_text_and_voice_per_language(monkeypatch):
+    import numpy as np
+    import pytest
+
+    from subwizard.tts import edge
+    from subwizard.tts.base import TTSError
+
+    assert [edge.rate_text(r) for r in (1.0, 1.25, 0.8)] == ["+0%", "+25%", "-20%"]
+    asked, played = [], []
+    monkeypatch.setattr(edge, "decode_mp3", lambda data: np.zeros(4, np.float32))
+    tts = edge.EdgeTTS(device=3, synthesize=lambda text, voice, rate: asked.append(
+        (text, voice, rate)) or b"mp3", player=lambda s, sr, dev: played.append((sr, dev)))
+    tts.speak("Merhaba", "tr", 1.25)
+    tts.speak("Hello", "en", 1.0)
+    assert asked == [("Merhaba", "tr-TR-EmelNeural", 1.25), ("Hello", "en-US-AriaNeural", 1.0)]
+    assert played == [(edge.SAMPLE_RATE, 3)] * 2
+
+    def offline(text, voice, rate):
+        raise OSError("no internet")
+
+    with pytest.raises(TTSError):
+        edge.EdgeTTS(synthesize=offline, player=lambda *a: None).speak("x", "tr", 1.0)
+    quiet = edge.EdgeTTS(synthesize=lambda *a: b"mp3", player=lambda *a: played.append("late"))
+    quiet.stop()
+    quiet.speak("x", "tr", 1.0)  # stopped while synthesizing: nothing is played
+    assert "late" not in played
+
+
+def test_build_tts_edge_uses_the_output_device(monkeypatch):
+    from subwizard.audio import devices
+    from subwizard.tts import build_tts
+
+    monkeypatch.setattr(devices, "find_device", lambda name, kind, devs=None: 7 if name else None)
+    engine = build_tts("edge", "", "Speakers")
+    assert engine.name == "edge" and engine._device == 7

@@ -188,11 +188,15 @@ def test_read_aloud_setting_is_saved_and_starts_the_worker(window, monkeypatch):
 
     c = window.controller
     engine = FakeTTS()
-    monkeypatch.setattr(c._session, "_tts_factory", lambda name, voice: engine)
+    monkeypatch.setattr(c._session, "_tts_factory", lambda name, voice, output: engine)
     page = _page(window, "translate")
     c.start()
+    assert not page._tts_engine.isEnabled()
     page._tts.setCurrentIndex(1)
     assert c.config.tts.mode == "translation" and c._session._tts is not None
+    assert page._tts_engine.isEnabled()
+    page._tts_engine.setCurrentIndex(1)
+    assert c.config.tts.engine == "edge" and c._session._tts is not None
     page._tts.setCurrentIndex(0)
     assert c.config.tts.mode == "off" and c._session._tts is None
     c.stop()

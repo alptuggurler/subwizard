@@ -281,7 +281,8 @@ class TTSConfig(_Section):
     """Read subtitles aloud (SPEC 3.11, M7, optional)."""
 
     mode: Literal["off", "translation", "source"] = "off"  # source: read English, no translation
-    engine: Literal["auto", "sapi", "say"] = "auto"  # auto: SAPI on Windows, say on macOS
+    # auto: SAPI on Windows, say on macOS; edge: online neural voices (good Turkish, internet)
+    engine: Literal["auto", "sapi", "say", "edge"] = "auto"
     voice: str = ""  # engine voice id; empty: the first voice for the language
     rate: float = Field(1.0, ge=0.5, le=2.0)
     catch_up: Literal["skip", "speedup"] = "skip"  # lines pile up: drop old ones / talk faster

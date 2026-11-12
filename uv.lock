@@ -299,6 +299,21 @@ wheels = [
 ]
 
 [[package]]
+name = "edge-tts"
+version = "7.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "certifi" },
+    { name = "tabulate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a3/ce/14e713ba774063e00444a091eb790539fe0d848a9d8df35fd81a7639a28e/edge_tts-7.3.1.tar.gz", hash = "sha256:ee1fabf911b9ea83b38ae93aee5619ee41eaf0b109fef6e65d797dc4ebf1f20f", size = 35843, upload-time = "2026-10-13T18:22:53.226Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/35/86/3b97d755992777d5a9ca0e45a8ec96cc9858b2d6dd8f65f3f688d60e8709/edge_tts-7.3.1-py3-none-any.whl", hash = "sha256:2a3c79d6235a7a736d681233823ce5492e829b43eb47beae49aa181237a8f9a4", size = 38908, upload-time = "2026-10-13T18:22:51.772Z" },
+]
+
+[[package]]
 name = "evdev"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -511,6 +526,28 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/10/2f/97589876ea967487978071c9042518d28b958d87b17dceb7cdc1d881f963/macholib-1.16.4.tar.gz", hash = "sha256:f408c93ab2e995cd2c46e34fe328b130404be143469e41bc366c807448979362", size = 59427, upload-time = "2025-11-22T08:28:38.373Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/d1/a9f36f8ecdf0fb7c9b1e78c8d7af12b8c8754e74851ac7b94a8305540fc7/macholib-1.16.4-py2.py3-none-any.whl", hash = "sha256:da1a3fa8266e30f0ce7e97c6a54eefaae8edd1e5f86f3eb8b95457cae90265ea", size = 38117, upload-time = "2025-11-22T08:28:36.939Z" },
+]
+
+[[package]]
+name = "miniaudio"
+version = "1.73"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cffi" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1b/8b/2da6a5df7be82ff56810bd90fb79ef3574b2ffd121caa168d3cba4498f9d/miniaudio-1.73.tar.gz", hash = "sha256:6652da7e60fabde24d4f3b56c062d4be5f3bfb626818c5a2877f2c782d6e2c4f", size = 1143250, upload-time = "2026-11-10T20:11:18.627Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/c2/fbb2210a3aee1d0d56951a46e6f8d21804427795f213f6f6c585c51cc969/miniaudio-1.73-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:5293bc60310dfca5c97f1f83f08ed32eb06baf20a50e3fad885ea709700ecdcf", size = 408547, upload-time = "2026-11-10T20:10:00.233Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/ac/359fc3e924f8a58f4a507a288abd842bbc669f02831899c13ee87725aa8d/miniaudio-1.73-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:cbce1b8d95c20781d161c229ae8d7f5b6bbc649cd1b2c72823f9f2c883787a8e", size = 386286, upload-time = "2026-11-10T20:10:01.646Z" },
+    { url = "https://files.pythonhosted.org/packages/69/f5/7bc5268f3d900f41f34d9aa96a3a244f349ff9e3cc2025db7cc1b05d0366/miniaudio-1.73-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:57fa5ef71d67810729528c030ea839c1a242c2a96e9516360ff7b3fa4b495524", size = 683305, upload-time = "2026-11-10T20:10:02.704Z" },
+    { url = "https://files.pythonhosted.org/packages/66/b0/43acc83d395c1780de84ada2b94776a3b7fabd79f2de398f9057cd609446/miniaudio-1.73-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:fea93a0babce4142f4f4aedc53ddf8a444a094aab101f6900e0849c05539a3b2", size = 688090, upload-time = "2026-11-10T20:10:03.903Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/0c/1953be4dff07a69a10c689c66415e1a47446702a3e4592e51fd4115f64b1/miniaudio-1.73-cp312-cp312-manylinux_2_31_armv7l.whl", hash = "sha256:a3176f8984df91268a1dea84a8ad867e6c1588d17702a89c1dc428e8ab3da6d2", size = 608021, upload-time = "2026-11-10T20:10:05.013Z" },
+    { url = "https://files.pythonhosted.org/packages/87/1c/d8c116441621b624178339cbf14b3499e3383223d8abfcaef4d4cc49ac0e/miniaudio-1.73-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:903cf6f63640dfc6dfdee7f7be4cdbf055b0d43afd7ed00969fc2ee3948fe0ee", size = 702559, upload-time = "2026-11-10T20:10:06.069Z" },
+    { url = "https://files.pythonhosted.org/packages/56/9a/e866ee0438e4047d1b7b85e3071f3eb3dfaee1384e0aa448ae1c661cb34d/miniaudio-1.73-cp312-cp312-musllinux_1_2_armv7l.whl", hash = "sha256:cb1fead91730858945c49364ce2a23783300b342db45d4b21161fbe2afbc2180", size = 612038, upload-time = "2026-11-10T20:10:07.41Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/ec/05732c4e7d9e96fd47d7f5927d630405b47d6a8a16f176677661152c40f5/miniaudio-1.73-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:6fc7ff8a669ef656d53a55070f29937d10551e8684b32c38b4a2be36b0c61cca", size = 690558, upload-time = "2026-11-10T20:10:08.601Z" },
+    { url = "https://files.pythonhosted.org/packages/53/ed/7481ee6061ec667b8b95c4f04a55b5c8cafb6c96a845bc61d06396e74830/miniaudio-1.73-cp312-cp312-win32.whl", hash = "sha256:2aa97ddcf2f483c48056c31c8beca81a696a7373f6eb81d48ada21ca0742271c", size = 250366, upload-time = "2026-11-10T20:10:09.583Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/1c/29309e07c90c9dd048f8a1a87f2d7be1ab36a0ebd3123cddb919a1af4155/miniaudio-1.73-cp312-cp312-win_amd64.whl", hash = "sha256:08d06c1e799e481b1527bbd1f7270135261c18dce48a349068a1bb9c87d79f15", size = 288645, upload-time = "2026-11-10T20:10:10.746Z" },
+    { url = "https://files.pythonhosted.org/packages/00/eb/3c52bf1d891ed7d04f7051537d2ac3bbeb64d390973d583ae0ab01b533fb/miniaudio-1.73-cp312-cp312-win_arm64.whl", hash = "sha256:baab8badb6fb742b27b08eba9e90b0e6d5a84326fd97e3af4d1abce3f786d5db", size = 258535, upload-time = "2026-11-10T20:10:12.064Z" },
 ]
 
 [[package]]
@@ -3643,8 +3680,10 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "deep-translator" },
+    { name = "edge-tts" },
     { name = "google-genai" },
     { name = "keyring" },
+    { name = "miniaudio" },
     { name = "numpy" },
     { name = "onnxruntime" },
     { name = "opencv-python-headless" },
@@ -3681,8 +3720,10 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.10" },
     { name = "deep-translator", specifier = ">=1.11.4" },
+    { name = "edge-tts", specifier = ">=7.0" },
     { name = "google-genai", specifier = ">=3.2" },
     { name = "keyring", specifier = ">=25.7" },
+    { name = "miniaudio", specifier = ">=1.59" },
     { name = "numpy", specifier = ">=2" },
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "opencv-python-headless", specifier = ">=4.10" },
@@ -3710,6 +3751,15 @@ requires-dist = [
 [package.metadata.requires-dev]
 build = [{ name = "pyinstaller", specifier = ">=6.10" }]
 dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "tabulate"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/58/8c37dea7bbf769b20d58e7ace7e5edfe65b849442b00ffcdd56be88697c6/tabulate-0.10.0.tar.gz", hash = "sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d", size = 91754, upload-time = "2026-03-04T18:55:34.402Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3", size = 39814, upload-time = "2026-03-04T18:55:31.284Z" },
+]
 
 [[package]]
 name = "tenacity"

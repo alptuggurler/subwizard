@@ -184,7 +184,7 @@ web:                    # web overlay (display.mode web/both): telefon, tablet, 
 
 tts:                    # sesli okuma (deneysel)
   mode: "off"           # off | translation (Turkce ceviriyi oku) | source (Ingilizceyi oku, cevirme)
-  engine: auto          # auto: Windows'ta SAPI, macOS'ta say | sapi | say
+  engine: auto          # auto: Windows'ta SAPI, macOS'ta say | sapi | say | edge (cevrimici, iyi Turkce ses)
   voice: ""             # bos: dile uygun ilk ses
   rate: 1.0             # 0.5-2.0
   catch_up: skip        # satirlar birikirse: skip (eskileri atla) | speedup (hizlan)

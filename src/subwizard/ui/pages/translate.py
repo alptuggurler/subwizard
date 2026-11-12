@@ -35,6 +35,8 @@ from subwizard.ui.widgets.value_slider import ValueSlider
 ENGINES = ("gemini", "deep")
 MODES = ("ocr", "vision")
 TTS_MODES = ("off", "translation", "source")
+TTS_ENGINES = ("auto", "edge")
+TTS_COMBO_WIDTH = 220  # system voice (SAPI / say) or Edge online neural voices
 COMBO_WIDTH = 260
 KEY_FIELD_WIDTH = 240
 CONTEXT_RANGE = (0, 10)
@@ -67,7 +69,18 @@ class TranslatePage(BasePage):
         self._tts.addItems(list(TTS_MODES))
         self._tts.currentIndexChanged.connect(
             lambda i: controller.set_tts_mode(TTS_MODES[i]) if i >= 0 else None)
-        self._tts_row = SettingRow(FluentIcon.MICROPHONE, self._tts)
+        self._tts_engine = ComboBox()
+        self._tts_engine.setMinimumWidth(COMBO_WIDTH)
+        self._tts_engine.addItems(list(TTS_ENGINES))
+        self._tts_engine.currentIndexChanged.connect(
+            lambda i: controller.set_tts_engine(TTS_ENGINES[i]) if i >= 0 else None)
+        tts_control = QWidget()
+        tts_layout = QHBoxLayout(tts_control)
+        tts_layout.setContentsMargins(0, 0, 0, 0)
+        for combo in (self._tts_engine, self._tts):  # fixed: leave room for the description
+            combo.setFixedWidth(TTS_COMBO_WIDTH)
+            tts_layout.addWidget(combo)
+        self._tts_row = SettingRow(FluentIcon.MICROPHONE, tts_control)
 
         self._model = ComboBox()
         self._model.setMinimumWidth(COMBO_WIDTH)
@@ -251,6 +264,10 @@ class TranslatePage(BasePage):
         self._tts.blockSignals(True)
         self._tts.setCurrentIndex(TTS_MODES.index(self.controller.config.tts.mode))
         self._tts.blockSignals(False)
+        self._tts_engine.blockSignals(True)
+        self._tts_engine.setCurrentIndex(int(self.controller.config.tts.engine == "edge"))
+        self._tts_engine.setEnabled(self.controller.config.tts.mode != "off")
+        self._tts_engine.blockSignals(False)
         self._fallback.blockSignals(True)
         self._fallback.setChecked(tr.fallback)
         self._fallback.blockSignals(False)
@@ -297,6 +314,10 @@ class TranslatePage(BasePage):
         for i, mode in enumerate(TTS_MODES):
             self._tts.setItemText(i, t(f"translate.tts.{mode}"))
         self._tts.blockSignals(False)
+        self._tts_engine.blockSignals(True)
+        for i, engine in enumerate(TTS_ENGINES):
+            self._tts_engine.setItemText(i, t(f"translate.tts.engine.{engine}"))
+        self._tts_engine.blockSignals(False)
         self._keys.setPlaceholderText(t("translate.keys.placeholder"))
         self._save.setText(t("translate.keys.save"))
         self._key_link.setText(t("translate.keys.how"))

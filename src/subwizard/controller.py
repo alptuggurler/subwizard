@@ -509,6 +509,14 @@ class AppController(QObject):
             self.settingsChanged.emit()
             self._session.restart_tts()
 
+    def set_tts_engine(self, engine: str) -> None:
+        """"auto" (SAPI / say) or "edge" (online neural voices)."""
+        if engine != self.config.tts.engine:
+            self.config.tts.engine = engine
+            self._save()
+            self.settingsChanged.emit()
+            self._session.restart_tts()
+
     def set_translator_model(self, model: str) -> None:
         self.config.translator.model = model
         self._translation_changed()
