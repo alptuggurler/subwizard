@@ -433,5 +433,10 @@
   "translate.key.resting": "kota doldu, {s} sn dinleniyor",
   "translate.key.saved": "kayıtlı",
   "translate.key.remove": "Bu anahtarı sil",
-  "translate.key.env_note": "Anahtarlar ortam değişkeninden (GEMINI_API_KEYS) geliyor; buradan değiştirilemez."
+  "translate.key.env_note": "Anahtarlar ortam değişkeninden (GEMINI_API_KEYS) geliyor; buradan değiştirilemez.",
+  "diag.graphs": "Son 60 saniye",
+  "diag.graph.fps": "FPS — mavi: kaynak, turuncu: çizim",
+  "diag.graph.interval": "Kareler arası süre (60 FPS'te ~16,7 ms)",
+  "diag.graph.audio": "Ses seviyesi (en yüksek kanal)",
+  "diag.graph.work": "Süre — mavi: OCR, turuncu: çeviri"
 }

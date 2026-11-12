@@ -56,3 +56,20 @@ def test_metrics_recorder_keeps_one_row_per_interval_and_writes_csv():
     lines = rec.to_csv().splitlines()
     assert lines[0].split(",") == ["time", *COLUMNS]
     assert len(lines) == 4 and "40.0" in lines[1]
+
+
+def test_recorder_series_feeds_the_graphs_oldest_first():
+    from subwizard.core.metrics import M, MetricsHub
+    from subwizard.core.metrics_log import MetricsRecorder
+
+    now = [0.0]
+    rec = MetricsRecorder(interval_s=1.0, clock=lambda: now[0])
+    hub = MetricsHub()
+    for level in (-30.0, -12.0):
+        hub.set_gauge(M.AUDIO_LEVEL_L, level)
+        hub.set_gauge(M.AUDIO_LEVEL_R, level - 6)
+        rec.record(hub.snapshot())
+        now[0] += 1.0
+    assert rec.series("audio_db", 60) == [-30.0, -12.0]
+    assert rec.series("audio_db", 1) == [-12.0]
+    assert rec.series("ram_proc_mb", 60) == [None, None]  # no gauge yet: a gap, not 0

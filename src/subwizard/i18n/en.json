@@ -433,5 +433,10 @@
   "translate.key.resting": "quota reached, resting {s} s",
   "translate.key.saved": "saved",
   "translate.key.remove": "Remove this key",
-  "translate.key.env_note": "Keys come from the environment (GEMINI_API_KEYS) and can't be changed here."
+  "translate.key.env_note": "Keys come from the environment (GEMINI_API_KEYS) and can't be changed here.",
+  "diag.graphs": "Last 60 seconds",
+  "diag.graph.fps": "FPS — blue: source, orange: drawing",
+  "diag.graph.interval": "Frame interval (~16.7 ms at 60 FPS)",
+  "diag.graph.audio": "Audio level (louder channel)",
+  "diag.graph.work": "Time — blue: OCR, orange: translation"
 }

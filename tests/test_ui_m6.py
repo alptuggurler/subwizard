@@ -116,3 +116,18 @@ def test_resting_key_state_comes_from_the_translator():
     g._resting_until[0] = 130.0
     g._next_key()
     assert g.key_states() == [("resting", 30.0), ("active", 0.0)]
+
+
+def test_diagnostics_graphs_fill_while_the_clip_plays(window):
+    from tests.test_ui_m1 import wait_until
+
+    c = window.controller
+    page = _page(window, "diagnostics")
+    c.start()
+    assert wait_until(lambda: len(page.recorder) >= 3, timeout=10)
+    page.graphs.refresh()  # the page refreshes itself only while visible (tests never show)
+    fps = page.graphs.charts["fps"].series[0]
+    assert len(fps) >= 3 and fps[-1] and fps[-1] > 1
+    assert page.graphs.charts["fps"].value_range()[1] >= 60
+    page.graphs.grab()  # paints without errors
+    c.stop()
