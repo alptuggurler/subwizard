@@ -301,8 +301,8 @@
   "hotkeys.action.mute.desc": "Capture card audio.",
   "hotkeys.action.retranslate": "Retranslate",
   "hotkeys.action.retranslate.desc": "Translates the line on screen again, skipping the cache.",
-  "hotkeys.action.pause_translation": "Pause translation",
-  "hotkeys.action.pause_translation.desc": "Video keeps running, new lines are not translated.",
+  "hotkeys.action.pause_translation": "Translation on / off",
+  "hotkeys.action.pause_translation.desc": "Video keeps running; while off, new lines are not translated. Shown on screen when pressed.",
   "hotkeys.action.perf_overlay": "Performance overlay",
   "hotkeys.action.perf_overlay.desc": "Off → compact → detailed.",
   "hotkeys.action.toggle_subtitles": "Hide / show subtitles",
@@ -479,5 +479,10 @@
   "wizard.mode.pc.diagram": "PC game → screen → OCR → subtitle over the game",
   "wizard.screen.short": "Screen",
   "wizard.screen.title": "Pick the game's monitor",
-  "wizard.screen.text": "Start the game (borderless window) and pick its monitor. The preview should show the game."
+  "wizard.screen.text": "Start the game (borderless window) and pick its monitor. The preview should show the game.",
+  "hotkeys.start_paused": "Start with translation off",
+  "hotkeys.start_paused.desc": "Translation starts when you press {hotkey}; the same key turns it off.",
+  "toast.translation_on": "Translation on",
+  "toast.translation_off": "Translation off",
+  "toast.translation_off_hint": "Translation off · press {hotkey} to turn on"
 }

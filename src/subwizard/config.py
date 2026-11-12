@@ -201,6 +201,8 @@ class TranslatorConfig(_Section):
     mode: Literal["ocr", "vision"] = "ocr"
     vision_media_resolution: Literal["low", "medium", "high"] = "medium"
     model: str = "gemini-3.5-flash-lite"
+    # Translation starts turned off; the pause key (F8 by default) turns it on and off.
+    start_paused: bool = False
     source_language: str = "en"
     target_language: str = "tr"
     context_lines: int = Field(5, ge=0)

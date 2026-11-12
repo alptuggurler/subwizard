@@ -51,6 +51,9 @@ class VisionHandoff:
 
 
 HANDOFF = VisionHandoff()  # one per process: OCR thread puts, translator thread takes
+# Set while translation is turned off (F8): the image is not sent to Gemini (it is a paid
+# request that would read *and* translate), so nothing is read in vision mode meanwhile.
+PAUSED = threading.Event()
 
 
 class VisionOCR(BaseOCR):
@@ -61,6 +64,8 @@ class VisionOCR(BaseOCR):
         self._handoff = handoff
 
     def recognize(self, image: np.ndarray, scale: float = 1.0) -> OCRResult:
+        if PAUSED.is_set():
+            return OCRResult()
         import cv2
 
         ok, jpeg = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])

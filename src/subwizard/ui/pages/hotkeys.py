@@ -87,6 +87,13 @@ class HotkeysPage(BasePage):
         self._global_row = SettingRow(FluentIcon.GLOBE, self._global)
         self.body.addWidget(self._global_row)
 
+        self._start_paused = SwitchButton()
+        self._start_paused.setOnText("")
+        self._start_paused.setOffText("")
+        self._start_paused.checkedChanged.connect(controller.set_start_paused)
+        self._start_paused_row = SettingRow(FluentIcon.PAUSE, self._start_paused)
+        self.body.addWidget(self._start_paused_row)
+
         self.recorders: dict[str, KeyRecorder] = {}
         self._rows: dict[str, SettingRow] = {}
         for action in ACTIONS:
@@ -109,6 +116,9 @@ class HotkeysPage(BasePage):
         self._global.blockSignals(True)
         self._global.setChecked(cfg.global_hotkeys)
         self._global.blockSignals(False)
+        self._start_paused.blockSignals(True)
+        self._start_paused.setChecked(self.controller.config.translator.start_paused)
+        self._start_paused.blockSignals(False)
         clashing = conflicts(cfg.keys)
         clash_actions = {a for actions in clashing.values() for a in actions}
         for action, recorder in self.recorders.items():
@@ -128,6 +138,9 @@ class HotkeysPage(BasePage):
     def retranslate(self) -> None:
         super().retranslate()
         self._global_row.set_texts(t("hotkeys.global"), t("hotkeys.global.desc"))
+        key = self.controller.config.hotkeys.keys.get("pause_translation") or t("hotkeys.none")
+        self._start_paused_row.set_texts(t("hotkeys.start_paused"),
+                                         t("hotkeys.start_paused.desc", hotkey=key))  # fmt: skip
         for action, row in self._rows.items():
             row.set_texts(t(f"hotkeys.action.{action}"), t(f"hotkeys.action.{action}.desc"))
         self._reset.setText(t("hotkeys.reset"))

@@ -123,6 +123,7 @@ translator:
   mode: ocr                 # ocr | vision (deneysel: resmi Gemini okur ve cevirir; anahtar ister)
   vision_media_resolution: medium   # low | medium | high (vision: resim basina token)
   model: gemini-3.5-flash-lite
+  start_paused: false       # true: ceviri kapali baslar, duraklatma tusu (F8) acip kapatir
   source_language: en
   target_language: tr
   context_lines: 5          # son kac satir baglam olarak gonderilir

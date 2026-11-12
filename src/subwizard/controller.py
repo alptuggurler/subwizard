@@ -751,6 +751,12 @@ class AppController(QObject):
         self._save()
         self.hotkeysChanged.emit()
 
+    def set_start_paused(self, paused: bool) -> None:
+        """Hotkeys page: translation starts turned off; the pause key turns it on."""
+        self.config.translator.start_paused = paused
+        self._save()
+        self.settingsChanged.emit()
+
     def set_global_hotkeys(self, enabled: bool) -> None:
         self.config.hotkeys.global_hotkeys = enabled
         self._save()

@@ -14,6 +14,7 @@ from subwizard.ui.calibration import CalibrationWindow
 from subwizard.ui.icon import make_app_icon
 from subwizard.ui.pages import PAGES
 from subwizard.ui.pages.base import BasePage
+from subwizard.ui.widgets.video_view import TOAST_OFF
 from subwizard.utils.hotkeys import GlobalHotkeys
 
 DEFAULT_SIZE = (1180, 760)
@@ -160,6 +161,13 @@ class MainWindow(FluentWindow):
         if not running:
             self._calibrate_on_frame = False
         self._update_screen_overlay()
+        if running and self.controller.translation_paused:
+            # Started with translation off: say so, and which key turns it on.
+            key = self.controller.config.hotkeys.keys.get("pause_translation") or "—"
+            text = t("toast.translation_off_hint", hotkey=key)
+            for view in (self.home.video, self.screen_overlay):
+                if view is not None:
+                    view.show_toast(text, TOAST_OFF)
 
     def _update_screen_overlay(self, *_: object) -> None:
         """PC game mode: the translation in a click-through window over the game."""

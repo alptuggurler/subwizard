@@ -68,11 +68,11 @@ class ScreenOverlay(VideoView):
 
     def paintEvent(self, event: QPaintEvent) -> None:
         frame = self._controller.latest_frame()
-        if frame is None:
-            return
         painter = QPainter(self)
-        # The window *is* the captured monitor: frame pixels map onto all of it.
-        self._draw_subtitle(painter, QRectF(self.rect()), frame)
+        if frame is not None:
+            # The window *is* the captured monitor: frame pixels map onto all of it.
+            self._draw_subtitle(painter, QRectF(self.rect()), frame)
+        self._draw_toast(painter)  # excluded from capture on Windows: OCR never reads it
         painter.end()
 
     # The base view's fullscreen / cursor / history handling does not apply here.

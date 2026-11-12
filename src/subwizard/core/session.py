@@ -19,6 +19,7 @@ from subwizard.audio.meter import LevelMeter
 from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
 from subwizard.config import AppConfig
 from subwizard.core.metrics import M, MetricsHub
+from subwizard.ocr import vision
 from subwizard.ocr.base import BaseOCR
 from subwizard.ocr.worker import OCRState, OCRTick, OCRWorker, build_ocr
 from subwizard.pipeline.board import SubtitleBoard, SubtitleView
@@ -153,7 +154,9 @@ class Session:
         self._states = SubtitleStateMachine(config.subtitle, self._profile_ignore())
         self._board = SubtitleBoard(config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now())
-        self.translation_paused = False  # F8: lines are still recorded, not translated
+        # F8: lines are still recorded, not translated. Starts off when the user asked for it.
+        self._paused = False
+        self.translation_paused = config.translator.start_paused
         self.write_subtitle_log = True
         self._slot = LatestSlot()
         self._runner: SourceRunner | None = None
@@ -161,6 +164,21 @@ class Session:
         self.av_recorder = AVSyncRecorder()  # A/V "Otomatik ölç", fed only while active
         self._tts_factory = tts_factory
         self._tts: TTSWorker | None = None
+
+    @property
+    def translation_paused(self) -> bool:
+        return self._paused
+
+    @translation_paused.setter
+    def translation_paused(self, paused: bool) -> None:
+        """Turning translation off also takes the shown translation off the screen."""
+        self._paused = paused
+        if paused:
+            vision.PAUSED.set()
+        else:
+            vision.PAUSED.clear()
+        if paused and self._board.reset():
+            self._on_subtitle(self._board.shown)
 
     @property
     def running(self) -> bool:

@@ -301,8 +301,8 @@
   "hotkeys.action.mute.desc": "Capture card sesi.",
   "hotkeys.action.retranslate": "Yeniden çevir",
   "hotkeys.action.retranslate.desc": "Ekrandaki satırı önbelleği atlayarak tekrar çevirir.",
-  "hotkeys.action.pause_translation": "Çeviriyi duraklat",
-  "hotkeys.action.pause_translation.desc": "Görüntü sürer, yeni satır çevrilmez.",
+  "hotkeys.action.pause_translation": "Çeviriyi aç / kapat",
+  "hotkeys.action.pause_translation.desc": "Görüntü sürer; kapalıyken yeni satır çevrilmez. Basınca ekranda yazar.",
   "hotkeys.action.perf_overlay": "Performans göstergesi",
   "hotkeys.action.perf_overlay.desc": "Kapalı → kompakt → ayrıntılı.",
   "hotkeys.action.toggle_subtitles": "Altyazıyı gizle / göster",
@@ -479,5 +479,10 @@
   "wizard.mode.pc.diagram": "PC oyunu → ekran → OCR → oyunun üstünde altyazı",
   "wizard.screen.short": "Ekran",
   "wizard.screen.title": "Oyunun ekranını seç",
-  "wizard.screen.text": "Oyunu aç (kenarlıksız pencere) ve ekranını seç. Önizlemede oyun görünmeli."
+  "wizard.screen.text": "Oyunu aç (kenarlıksız pencere) ve ekranını seç. Önizlemede oyun görünmeli.",
+  "hotkeys.start_paused": "Açılışta çeviri kapalı",
+  "hotkeys.start_paused.desc": "Çeviri sen {hotkey} tuşuna basınca başlar; aynı tuş kapatır.",
+  "toast.translation_on": "Çeviri açık",
+  "toast.translation_off": "Çeviri kapalı",
+  "toast.translation_off_hint": "Çeviri kapalı · açmak için {hotkey}"
 }

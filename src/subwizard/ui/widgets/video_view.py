@@ -52,6 +52,12 @@ HISTORY_FONT_PX = 14
 HISTORY_WIDTH_RATIO = 0.45
 HISTORY_MAX_WIDTH = 720
 HISTORY_SOURCE = QColor(170, 170, 170)
+TOAST_MS = 1800  # "Çeviri açık / kapalı" after the pause key
+TOAST_FONT_PX = 22
+TOAST_PADDING = 14
+TOAST_TOP_RATIO = 0.08  # from the top: away from subtitles at the bottom
+TOAST_ON = QColor(110, 220, 130)
+TOAST_OFF = QColor(255, 170, 90)
 
 
 class VideoView(QWidget):
@@ -89,10 +95,52 @@ class VideoView(QWidget):
         controller.subtitleChanged.connect(self.update)
         controller.overlayChanged.connect(self.update)
 
+        self._toast: tuple[str, QColor] | None = None
+        self._toast_timer = QTimer(self)
+        self._toast_timer.setSingleShot(True)
+        self._toast_timer.setInterval(TOAST_MS)
+        self._toast_timer.timeout.connect(self._end_toast)
+        controller.pauseChanged.connect(self._on_pause)
+
     def set_placeholder(self, text: str) -> None:
         """Shown centered while there is no frame (stopped, connecting, error)."""
         self._placeholder = text
         self.update()
+
+    def _on_pause(self, paused: bool) -> None:
+        if paused:
+            self.show_toast(t("toast.translation_off"), TOAST_OFF)
+        else:
+            self.show_toast(t("toast.translation_on"), TOAST_ON)
+
+    def show_toast(self, text: str, color: QColor = OVERLAY_TEXT) -> None:
+        """A short notice at the top center (pause key feedback); fades out on a timer."""
+        self._toast = (text, color)
+        self._toast_timer.start()
+        self.update()
+
+    def _end_toast(self) -> None:
+        self._toast = None
+        self.update()
+
+    def _draw_toast(self, painter: QPainter) -> None:
+        if self._toast is None:
+            return
+        text, color = self._toast
+        font = QFont(painter.font())
+        font.setPixelSize(TOAST_FONT_PX)
+        font.setBold(True)
+        painter.setFont(font)
+        fm = painter.fontMetrics()
+        width = fm.horizontalAdvance(text) + 2 * TOAST_PADDING
+        height = fm.height() + TOAST_PADDING
+        box = QRectF((self.width() - width) / 2, self.height() * TOAST_TOP_RATIO, width, height)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(OVERLAY_BACKGROUND)
+        painter.drawRoundedRect(box, OVERLAY_RADIUS, OVERLAY_RADIUS)
+        painter.setPen(color)
+        painter.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
 
     def _on_metrics(self, snapshot: Snapshot) -> None:
         self._snapshot = snapshot
@@ -118,6 +166,7 @@ class VideoView(QWidget):
             self._draw_overlay(painter, level == "compact")
         if self.show_history:
             self._draw_history(painter)
+        self._draw_toast(painter)
         painter.end()
 
     def _draw_frame(self, painter: QPainter, frame: Frame) -> None:
