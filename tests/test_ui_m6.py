@@ -181,3 +181,18 @@ def test_av_measure_needs_audio_then_applies_the_estimate(window):
     rec.start()
     c._finish_av_sync()  # nothing recorded: failure text, delay unchanged
     assert c.config.audio.delay_ms == 90 and page._av_measure.isEnabled()
+
+
+def test_read_aloud_setting_is_saved_and_starts_the_worker(window, monkeypatch):
+    from tests.test_tts import FakeTTS
+
+    c = window.controller
+    engine = FakeTTS()
+    monkeypatch.setattr(c._session, "_tts_factory", lambda name, voice: engine)
+    page = _page(window, "translate")
+    c.start()
+    page._tts.setCurrentIndex(1)
+    assert c.config.tts.mode == "translation" and c._session._tts is not None
+    page._tts.setCurrentIndex(0)
+    assert c.config.tts.mode == "off" and c._session._tts is None
+    c.stop()

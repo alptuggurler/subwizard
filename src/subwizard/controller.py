@@ -493,6 +493,14 @@ class AppController(QObject):
             self.settingsChanged.emit()
             self._session.restart_ocr()
 
+    def set_tts_mode(self, mode: str) -> None:
+        """Sesli okuma (SPEC 3.11): "off" | "translation" | "source"."""
+        if mode != self.config.tts.mode:
+            self.config.tts.mode = mode
+            self._save()
+            self.settingsChanged.emit()
+            self._session.restart_tts()
+
     def set_translator_model(self, model: str) -> None:
         self.config.translator.model = model
         self._translation_changed()

@@ -31,6 +31,9 @@ from subwizard.sources.base import BaseSource, Frame, LatestSlot, SourceError, V
 from subwizard.sources.capture_card import CaptureCardSource
 from subwizard.sources.runner import SourceRunner, SourceState
 from subwizard.sources.video_file import VideoFileSource
+from subwizard.tts import build_tts
+from subwizard.tts.base import BaseTTS
+from subwizard.tts.worker import TTSWorker, Utterance
 from subwizard.utils import timing
 from subwizard.utils.paths import default_log_dir
 
@@ -126,6 +129,7 @@ class Session:
         translate_factory: Callable[[AppConfig, MetricsHub], TranslationService] | None = (
             build_service
         ),
+        tts_factory: Callable[[str, str], BaseTTS | None] = build_tts,
     ) -> None:
         self._config = config
         self._metrics = metrics
@@ -151,6 +155,8 @@ class Session:
         self._runner: SourceRunner | None = None
         self.audio: BaseAudioPassthrough | None = None
         self.av_recorder = AVSyncRecorder()  # A/V "Otomatik ölç", fed only while active
+        self._tts_factory = tts_factory
+        self._tts: TTSWorker | None = None
 
     @property
     def running(self) -> bool:
@@ -183,6 +189,7 @@ class Session:
         self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
         self._start_translator()
         self._start_ocr()
+        self.restart_tts()
 
     def _frame_arrived(self) -> None:
         """Capture thread, right after the frame was put into the slot."""
@@ -191,6 +198,26 @@ class Session:
             if frame is not None:
                 self.av_recorder.add_frame(frame.image, frame.timestamp)
         self._on_frame()
+
+    # --- read aloud (SPEC 3.11) ------------------------------------------------------
+    def restart_tts(self) -> None:
+        """(Re)build the TTS worker from `tts.*`; off when stopped or mode is off."""
+        if self._tts is not None:
+            self._tts.stop()
+            self._tts = None
+        tts = self._config.tts
+        if tts.mode == "off" or self._runner is None:
+            return
+        engine = self._tts_factory(tts.engine, tts.voice)
+        if engine is None:
+            return
+        self._tts = TTSWorker(engine, tts.rate, tts.catch_up)
+        self._tts.start()
+        log.info("Sesli okuma açık: %s, %s", tts.mode, engine.name)
+
+    def _speak(self, line_id: int, text: str, language: str, replaces: int | None) -> None:
+        if self._tts is not None and text.strip():
+            self._tts.say(Utterance(line_id, text, language), replaces)
 
     def _start_ocr(self) -> None:
         if self._ocr_factory is not None:
@@ -274,6 +301,10 @@ class Session:
                 self.history.add(line)
                 if self.translation_paused:
                     continue
+                if self._config.tts.mode == "source" and self._tts is not None:
+                    # Read the original instead of translating it (SPEC 3.11).
+                    self._speak(line.id, line.full_text, "en", line.replaces)
+                    continue
                 self._board.line_stable(line)
                 if self._translator is not None:
                     self._translator.submit(line)
@@ -290,6 +321,8 @@ class Session:
         self._on_translated(item)
         if item.result is None:
             return
+        if self._config.tts.mode == "translation":
+            self._speak(item.line.id, item.result.text, "tr", item.line.replaces)
         if self._board.translated(item.line, item.result, timing.now()):
             view = self._board.shown
             if view is not None:
@@ -301,6 +334,9 @@ class Session:
             self._ocr.force()
 
     def stop(self) -> None:
+        if self._tts is not None:
+            self._tts.stop()
+            self._tts = None
         self.stop_audio()
         self._stop_ocr()
         self._stop_translator()

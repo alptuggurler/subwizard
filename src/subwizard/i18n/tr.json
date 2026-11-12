@@ -454,5 +454,10 @@
   "device.av_measure.need_audio": "Önce capture card'dan görüntü ve ses gelmeli.",
   "device.av_measure.failed": "Ölçülemedi ({events} eşleşen olay; en az 3 gerekli). Flaş + bip içeren bir test videosu oynat.",
   "device.av_measure.done": "Görüntü gecikiyor: ses {ms} ms geciktirildi ({events} olay).",
-  "device.av_measure.sound_late": "Ses görüntüden geç geliyor; öne alınamaz, gecikme {ms} ms yapıldı ({events} olay)."
+  "device.av_measure.sound_late": "Ses görüntüden geç geliyor; öne alınamaz, gecikme {ms} ms yapıldı ({events} olay).",
+  "translate.tts": "Sesli okuma (deneysel)",
+  "translate.tts.desc": "Altyazıyı sesli okur. Satırlar birikirse eskileri atlar. Windows'ta SAPI sesleri; Türkçe için Windows'a Türkçe ses paketi kurulu olmalı.",
+  "translate.tts.off": "Kapalı",
+  "translate.tts.translation": "Çeviriyi oku",
+  "translate.tts.source": "İngilizceyi oku (çevirme)"
 }

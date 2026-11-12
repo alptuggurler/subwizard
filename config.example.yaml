@@ -174,5 +174,12 @@ web:                    # web overlay (display.mode web/both): telefon, tablet, 
   reconnect_ms: 1000    # baglanti koparsa sayfa bu aralikla yeniden dener
   heartbeat_s: 10.0     # WebSocket ping araligi
 
+tts:                    # sesli okuma (deneysel)
+  mode: "off"           # off | translation (Turkce ceviriyi oku) | source (Ingilizceyi oku, cevirme)
+  engine: auto          # auto: Windows'ta SAPI, macOS'ta say | sapi | say
+  voice: ""             # bos: dile uygun ilk ses
+  rate: 1.0             # 0.5-2.0
+  catch_up: skip        # satirlar birikirse: skip (eskileri atla) | speedup (hizlan)
+
 profile: default
 debug: false

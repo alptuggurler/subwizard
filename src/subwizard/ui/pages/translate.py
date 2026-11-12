@@ -34,6 +34,7 @@ from subwizard.ui.widgets.value_slider import ValueSlider
 
 ENGINES = ("gemini", "deep")
 MODES = ("ocr", "vision")
+TTS_MODES = ("off", "translation", "source")
 COMBO_WIDTH = 260
 KEY_FIELD_WIDTH = 240
 CONTEXT_RANGE = (0, 10)
@@ -61,6 +62,12 @@ class TranslatePage(BasePage):
         self._mode.currentIndexChanged.connect(
             lambda i: controller.set_translator_mode(MODES[i]) if i >= 0 else None)
         self._mode_row = SettingRow(FluentIcon.PHOTO, self._mode)
+        self._tts = ComboBox()
+        self._tts.setMinimumWidth(COMBO_WIDTH)
+        self._tts.addItems(list(TTS_MODES))
+        self._tts.currentIndexChanged.connect(
+            lambda i: controller.set_tts_mode(TTS_MODES[i]) if i >= 0 else None)
+        self._tts_row = SettingRow(FluentIcon.MICROPHONE, self._tts)
 
         self._model = ComboBox()
         self._model.setMinimumWidth(COMBO_WIDTH)
@@ -101,7 +108,8 @@ class TranslatePage(BasePage):
         self._fallback_row = SettingRow(FluentIcon.SYNC, self._fallback)
 
         for row in (self._engine_row, self._model_row, self._key_row, self.key_list,
-                    self._context_row, self._fallback_row, self._mode_row):  # fmt: skip
+                    self._context_row, self._fallback_row, self._mode_row,
+                    self._tts_row):  # fmt: skip
             self.body.addWidget(row)
 
         # --- test
@@ -138,7 +146,7 @@ class TranslatePage(BasePage):
         self._usage_row = SettingRow(FluentIcon.SPEED_HIGH, self._cache_label)
         self.body.addWidget(self._cache_row)
         self.body.addWidget(self._usage_row)
-        self.advanced_section = [self.key_list, self._mode_row, self._context_row, self._cache_row, self._usage_row]
+        self.advanced_section = [self.key_list, self._mode_row, self._tts_row, self._context_row, self._cache_row, self._usage_row]
 
         controller.settingsChanged.connect(self._load)
         controller.translationTested.connect(self._on_tested)
@@ -240,6 +248,9 @@ class TranslatePage(BasePage):
         self._mode.setCurrentIndex(MODES.index(tr.mode))
         self._mode.blockSignals(False)
         self._mode_row.setEnabled(gemini)
+        self._tts.blockSignals(True)
+        self._tts.setCurrentIndex(TTS_MODES.index(self.controller.config.tts.mode))
+        self._tts.blockSignals(False)
         self._fallback.blockSignals(True)
         self._fallback.setChecked(tr.fallback)
         self._fallback.blockSignals(False)
@@ -281,6 +292,11 @@ class TranslatePage(BasePage):
         for i, mode in enumerate(MODES):
             self._mode.setItemText(i, t(f"translate.mode.{mode}"))
         self._mode.blockSignals(False)
+        self._tts_row.set_texts(t("translate.tts"), t("translate.tts.desc"))
+        self._tts.blockSignals(True)
+        for i, mode in enumerate(TTS_MODES):
+            self._tts.setItemText(i, t(f"translate.tts.{mode}"))
+        self._tts.blockSignals(False)
         self._keys.setPlaceholderText(t("translate.keys.placeholder"))
         self._save.setText(t("translate.keys.save"))
         self._key_link.setText(t("translate.keys.how"))

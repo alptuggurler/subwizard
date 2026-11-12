@@ -454,5 +454,10 @@
   "device.av_measure.need_audio": "Video and audio must be coming from the capture card first.",
   "device.av_measure.failed": "Could not measure ({events} matched events; at least 3 needed). Play a test video with flashes + beeps.",
   "device.av_measure.done": "Picture is late: audio delayed by {ms} ms ({events} events).",
-  "device.av_measure.sound_late": "Sound arrives after the picture; it cannot be advanced, delay set to {ms} ms ({events} events)."
+  "device.av_measure.sound_late": "Sound arrives after the picture; it cannot be advanced, delay set to {ms} ms ({events} events).",
+  "translate.tts": "Read aloud (experimental)",
+  "translate.tts.desc": "Reads subtitles aloud. Skips old lines when they pile up. Uses SAPI voices on Windows; Turkish needs the Turkish voice pack installed.",
+  "translate.tts.off": "Off",
+  "translate.tts.translation": "Read translation",
+  "translate.tts.source": "Read English (no translation)"
 }

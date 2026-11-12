@@ -271,6 +271,16 @@ class WebConfig(_Section):
     heartbeat_s: float = Field(10.0, gt=0)  # WebSocket ping: notices a phone that went away
 
 
+class TTSConfig(_Section):
+    """Read subtitles aloud (SPEC 3.11, M7, optional)."""
+
+    mode: Literal["off", "translation", "source"] = "off"  # source: read English, no translation
+    engine: Literal["auto", "sapi", "say"] = "auto"  # auto: SAPI on Windows, say on macOS
+    voice: str = ""  # engine voice id; empty: the first voice for the language
+    rate: float = Field(1.0, ge=0.5, le=2.0)
+    catch_up: Literal["skip", "speedup"] = "skip"  # lines pile up: drop old ones / talk faster
+
+
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="SUBWIZARD_",
@@ -292,6 +302,7 @@ class AppConfig(BaseSettings):
     hotkeys: HotkeysConfig = HotkeysConfig()
     display: DisplayConfig = DisplayConfig()
     web: WebConfig = WebConfig()
+    tts: TTSConfig = TTSConfig()
     profile: str = "default"
     debug: bool = False
 
