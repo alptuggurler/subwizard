@@ -447,5 +447,12 @@
   "translate.mode": "Reading method",
   "translate.mode.desc": "Experimental vision mode: the subtitle image goes to Gemini, which reads and translates it in one request. May read stylised fonts better, but costs more and is slower per line.",
   "translate.mode.ocr": "OCR + translation (recommended)",
-  "translate.mode.vision": "Vision mode (experimental)"
+  "translate.mode.vision": "Vision mode (experimental)",
+  "device.av_measure": "Measure",
+  "device.av_measure.tip": "Play an A/V sync test video (white flash + beep) on the console and press: listens for 10 s and sets the delay itself.",
+  "device.av_measure.listening": "Listening… (10 s)",
+  "device.av_measure.need_audio": "Video and audio must be coming from the capture card first.",
+  "device.av_measure.failed": "Could not measure ({events} matched events; at least 3 needed). Play a test video with flashes + beeps.",
+  "device.av_measure.done": "Picture is late: audio delayed by {ms} ms ({events} events).",
+  "device.av_measure.sound_late": "Sound arrives after the picture; it cannot be advanced, delay set to {ms} ms ({events} events)."
 }

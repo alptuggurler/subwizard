@@ -226,3 +226,29 @@ def test_avsync_sound_late_lowers_delay_but_never_below_zero():
     assert est.suggested_delay_ms(20, 500) == 0
     assert not SyncEstimate(0, 2, 0).reliable
     assert estimate([1.0], [3.0]) is None  # too far apart: different events
+
+
+def test_avsync_recorder_collects_only_while_active():
+    import numpy as np
+
+    from subwizard.audio.avsync import AVSyncRecorder
+
+    now = [0.0]
+    rec = AVSyncRecorder(clock=lambda: now[0])
+    dark, bright = np.zeros((64, 64, 3), np.uint8), np.full((64, 64, 3), 255, np.uint8)
+    quiet, loud = np.zeros((256, 2), np.float32), np.full((256, 2), 0.8, np.float32)
+    rec.add_frame(bright, 0.0)  # inactive: ignored
+    rec.start()
+    for i in range(600):  # 6 s: video every 10 ms, audio every 10 ms
+        t = i / 100
+        flash = any(e <= t < e + 0.1 for e in (1.0, 2.5, 4.0))
+        beep = any(e + 0.06 <= t < e + 0.16 for e in (1.0, 2.5, 4.0))  # sound 60 ms late
+        rec.add_frame(bright if flash else dark, t)
+        now[0] = t
+        rec.add_audio(loud if beep else quiet)
+    est = rec.stop()
+    assert not rec.active and est is not None and est.pairs == 3
+    assert round(est.offset_ms) == 60
+    assert est.suggested_delay_ms(0, 500) == 0  # sound late: nothing to delay
+    rec.add_audio(loud)  # stopped: ignored
+    assert AVSyncRecorder().stop() is None

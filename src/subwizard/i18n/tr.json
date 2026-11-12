@@ -447,5 +447,12 @@
   "translate.mode": "Okuma yöntemi",
   "translate.mode.desc": "Deneysel görsel mod: altyazı resmi Gemini'ye gider, okuma ve çeviri tek istekte yapılır. Süslü fontlarda daha iyi okuyabilir ama satır başına daha pahalı ve yavaştır.",
   "translate.mode.ocr": "OCR + çeviri (önerilen)",
-  "translate.mode.vision": "Görsel mod (deneysel)"
+  "translate.mode.vision": "Görsel mod (deneysel)",
+  "device.av_measure": "Otomatik ölç",
+  "device.av_measure.tip": "Konsolda A/V senkron test videosu (beyaz flaş + bip) oynat ve bas: 10 sn dinler, gecikmeyi kendisi ayarlar.",
+  "device.av_measure.listening": "Dinliyor… (10 sn)",
+  "device.av_measure.need_audio": "Önce capture card'dan görüntü ve ses gelmeli.",
+  "device.av_measure.failed": "Ölçülemedi ({events} eşleşen olay; en az 3 gerekli). Flaş + bip içeren bir test videosu oynat.",
+  "device.av_measure.done": "Görüntü gecikiyor: ses {ms} ms geciktirildi ({events} olay).",
+  "device.av_measure.sound_late": "Ses görüntüden geç geliyor; öne alınamaz, gecikme {ms} ms yapıldı ({events} olay)."
 }

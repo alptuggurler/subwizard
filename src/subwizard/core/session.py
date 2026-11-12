@@ -13,6 +13,7 @@ from enum import StrEnum
 
 from subwizard import platform
 from subwizard.audio.base import AudioError, BaseAudioPassthrough
+from subwizard.audio.avsync import AVSyncRecorder
 from subwizard.audio.devices import AudioDevice, find_device, list_audio_devices
 from subwizard.audio.meter import LevelMeter
 from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
@@ -149,6 +150,7 @@ class Session:
         self._slot = LatestSlot()
         self._runner: SourceRunner | None = None
         self.audio: BaseAudioPassthrough | None = None
+        self.av_recorder = AVSyncRecorder()  # A/V "Otomatik ölç", fed only while active
 
     @property
     def running(self) -> bool:
@@ -168,7 +170,7 @@ class Session:
             source,
             self._slot,
             self._metrics,
-            on_frame=self._on_frame,
+            on_frame=self._frame_arrived,
             on_state=self._on_source_state,
             reconnect_initial_s=src.reconnect_initial_s,
             reconnect_max_s=src.reconnect_max_s,
@@ -181,6 +183,14 @@ class Session:
         self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
         self._start_translator()
         self._start_ocr()
+
+    def _frame_arrived(self) -> None:
+        """Capture thread, right after the frame was put into the slot."""
+        if self.av_recorder.active:
+            frame = self._slot.get()
+            if frame is not None:
+                self.av_recorder.add_frame(frame.image, frame.timestamp)
+        self._on_frame()
 
     def _start_ocr(self) -> None:
         if self._ocr_factory is not None:
@@ -323,6 +333,7 @@ class Session:
             log.error("%s", exc.message)
             self._on_audio_state(AudioState.ERROR, exc.message)
             return
+        passthrough.tap = self.av_recorder.add_audio
         self.audio = passthrough
         self._on_audio_state(AudioState.RUNNING, "")
 

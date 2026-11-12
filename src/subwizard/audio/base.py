@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
 
 from subwizard.core.errors import UserError
 
@@ -13,6 +18,9 @@ class AudioError(UserError):
 
 class BaseAudioPassthrough(ABC):
     """Routes the capture card's audio input to an output device."""
+
+    # Called with every input block on the audio thread (A/V "Otomatik ölç"); keep it cheap.
+    tap: Callable[[np.ndarray], None] | None = None
 
     @abstractmethod
     def start(self) -> None:

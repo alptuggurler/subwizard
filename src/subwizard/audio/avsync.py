@@ -7,19 +7,30 @@ found in both; each video onset is paired with the nearest audio onset, and the 
 difference is the offset. Audio can only be delayed (config `audio.delay_ms` >= 0), so
 the suggestion is how much to delay audio when the picture arrives later.
 
-Not yet wired to the UI: needs the capture card on Windows to be checked end to end.
+`AVSyncRecorder` is fed on the input side (capture thread: every frame; PortAudio input
+callback: every block), before the delay buffer, so the measured offset does not include
+the current `audio.delay_ms`. Not checked with a real capture card yet (needs Windows).
 """
 
 from __future__ import annotations
 
 import statistics
-from collections.abc import Sequence
+import threading
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from subwizard.utils import timing
+
+if TYPE_CHECKING:
+    import numpy as np
 
 JUMP_RATIO = 0.5  # an onset rises at least half of the signal's full range at once
 MIN_GAP_S = 0.25  # one event = one onset (a flash spans several frames)
 MAX_OFFSET_S = 0.5  # pairs further apart are different events
 MIN_PAIRS = 3  # fewer matched events = not trustworthy
+MEASURE_S = 10.0  # how long "Otomatik ölç" listens
+PIXEL_STEP = 8  # brightness from every 8th pixel: cheap on the capture thread
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,3 +76,47 @@ def estimate(video: Sequence[float], audio: Sequence[float],
     if not diffs:
         return None
     return SyncEstimate(statistics.median(diffs), len(diffs), max(diffs) - min(diffs))
+
+
+class AVSyncRecorder:
+    """Collects (time, brightness) per frame and (time, peak) per audio block while
+    active. Feeding is cheap and thread-safe; inactive feeds return at once."""
+
+    def __init__(self, clock: Callable[[], float] = timing.now) -> None:
+        self._clock = clock
+        self._lock = threading.Lock()
+        self.active = False
+        self._video: list[tuple[float, float]] = []
+        self._audio: list[tuple[float, float]] = []
+
+    def start(self) -> None:
+        with self._lock:
+            self._video, self._audio = [], []
+            self.active = True
+
+    def add_frame(self, image: np.ndarray, timestamp: float) -> None:
+        if not self.active:
+            return
+        brightness = float(image[::PIXEL_STEP, ::PIXEL_STEP].mean())
+        with self._lock:
+            if self.active:
+                self._video.append((timestamp, brightness))
+
+    def add_audio(self, block: np.ndarray) -> None:
+        if not self.active:
+            return
+        peak = float(abs(block).max()) if len(block) else 0.0
+        now = self._clock()
+        with self._lock:
+            if self.active:
+                self._audio.append((now, peak))
+
+    def stop(self) -> SyncEstimate | None:
+        with self._lock:
+            self.active = False
+            video, audio = self._video, self._audio
+        if not video or not audio:
+            return None
+        v = onsets([t for t, _ in video], [b for _, b in video])
+        a = onsets([t for t, _ in audio], [p for _, p in audio])
+        return estimate(v, a)

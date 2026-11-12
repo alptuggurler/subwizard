@@ -179,7 +179,16 @@ class DevicePage(BasePage):
         self._profile = _combo()
         self._profile_row = SettingRow(FluentIcon.SPEED_HIGH, self._profile)
         self._delay = ValueSlider(DELAY_RANGE_MS, lambda v: f"{v:+d} ms")
-        self._delay_row = SettingRow(FluentIcon.HISTORY, self._delay)
+        self._av_measure = PushButton(FluentIcon.SYNC, "")
+        self._av_measure.clicked.connect(self._on_av_measure)
+        self._av_result = ""  # last "Otomatik ölç" outcome, shown as the row's description
+        delay_control = QWidget()
+        delay_layout = QHBoxLayout(delay_control)
+        delay_layout.setContentsMargins(0, 0, 0, 0)
+        delay_layout.addWidget(self._delay)
+        delay_layout.addWidget(self._av_measure)
+        self._delay_row = SettingRow(FluentIcon.HISTORY, delay_control)
+        controller.avSyncMeasured.connect(self._on_av_measured)
 
         for row in (self._enabled_row, self._input_row, self._output_row, self._vu_row,
                     self._gain_row, self._muted_row, self._profile_row, self._delay_row):  # fmt: skip
@@ -322,6 +331,27 @@ class DevicePage(BasePage):
         self._sound_result.setText(t("device.sound_test.done") if ok
                                    else t("device.sound_test.failed", error=text))  # fmt: skip
 
+    def _on_av_measure(self) -> None:
+        if self.controller.measure_av_sync():
+            self._av_measure.setEnabled(False)
+            self._show_av_result(t("device.av_measure.listening"))
+        else:
+            self._show_av_result(t("device.av_measure.need_audio"))
+
+    def _on_av_measured(self, delay: int, events: int, offset_ms: float) -> None:
+        self._av_measure.setEnabled(True)
+        if delay < 0:
+            self._show_av_result(t("device.av_measure.failed", events=events))
+            return
+        self._delay.set_value(delay)
+        key = "device.av_measure.sound_late" if offset_ms > 0 else "device.av_measure.done"
+        self._show_av_result(t(key, ms=delay, events=events))
+        self._refresh_audio_notice()
+
+    def _show_av_result(self, text: str) -> None:
+        self._av_result = text
+        self._delay_row.set_texts(t("device.delay"), text or t("device.delay.desc"))
+
     def retranslate(self, *_: object) -> None:
         super().retranslate()
         c = self.controller
@@ -391,5 +421,7 @@ class DevicePage(BasePage):
         self._sound_test.setToolTip(t("device.sound_test.tip"))
         self._muted_row.set_texts(t("device.muted"), t("device.muted.desc"))
         self._profile_row.set_texts(t("device.profile"), t("device.profile.desc"))
-        self._delay_row.set_texts(t("device.delay"), t("device.delay.desc"))
+        self._delay_row.set_texts(t("device.delay"), self._av_result or t("device.delay.desc"))
+        self._av_measure.setText(t("device.av_measure"))
+        self._av_measure.setToolTip(t("device.av_measure.tip"))
         self._refresh_audio_notice()

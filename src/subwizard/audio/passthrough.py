@@ -69,6 +69,9 @@ class SoundDevicePassthrough(BaseAudioPassthrough):
         if status:
             self._input_glitches += 1
         self._meter.process(indata)
+        tap = self.tap
+        if tap is not None:
+            tap(indata)
         self._buffer.write(indata)
 
     def _on_output(self, outdata: np.ndarray, frames: int, time: object, status: object) -> None:

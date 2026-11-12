@@ -159,3 +159,25 @@ def test_reading_method_switch_rebuilds_ocr(window):
     page._mode.setCurrentIndex(0)
     assert c.config.translator.mode == "ocr"
     c.stop()
+
+
+def test_av_measure_needs_audio_then_applies_the_estimate(window):
+    import numpy as np
+
+    c = window.controller
+    page = _page(window, "device")
+    page._on_av_measure()  # file source, no audio: cannot start
+    assert "capture card" in page._av_result
+    rec = c._session.av_recorder
+    rec.start()  # as if listening: picture 90 ms after the sound, four times
+    dark, bright = np.zeros((8, 8, 3), np.uint8), np.full((8, 8, 3), 200, np.uint8)
+    for event in (1.0, 2.0, 3.0, 4.0):
+        rec._video += [(event + 0.08, 0.0), (event + 0.09, float(bright.mean()))]
+        rec._audio += [(event - 0.01, 0.0), (event, 0.9)]
+    rec._video.append((0.0, float(dark.mean())))
+    c._finish_av_sync()
+    assert c.config.audio.delay_ms == 90
+    assert page._delay.slider.value() == 90 and "90" in page._av_result
+    rec.start()
+    c._finish_av_sync()  # nothing recorded: failure text, delay unchanged
+    assert c.config.audio.delay_ms == 90 and page._av_measure.isEnabled()

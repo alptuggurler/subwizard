@@ -79,6 +79,7 @@ class AppController(QObject):
     webChanged = Signal()
     profileChanged = Signal()  # game profile selected, saved or deleted
     soundTested = Signal(bool, str)  # test_sound(): ok, device name or error
+    avSyncMeasured = Signal(int, int, float)  # new delay_ms (-1: failed), events, offset ms
     wizardRequested = Signal()  # Ayarlar -> "Kurulum sihirbazını aç"  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
@@ -579,6 +580,36 @@ class AppController(QObject):
                 self.soundTested.emit(True, name)
 
         threading.Thread(target=run, name="sound-test", daemon=True).start()
+
+    def measure_av_sync(self) -> bool:
+        """Cihaz & Ses "Otomatik ölç": listen for MEASURE_S, then set `audio.delay_ms` to
+        the estimate. False when it cannot start (no capture running with audio)."""
+        from PySide6.QtCore import QTimer
+
+        from subwizard.audio.avsync import MEASURE_S
+
+        session = self._session
+        if not self._running or session.audio is None or session.av_recorder.active:
+            return False
+        session.av_recorder.start()
+        log.info("A/V otomatik ölçüm başladı (%.0f sn)", MEASURE_S)
+        QTimer.singleShot(int(MEASURE_S * 1000), self._finish_av_sync)
+        return True
+
+    def _finish_av_sync(self) -> None:
+        from subwizard.core.session import MAX_AUDIO_DELAY_MS
+
+        est = self._session.av_recorder.stop()
+        if est is None or not est.reliable:
+            log.info("A/V otomatik ölçüm sonuçsuz: %s", est)
+            self.avSyncMeasured.emit(-1, est.pairs if est else 0, 0.0)
+            return
+        # Measured on the input side, before the delay buffer: the current delay is not in it.
+        delay = est.suggested_delay_ms(0, MAX_AUDIO_DELAY_MS)
+        log.info("A/V otomatik ölçüm: fark %.0f ms (%d olay, yayılım %.0f ms) -> gecikme %d ms",
+                 est.offset_ms, est.pairs, est.spread_ms, delay)  # fmt: skip
+        self.set_audio_delay_ms(delay)
+        self.avSyncMeasured.emit(delay, est.pairs, est.offset_ms)
 
     def translation_cache_size(self) -> int:
         service = self._session.translation
