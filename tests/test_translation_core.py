@@ -509,3 +509,18 @@ def test_metrics_record_requests_and_cache_hits():
     snap = svc._metrics.snapshot()
     assert snap.counter(M.TR_REQUESTS) == 1 and snap.counter(M.TR_CACHE_HITS) == 2
     assert snap.gauge(M.TR_COST) > 0
+
+
+def test_server_deadline_is_never_below_the_apis_minimum():
+    """Regression (Windows): the SDK sent our 2.5 s timeout as a 3 s server deadline and
+    the API answered 400 "Minimum allowed deadline is 10s", so Gemini never translated."""
+    from google.genai import _api_client, types
+
+    from subwizard.translator.gemini import http_options_kwargs
+
+    kwargs = http_options_kwargs(2.5)
+    assert kwargs["timeout"] == 2500 and kwargs["headers"]["X-Server-Timeout"] == "10"
+    assert http_options_kwargs(12.2)["headers"]["X-Server-Timeout"] == "13"
+    headers = dict(types.HttpOptions(**kwargs).headers)
+    _api_client.populate_server_timeout_header(headers, 2.5)  # what the SDK does per call
+    assert headers["X-Server-Timeout"] == "10"

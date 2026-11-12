@@ -6,6 +6,11 @@ Checked against google-genai 3.2 (source) and ai.google.dev docs on 2026-11-12:
   rotation and multiply the timeout, so SDK retries are off (`attempts=1`) and the
   single retry below is ours.
 - Gemini 3.x takes `ThinkingConfig(thinking_level=...)`; "minimal" is the fastest.
+- The SDK also sends the timeout as the server deadline (`X-Server-Timeout`, whole
+  seconds), and the API rejects deadlines under 10 s with a 400 ("Manually set deadline
+  3s is too short", found on Windows). The header is set to at least 10 s ourselves (the
+  SDK keeps a header that is already there); the client-side timeout stays `timeout_s`,
+  so a slow reply still falls back after 2.5 s.
 - `temperature`/`top_p`/`top_k` are not sent (SPEC: deprecated on new models).
 - Safety: every text category at `OFF`; a blocked or empty reply is a TranslationError.
 """
@@ -13,6 +18,7 @@ Checked against google-genai 3.2 (source) and ai.google.dev docs on 2026-11-12:
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from typing import Any
 
@@ -214,6 +220,19 @@ class GeminiTranslator(BaseTranslator):
         )  # fmt: skip
 
 
+MIN_SERVER_DEADLINE_S = 10  # the API refuses shorter deadlines with HTTP 400
+
+
+def http_options_kwargs(timeout_s: float) -> dict[str, Any]:
+    """Arguments for `types.HttpOptions`: client timeout as configured, server deadline at
+    least MIN_SERVER_DEADLINE_S."""
+    deadline = max(MIN_SERVER_DEADLINE_S, math.ceil(timeout_s))
+    return {
+        "timeout": int(timeout_s * 1000),  # milliseconds, client side
+        "headers": {"X-Server-Timeout": str(deadline)},
+    }
+
+
 def _make_client(api_key: str, timeout_s: float) -> Any:
     from google import genai
     from google.genai import types
@@ -221,7 +240,7 @@ def _make_client(api_key: str, timeout_s: float) -> Any:
     return genai.Client(
         api_key=api_key,
         http_options=types.HttpOptions(
-            timeout=int(timeout_s * 1000),  # milliseconds
+            **http_options_kwargs(timeout_s),
             retry_options=types.HttpRetryOptions(attempts=1),  # retries are ours
         ),
     )
