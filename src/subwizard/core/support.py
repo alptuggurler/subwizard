@@ -66,7 +66,7 @@ def system_info() -> str:
 
 
 def make_support_bundle(dest: Path, config: AppConfig, log_dir: Path,
-                        diagnostics: str = "") -> Path:  # fmt: skip
+                        diagnostics: str = "", metrics_csv: str = "") -> Path:  # fmt: skip
     """Write the zip to `dest` and return it. Missing logs are fine (fresh install)."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as z:
@@ -74,6 +74,8 @@ def make_support_bundle(dest: Path, config: AppConfig, log_dir: Path,
         z.writestr("config.yaml", _config_text(config))
         if diagnostics:
             z.writestr("diagnostics.txt", scrub(diagnostics))
+        if metrics_csv:
+            z.writestr("metrics.csv", metrics_csv)
         if log_dir.is_dir():
             for pattern in ("*.log", "subtitles-*.srt"):
                 for path in _newest(log_dir, pattern):

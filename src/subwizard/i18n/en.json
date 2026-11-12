@@ -391,5 +391,7 @@
   "diag.bundle": "Support bundle",
   "diag.bundle.saved": "Saved",
   "diag.bundle.tip": "Logs, settings (secrets masked) and this report in one .zip; attach it to a bug report. API keys are never included.",
-  "home.translator.offline": "Can't reach the translation service. Check your internet connection; it resumes by itself once you're back online."
+  "home.translator.offline": "Can't reach the translation service. Check your internet connection; it resumes by itself once you're back online.",
+  "diag.csv": "CSV",
+  "diag.csv.tip": "The last hour of measurements, one row per second: FPS, frame age, OCR, translation, CPU/RAM. For looking into a stutter."
 }

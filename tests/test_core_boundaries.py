@@ -51,6 +51,7 @@ QT_FREE_MODULES = [
     "subwizard.web.server",
     "subwizard.web.qr",
     "subwizard.core.support",
+    "subwizard.core.metrics_log",
     "subwizard.utils.logging",
     "subwizard.utils.paths",
 ]

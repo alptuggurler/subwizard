@@ -17,6 +17,7 @@ from qfluentwidgets import BodyLabel, CaptionLabel, CardWidget, FluentIcon, Push
 from subwizard import APP_NAME, __version__
 from subwizard.controller import AppController
 from subwizard.core.metrics import Snapshot
+from subwizard.core.metrics_log import MetricsRecorder
 from subwizard.core.support import make_support_bundle
 from subwizard.i18n import t
 from subwizard.ui.metrics_view import GRADE_COLORS, Row, metric_rows, report_text
@@ -79,6 +80,11 @@ class DiagnosticsPage(BasePage):
         top = QHBoxLayout()
         top.addWidget(self._legend, 1)
         top.addWidget(self._copy)
+        self.recorder = MetricsRecorder()
+        self._csv = PushButton()
+        self._csv.setIcon(FluentIcon.DOCUMENT)
+        self._csv.clicked.connect(self._save_csv)
+        top.addWidget(self._csv)
         self._bundle = PushButton()
         self._bundle.setIcon(FluentIcon.ZIP_FOLDER)
         self._bundle.clicked.connect(self._save_bundle)
@@ -102,6 +108,8 @@ class DiagnosticsPage(BasePage):
         return list(groups.values())
 
     def _on_metrics(self, snap: Snapshot, force: bool = False) -> None:
+        if not force:
+            self.recorder.record(snap)  # kept while the page is hidden too
         if not (force or self.isVisible()):
             return
         for section, rows in zip(self._sections, self._grouped(snap), strict=True):
@@ -120,9 +128,17 @@ class DiagnosticsPage(BasePage):
         QGuiApplication.clipboard().setText(self.report())
         self._copy.setText(t("diag.copied"))
 
+    def _save_csv(self) -> None:
+        name = f"subwizard-metrics-{time.strftime('%Y%m%d-%H%M')}.csv"
+        path, _ = QFileDialog.getSaveFileName(self, t("diag.csv"), str(Path.home() / name),
+                                              "*.csv")  # fmt: skip
+        if path:
+            Path(path).write_text(self.recorder.to_csv(), encoding="utf-8")
+
     def save_bundle(self, dest: Path) -> Path:
         cfg = self.controller.config
-        return make_support_bundle(dest, cfg, cfg.logging.dir or default_log_dir(), self.report())
+        return make_support_bundle(dest, cfg, cfg.logging.dir or default_log_dir(), self.report(),
+                                   self.recorder.to_csv())  # fmt: skip
 
     def _save_bundle(self) -> None:
         name = f"subwizard-support-{time.strftime('%Y%m%d-%H%M')}.zip"
@@ -136,6 +152,8 @@ class DiagnosticsPage(BasePage):
         super().retranslate()
         self._copy.setText(t("diag.copy_report"))
         self._bundle.setText(t("diag.bundle"))
+        self._csv.setText(t("diag.csv"))
+        self._csv.setToolTip(t("diag.csv.tip"))
         self._bundle.setToolTip(t("diag.bundle.tip"))
         self._legend.setText(t("diag.legend"))
         for section in self._sections:

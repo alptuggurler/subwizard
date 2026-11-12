@@ -37,3 +37,22 @@ def test_scrub_masks_keys_and_tokens():
     text = scrub(f"k={KEY} url http://x/?t=abcdefgh&lines=3 api_key=zzzzzzzzzz")
     assert KEY not in text and "abcdefgh" not in text and "zzzzzzzzzz" not in text
     assert "lines=3" in text
+
+
+def test_metrics_recorder_keeps_one_row_per_interval_and_writes_csv():
+    from subwizard.core.metrics import M, MetricsHub
+    from subwizard.core.metrics_log import COLUMNS, MetricsRecorder
+
+    now = [100.0]
+    rec = MetricsRecorder(max_rows=3, interval_s=1.0, clock=lambda: now[0])
+    hub = MetricsHub()
+    hub.observe(M.OCR_MS, 40.0)
+    assert rec.record(hub.snapshot())
+    assert not rec.record(hub.snapshot())  # same second
+    for _ in range(4):
+        now[0] += 1.0
+        rec.record(hub.snapshot())
+    assert len(rec) == 3  # bounded
+    lines = rec.to_csv().splitlines()
+    assert lines[0].split(",") == ["time", *COLUMNS]
+    assert len(lines) == 4 and "40.0" in lines[1]
