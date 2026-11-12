@@ -34,7 +34,7 @@ from subwizard.ui.widgets.notice import Notice
 from subwizard.ui.widgets.roi_editor import RoiEditor, frame_to_qimage
 from subwizard.ui.widgets.value_slider import ValueSlider
 
-COMBO_WIDTH = 220
+COMBO_WIDTH = 180  # the toolbar must fit the default window (1180 px) without scrolling
 DRAW_MODES = ("main", "extra", "exclude")
 EDITOR_MIN_HEIGHT = 360
 PREVIEW_HEIGHT = 72  # crop previews are scaled to this height (width follows)

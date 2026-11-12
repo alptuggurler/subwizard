@@ -64,7 +64,10 @@ def test_start_plays_the_clip_and_stop_clears_it(window):
     assert wait_until(lambda: c.source_state == SourceState.RUNNING)
 
     home.video.grab()  # forces a paint of the current frame
-    assert wait_until(lambda: c.latest_frame().index > 3)
+    first = c.latest_frame().index
+    # A second paint must show a *newer* frame, or it does not count as rendered (and a
+    # single render tick gives a rate of 0): this made the test fail when run alone.
+    assert wait_until(lambda: c.latest_frame().index > max(first, 3))
     home.video.grab()
     snap = c.snapshot()
     assert snap.rate(M.RENDER_FPS).long > 0
