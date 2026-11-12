@@ -26,6 +26,15 @@ class TranslationResult:
     cost_usd: float = 0.0
 
 
+@dataclass(frozen=True, slots=True)
+class VisionResult:
+    """Vision mode: what the model read in the image and its translation."""
+
+    source: str  # "" = no subtitle in the image
+    translation: str
+    result: TranslationResult  # latency, tokens, cost
+
+
 class TranslationError(Exception):
     """Engine failed (timeout, quota, blocked/empty reply); the caller falls back."""
 

@@ -220,3 +220,51 @@ def test_extra_and_excluded_regions_round_trip_through_the_config(tmp_path):
     again = load_config(path, {})
     assert again.roi.extra_rects == [[0.1, 0.0, 0.3, 0.1]]
     assert again.roi.exclude_rects == [[0.8, 0.8, 0.2, 0.2]]
+
+
+# --- M7: vision mode (experimental) ----------------------------------------------------
+def test_vision_sends_the_image_and_parses_both_lines():
+    pytest.importorskip("google.genai")
+    from tests.test_translation_core import FakeResponse, gemini_with
+
+    engine, clients = gemini_with([FakeResponse("EN: Keep driving.\nTR: \"Sürmeye devam et.\"",
+                                                prompt_tokens=300)],
+                                  media_resolution="low")  # fmt: skip
+    result = engine.translate_image(b"\xff\xd8jpeg", "image/jpeg", (("Go.", "Git."),))
+    assert result.source == "Keep driving." and result.translation == "Sürmeye devam et."
+    assert result.result.input_tokens == 300
+    _model, contents, config = next(iter(clients.values())).calls[0]
+    image, text = contents
+    assert image.inline_data.mime_type == "image/jpeg" and image.inline_data.data == b"\xff\xd8jpeg"
+    assert "EN: Go.\nTR: Git." in text
+    assert "MEDIA_RESOLUTION_LOW" in str(config.media_resolution)
+    assert "EN: <okuduğun" in config.system_instruction
+    # the text config is not changed by the vision one
+    assert engine._generate_config().media_resolution is None
+
+
+@pytest.mark.parametrize(("reply", "expected"), [
+    ("YOK", ("", "")),
+    ("EN: Run!\nTR: Koş!", ("Run!", "Koş!")),
+    ("Koş!", ("", "Koş!")),  # no labels: the whole reply is the translation
+])  # fmt: skip
+def test_parse_vision_reply(reply, expected):
+    from subwizard.translator.prompt import parse_vision_reply
+
+    assert parse_vision_reply(reply) == expected
+
+
+def test_benchmark_report_runs_offline(tmp_path, monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "scripts" / "benchmark.py"
+    spec = importlib.util.spec_from_file_location("benchmark", path)
+    bench = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(__import__("sys").modules, "benchmark", bench)  # for its dataclasses
+    spec.loader.exec_module(bench)
+    out = tmp_path / "b.md"
+    assert bench.main(["--translator", "none", "--out", str(out)]) == 0
+    text = out.read_text(encoding="utf-8")
+    assert "| ocr+text | 1.000 |" in text or "| ocr+text | 0.9" in text
+    assert "no Gemini API key" in text  # conftest: no keys, no network

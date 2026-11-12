@@ -188,6 +188,10 @@ def _default_prices() -> dict[str, ModelPrice]:
 
 class TranslatorConfig(_Section):
     engine: Literal["gemini", "deep"] = "gemini"
+    # "vision" (experimental, M7): the region image goes to Gemini, which reads and
+    # translates it; for now only scripts/benchmark.py uses it, the live pipeline is OCR.
+    mode: Literal["ocr", "vision"] = "ocr"
+    vision_media_resolution: Literal["low", "medium", "high"] = "medium"
     model: str = "gemini-3.5-flash-lite"
     source_language: str = "en"
     target_language: str = "tr"

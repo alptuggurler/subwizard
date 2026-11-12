@@ -110,6 +110,8 @@ subtitle:                   # altyazi durum makinesi
 
 translator:
   engine: gemini            # gemini | deep (deep = anahtarsiz, ucretsiz, daha dusuk kalite)
+  mode: ocr                 # ocr | vision (deneysel: resmi Gemini okur; simdilik yalnizca benchmark)
+  vision_media_resolution: medium   # low | medium | high (vision: resim basina token)
   model: gemini-3.5-flash-lite
   source_language: en
   target_language: tr

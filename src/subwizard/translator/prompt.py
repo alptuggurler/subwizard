@@ -101,3 +101,42 @@ def clean_reply(text: str) -> str:
     if len(text) >= 2 and text[0] in QUOTES and text[-1] in QUOTES:
         text = text[1:-1].strip()
     return text
+
+
+# --- vision mode (SPEC 3.6, M7) ---------------------------------------------------------
+NO_SUBTITLE = "YOK"
+VISION_INSTRUCTION = (
+    "Görsel kipte sana oyun görüntüsünün altyazı bölgesi bir resim olarak verilir. Resimdeki "
+    "İngilizce altyazıyı oku ve çevir. Konuşmacı adını (\"NAME:\") ve buton ipuçları, harita, "
+    "sayaç gibi HUD metinlerini yok say. Yanıtı tam olarak iki satır ver:\n"
+    "EN: <okuduğun İngilizce altyazı>\nTR: <Türkçe çevirisi>\n"
+    f"Resimde altyazı yoksa yalnızca {NO_SUBTITLE} yaz."
+)
+
+
+def vision_prompt(context: tuple[tuple[str, str], ...] = ()) -> str:
+    parts: list[str] = []
+    if context:
+        parts.append("Önceki satırlar (yalnızca bağlam, çevirme):")
+        parts += [f"EN: {source}\nTR: {translation}" for source, translation in context]
+        parts.append("")
+    parts.append("Resimdeki altyazıyı oku ve çevir.")
+    return "\n".join(parts)
+
+
+def parse_vision_reply(text: str) -> tuple[str, str]:
+    """(English read, Turkish translation); ("", "") when the model saw no subtitle.
+    A reply without the labels is taken as the translation alone."""
+    text = text.strip()
+    if not text or text.upper().startswith(NO_SUBTITLE):
+        return "", ""
+    source, translation = "", ""
+    for line in text.splitlines():
+        label, _, rest = line.partition(":")
+        if label.strip().upper() == "EN":
+            source = rest.strip()
+        elif label.strip().upper() == "TR":
+            translation = clean_reply(rest)
+    if not translation and not source:
+        translation = clean_reply(text)
+    return source, translation

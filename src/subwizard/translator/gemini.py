@@ -23,8 +23,16 @@ from subwizard.translator.base import (
     TranslationError,
     TranslationRequest,
     TranslationResult,
+    VisionResult,
 )
-from subwizard.translator.prompt import clean_reply, system_prompt, user_prompt
+from subwizard.translator.prompt import (
+    VISION_INSTRUCTION,
+    clean_reply,
+    parse_vision_reply,
+    system_prompt,
+    user_prompt,
+    vision_prompt,
+)
 from subwizard.utils import timing
 
 log = logging.getLogger(__name__)
@@ -59,6 +67,7 @@ class GeminiTranslator(BaseTranslator):
         prompt: str = "",
         profile: GameProfile | None = None,
         quota_cooldown_s: float = 60.0,
+        media_resolution: str = "medium",
         client_factory: Callable[..., Any] | None = None,
         clock: Callable[[], float] = timing.now,
     ) -> None:
@@ -77,6 +86,8 @@ class GeminiTranslator(BaseTranslator):
         self._resting_until: dict[int, float] = {}  # key index -> time it may be used again
         self._current = 0
         self._config: Any = None
+        self._vision: Any = None
+        self._media_resolution = media_resolution
 
     @property
     def model(self) -> str:
@@ -125,7 +136,32 @@ class GeminiTranslator(BaseTranslator):
         return None
 
     def translate(self, request: TranslationRequest) -> TranslationResult:
-        contents = user_prompt(request)
+        return self._generate(user_prompt(request), self._generate_config())
+
+    def translate_image(self, image: bytes, mime_type: str = "image/png",
+                        context: tuple[tuple[str, str], ...] = ()) -> VisionResult:  # fmt: skip
+        """Vision mode (SPEC 3.6, M7, experimental): the model reads the subtitle in the
+        cropped region and translates it in one call. Empty source = no subtitle seen."""
+        from google.genai import types
+
+        parts = [types.Part.from_bytes(data=image, mime_type=mime_type), vision_prompt(context)]
+        result = self._generate(parts, self._vision_config())
+        source, translation = parse_vision_reply(result.text)
+        return VisionResult(source, translation, result)
+
+    def _vision_config(self) -> Any:
+        if self._vision is None:
+            from google.genai import types
+
+            base = self._generate_config()
+            self._vision = base.model_copy(update={
+                "system_instruction": f"{self._system}\n\n{VISION_INSTRUCTION}",
+                "media_resolution": f"MEDIA_RESOLUTION_{self._media_resolution.upper()}",
+            })  # fmt: skip
+            assert isinstance(self._vision, types.GenerateContentConfig)
+        return self._vision
+
+    def _generate(self, contents: Any, config: Any) -> TranslationResult:
         attempts_left = self._retries + 1
         started = timing.now()
         while True:
@@ -134,7 +170,7 @@ class GeminiTranslator(BaseTranslator):
                 raise TranslationError("quota")  # every key is resting: caller falls back
             try:
                 response = self._client(index).models.generate_content(
-                    model=self._model, contents=contents, config=self._generate_config()
+                    model=self._model, contents=contents, config=config
                 )
             except Exception as exc:  # noqa: BLE001 - classified below
                 code = getattr(exc, "code", None)
