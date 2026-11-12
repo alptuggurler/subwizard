@@ -131,3 +131,19 @@ def test_diagnostics_graphs_fill_while_the_clip_plays(window):
     assert page.graphs.charts["fps"].value_range()[1] >= 60
     page.graphs.grab()  # paints without errors
     c.stop()
+
+
+def test_wizard_lists_user_profiles_too(window):
+    from subwizard.profiles import GameProfile
+    from subwizard.ui.wizard import SetupWizard
+
+    profiles.save_profile(GameProfile(name="rdr2", title="Red Dead", game_info="Batı."))
+    wizard = SetupWizard(window.controller)
+    try:
+        assert list(wizard.profile_cards)[:2] == ["gta6", "default"]
+        card = wizard.profile_cards["rdr2"]
+        assert card.title.text() == "Red Dead" and card.text.text() == "Batı."
+        wizard._choose_profile("rdr2")
+        assert window.controller.config.profile == "rdr2"
+    finally:
+        wizard.close()

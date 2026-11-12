@@ -26,7 +26,7 @@ from qfluentwidgets import (
     isDarkTheme,
 )
 
-from subwizard import APP_NAME
+from subwizard import APP_NAME, profiles
 from subwizard.controller import AppController
 from subwizard.i18n import available_languages, t
 from subwizard.ui.icon import make_app_icon
@@ -179,9 +179,13 @@ class SetupWizard(QWidget):
         self.steps["translate"].layout_.addWidget(self._no_key, 0, Qt.AlignmentFlag.AlignLeft)
 
         # 6 game profile
-        self.profile_cards = {p: ChoiceCard(p, icon) for p, icon in
-                              zip(PROFILES, (FluentIcon.GAME, FluentIcon.APPLICATION),
-                                  strict=True)}  # fmt: skip
+        # The built-in ones first (with translated texts), then the user's own profiles.
+        found = profiles.list_profiles()
+        self._profiles = {name: found[name] for name in (*PROFILES, *found) if name in found}
+        self.profile_cards = {
+            p: ChoiceCard(p, FluentIcon.APPLICATION if p == profiles.DEFAULT else FluentIcon.GAME)
+            for p in self._profiles
+        }
         for card in self.profile_cards.values():
             card.chosen.connect(self._choose_profile)
             self.steps["profile"].layout_.addWidget(card)
@@ -293,6 +297,12 @@ class SetupWizard(QWidget):
         self.controller.set_translator_engine("deep")
         self.next()
 
+    def _profile_title(self, name: str) -> str:
+        if name in PROFILES:
+            return t(f"wizard.profile.{name}")
+        profile = self._profiles.get(name)
+        return (profile.title if profile else "") or name
+
     def _choose_profile(self, name: str) -> None:
         self.controller.set_game_profile(name)
         self._load()
@@ -335,8 +345,7 @@ class SetupWizard(QWidget):
             (t("wizard.mode.short"), t(f"web.mode.{cfg.display.mode}")),
             (t("wizard.capture.short"), source),
             (t("wizard.translate.short"), engine),
-            (t("wizard.profile.short"), t(f"wizard.profile.{cfg.profile}")
-             if cfg.profile in PROFILES else cfg.profile),
+            (t("wizard.profile.short"), self._profile_title(cfg.profile)),
             (t("wizard.region.short"), t(f"roi.template.{cfg.roi.template}")),
         ]  # fmt: skip
         self._summary.setText("<br>".join(f"<b>{k}:</b> {v}" for k, v in rows)
@@ -368,8 +377,9 @@ class SetupWizard(QWidget):
             card.text.setText(t(f"wizard.mode.{mode}.text"))
             card.diagram.setText(t(f"wizard.mode.{mode}.diagram"))
         for name, card in self.profile_cards.items():
-            card.title.setText(t(f"wizard.profile.{name}"))
-            card.text.setText(t(f"wizard.profile.{name}.text"))
+            card.title.setText(self._profile_title(name))
+            card.text.setText(t(f"wizard.profile.{name}.text") if name in PROFILES
+                              else self._profiles[name].game_info)  # fmt: skip
         self._no_key.setText(t("wizard.no_key"))
         self._back.setText(t("wizard.back"))
         for page in (self.device_video, self.device_audio, self.translate, self.roi):
