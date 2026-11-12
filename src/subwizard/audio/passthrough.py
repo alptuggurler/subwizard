@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from subwizard.audio.base import AudioError, BaseAudioPassthrough
-from subwizard.audio.devices import wasapi_settings
+from subwizard.audio.devices import stream_device, wasapi_settings
 from subwizard.audio.meter import LevelMeter, db_to_gain
 from subwizard.audio.ring import DelayBuffer
 from subwizard.core.metrics import M, MetricsHub
@@ -87,8 +87,10 @@ class SoundDevicePassthrough(BaseAudioPassthrough):
         common = dict(samplerate=s.sample_rate, channels=s.channels, blocksize=s.block,
                       dtype="float32", latency="low", extra_settings=wasapi_settings())  # fmt: skip
         try:
-            self._in = sd.InputStream(device=s.input_device, callback=self._on_input, **common)
-            self._out = sd.OutputStream(device=s.output_device, callback=self._on_output, **common)
+            self._in = sd.InputStream(device=stream_device(s.input_device, "input"),
+                                      callback=self._on_input, **common)  # fmt: skip
+            self._out = sd.OutputStream(device=stream_device(s.output_device, "output"),
+                                        callback=self._on_output, **common)  # fmt: skip
             self._in.start()
             self._out.start()
         except Exception as exc:  # sd.PortAudioError, ValueError for bad device/params

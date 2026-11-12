@@ -14,7 +14,12 @@ from enum import StrEnum
 from subwizard import platform
 from subwizard.audio.base import AudioError, BaseAudioPassthrough
 from subwizard.audio.avsync import AVSyncRecorder
-from subwizard.audio.devices import AudioDevice, find_device, list_audio_devices
+from subwizard.audio.devices import (
+    AudioDevice,
+    find_device,
+    list_audio_devices,
+    other_input_than_card,
+)
 from subwizard.audio.meter import LevelMeter
 from subwizard.audio.passthrough import PassthroughSettings, SoundDevicePassthrough
 from subwizard.config import AppConfig
@@ -77,6 +82,11 @@ def build_passthrough(config: AppConfig, metrics: MetricsHub) -> BaseAudioPassth
     input_index = find_device(audio.input_device, "input", inputs)
     if input_index is None:
         raise AudioError("error.audio_input_missing", name=audio.input_device)
+    if config.source.kind == "capture" and isinstance(config.source.device, str):
+        card = other_input_than_card(audio.input_device, config.source.device, inputs)
+        if card:
+            log.warning("Ses girişi '%s' capture card'ınki değil; kartın sesi '%s' girişinde.",
+                        audio.input_device, card)  # fmt: skip
     output_index = find_device(audio.output_device, "output", outputs)
     if audio.output_device and output_index is None:
         log.warning("Ses çıkışı '%s' bulunamadı; varsayılan kullanılıyor.", audio.output_device)

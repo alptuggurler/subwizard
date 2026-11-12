@@ -72,3 +72,67 @@ def test_both_streams_get_a_channel_count_every_device_supports():
 def test_wasapi_rate_conversion_only_on_windows(monkeypatch):
     monkeypatch.setattr("sys.platform", "darwin")
     assert wasapi_settings() is None
+
+
+@pytest.mark.parametrize(
+    ("selected", "expected"),
+    [
+        ("SteelSeries Sonar - Microphone", "Dijital Ses Arabirimi (V-Z632)"),
+        ("Dijital Ses Arabirimi (V-Z632)", None),
+        (None, None),  # nothing chosen yet: the controller auto-selects instead
+    ],
+)
+def test_warns_when_the_selected_input_is_not_the_cards_own(selected, expected):
+    """Real setup: input was "SteelSeries Sonar - Microphone", so no PS5 sound came in."""
+    from subwizard.audio.devices import other_input_than_card
+
+    names = [d.name for d in INPUTS]
+    assert other_input_than_card(selected, "V-Z632", names) == expected
+    assert other_input_than_card(selected, "V-Z632", INPUTS) == expected
+    assert other_input_than_card(selected, "Unknown Cam", INPUTS) is None
+
+
+class _FakeSd:
+    """PortAudio's global default is MME (index 1/3); WASAPI's own defaults are 46/37."""
+
+    class default:  # noqa: N801
+        device = (1, 3)
+
+    @staticmethod
+    def query_hostapis():
+        return [
+            {"name": "MME", "default_input_device": 1, "default_output_device": 3},
+            {"name": "Windows WASAPI", "default_input_device": 46, "default_output_device": 37},
+        ]
+
+    @staticmethod
+    def query_devices():
+        return [
+            {"index": 3, "name": "Speakers", "hostapi": 0, "max_input_channels": 0,
+             "max_output_channels": 2, "default_samplerate": 44100},
+            {"index": 37, "name": "SteelSeries Sonar - Gaming", "hostapi": 1,
+             "max_input_channels": 0, "max_output_channels": 8, "default_samplerate": 96000},
+        ]  # fmt: skip
+
+
+def test_system_default_resolves_to_the_wasapi_default_not_mme(monkeypatch):
+    """Regression: output "Sistem varsayılanı" (None) opened PortAudio's MME default with WASAPI
+    settings -> "Incompatible host API specific stream info [PaErrorCode -9984]"."""
+    import sys
+
+    from subwizard.audio import devices
+
+    monkeypatch.setitem(sys.modules, "sounddevice", _FakeSd)
+    monkeypatch.setattr(devices, "PREFERRED_HOSTAPI", "WASAPI")
+    assert devices.stream_device(None, "output") == 37
+    assert devices.stream_device(None, "input") == 46
+    assert devices.stream_device(5, "output") == 5
+    [sonar] = devices.list_audio_devices("output")
+    assert sonar.is_default  # was never marked: the MME index never matched a WASAPI one
+
+
+def test_system_default_stays_none_off_windows(monkeypatch):
+    from subwizard.audio import devices
+
+    monkeypatch.setattr(devices, "PREFERRED_HOSTAPI", None)
+    assert devices.stream_device(None, "output") is None

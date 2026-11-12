@@ -37,12 +37,11 @@ def list_audio_devices(kind: Kind) -> list[AudioDevice]:
     try:
         hostapis = sd.query_hostapis()
         raw = sd.query_devices()
-        default_in, default_out = sd.default.device
+        default_index = _default_index(sd, hostapis, kind)
     except Exception as exc:  # PortAudio raises its own error types
         log.warning("Ses cihazları listelenemedi: %s", exc)
         return []
 
-    default_index = default_in if kind == "input" else default_out
     devices = []
     for info in raw:
         api = hostapis[info["hostapi"]]["name"]
@@ -65,6 +64,35 @@ def list_audio_devices(kind: Kind) -> list[AudioDevice]:
     return devices
 
 
+def _default_index(sd, hostapis, kind: Kind) -> int | None:
+    """The system default device *of the host API we list*. PortAudio's global default
+    (`sd.default.device`) is an MME device on Windows: opening it with WASAPI settings fails
+    with "Incompatible host API specific stream info [-9984]"."""
+    key = "default_input_device" if kind == "input" else "default_output_device"
+    if PREFERRED_HOSTAPI:
+        for api in hostapis:
+            if PREFERRED_HOSTAPI in api["name"]:
+                return api[key] if api[key] >= 0 else None
+        return None
+    default_in, default_out = sd.default.device
+    index = default_in if kind == "input" else default_out
+    return index if index is not None and index >= 0 else None
+
+
+def stream_device(index: int | None, kind: Kind) -> int | None:
+    """Device index to open a stream on. None ("system default") becomes the default of
+    the listed host API, so it matches the WASAPI settings passed with it."""
+    if index is not None or not PREFERRED_HOSTAPI:
+        return index
+    import sounddevice as sd
+
+    try:
+        return _default_index(sd, sd.query_hostapis(), kind)
+    except Exception as exc:
+        log.warning("Varsayılan ses cihazı bulunamadı: %s", exc)
+        return None
+
+
 def find_device(name: str | None, kind: Kind, devices: list[AudioDevice] | None = None) -> int | None:
     """Device index for a saved name. None means "system default" — also returned
     when the saved device is no longer plugged in (the caller decides what to do)."""
@@ -81,7 +109,9 @@ def find_device(name: str | None, kind: Kind, devices: list[AudioDevice] | None 
     return None
 
 
-def guess_capture_input(video_device_name: str, devices: list[AudioDevice]) -> str | None:
+def guess_capture_input(
+    video_device_name: str, devices: list[AudioDevice] | list[str]
+) -> str | None:
     """The capture card's own audio input, recognised by the card's name inside it,
     e.g. video "V-Z632" -> audio "Dijital Ses Arabirimi (V-Z632)". This is what OBS
     users pick by hand as "Use custom audio device"."""
@@ -89,9 +119,22 @@ def guess_capture_input(video_device_name: str, devices: list[AudioDevice]) -> s
     if not needle:
         return None
     for device in devices:
-        if needle in device.name.lower():
-            return device.name
+        name = device if isinstance(device, str) else device.name
+        if needle in name.lower():
+            return name
     return None
+
+
+def other_input_than_card(
+    selected: str | None, video_device_name: str, devices: list[AudioDevice] | list[str]
+) -> str | None:
+    """The card's own input when a *different* one is selected, else None. A chosen
+    microphone or a virtual device (e.g. "SteelSeries Sonar - Microphone") passes no
+    console sound, and nothing in the stream says why."""
+    card = guess_capture_input(video_device_name, devices)
+    if card is None or not selected or selected == card:
+        return None
+    return card
 
 
 def wasapi_settings():
@@ -113,5 +156,5 @@ def play_blocking(samples: np.ndarray, sample_rate: int, device: int | None) -> 
     the passthrough, or a 96 kHz output rejects anything else ("Invalid sample rate")."""
     import sounddevice as sd
 
-    sd.play(samples, sample_rate, device=device, blocking=True,
+    sd.play(samples, sample_rate, device=stream_device(device, "output"), blocking=True,
             extra_settings=wasapi_settings())  # fmt: skip

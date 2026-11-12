@@ -21,7 +21,7 @@ from qfluentwidgets import (
 )
 
 from subwizard import platform
-from subwizard.audio.devices import list_audio_devices
+from subwizard.audio.devices import list_audio_devices, other_input_than_card
 from subwizard.controller import AppController
 from subwizard.core.metrics import Grade, M, Snapshot
 from subwizard.core.session import AudioState
@@ -296,11 +296,27 @@ class DevicePage(BasePage):
                 message, grade = t("audio.clipping"), "bad"
             elif snap.gauge(M.AUDIO_SILENT):
                 message = t("audio.no_signal")
+        card_input = self._card_input_if_other()
+        if card_input and grade != "bad":
+            message = t("device.audio.not_card", card=card_input,
+                        selected=c.config.audio.input_device)  # fmt: skip
         if c.config.source.kind == "screen":
             message, grade = t("device.audio.screen"), "ok"
         elif not message and c.config.audio.delay_ms < 0:
             message = t("device.delay.negative")
         self._audio_notice.show_message(message, grade)  # type: ignore[arg-type]
+
+    def _card_input_if_other(self) -> str | None:
+        """The capture card's own audio input when another one is selected."""
+        src, audio = self.controller.config.source, self.controller.config.audio
+        if src.kind != "capture" or audio.mode == "off":
+            return None
+        video = src.device
+        if isinstance(video, int):
+            known = self._video_devices
+            video = known[video] if video < len(known) and isinstance(known[video], str) else ""
+        return other_input_than_card(audio.input_device, str(video),
+                                     [n for n in self._inputs if n])  # fmt: skip
 
     def _on_metrics(self, snap: Snapshot) -> None:
         if not self.isVisible():

@@ -484,5 +484,6 @@
   "hotkeys.start_paused.desc": "Çeviri sen {hotkey} tuşuna basınca başlar; aynı tuş kapatır.",
   "toast.translation_on": "Çeviri açık",
   "toast.translation_off": "Çeviri kapalı",
-  "toast.translation_off_hint": "Çeviri kapalı · açmak için {hotkey}"
+  "toast.translation_off_hint": "Çeviri kapalı · açmak için {hotkey}",
+  "device.audio.not_card": "Seçili ses girişi '{selected}' capture card'ın değil; PS5'in sesi '{card}' girişinden gelir. Ses girişini ona çevir."
 }

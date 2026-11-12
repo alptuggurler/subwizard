@@ -484,5 +484,6 @@
   "hotkeys.start_paused.desc": "Translation starts when you press {hotkey}; the same key turns it off.",
   "toast.translation_on": "Translation on",
   "toast.translation_off": "Translation off",
-  "toast.translation_off_hint": "Translation off · press {hotkey} to turn on"
+  "toast.translation_off_hint": "Translation off · press {hotkey} to turn on",
+  "device.audio.not_card": "The selected audio input '{selected}' is not the capture card's; the console sound comes in on '{card}'. Switch the audio input to it."
 }
