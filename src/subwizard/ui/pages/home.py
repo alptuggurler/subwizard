@@ -41,6 +41,8 @@ SOURCE_GRADES: dict[str, Grade | None] = {
 def translator_state(c: AppController) -> tuple[str, Grade | None]:
     """One line for the Home card: which engine will translate, and is it set up."""
     tr = c.config.translator
+    if c.snapshot().gauge(M.TR_OFFLINE):
+        return t("home.translator.offline"), "bad"
     if tr.engine == "deep":
         return t("home.translator.deep"), "ok"
     keys, _source = c.api_key_status()
@@ -175,6 +177,7 @@ class HomePage(BasePage):
         """The parts that change with every metrics tick."""
         c, snap = self.controller, self._snapshot
         self._web_card.set_content(t("home.card.web"), *web_state(c))
+        self._translator_card.set_content(t("home.card.translator"), *translator_state(c))
         source_state = c.source_state
 
         capture_text = t(f"source.state.{source_state}")

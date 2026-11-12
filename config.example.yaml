@@ -119,6 +119,7 @@ translator:
   system_prompt: ""         # bos = yerlesik prompt
   fallback: true            # Gemini olmazsa deep-translator kullan
   fallback_timeout_s: 4.0
+  offline_after: 3          # art arda bu kadar satir cevrilemezse "baglanti yok" uyarisi
   cache_size: 2000          # bellekteki ceviri onbellegi
   disk_cache: true          # cache/translations.sqlite (oturumlar arasi)
   prices:                   # USD / 1M token (ucretli katman, 2026-11-12)

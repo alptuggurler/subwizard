@@ -116,3 +116,34 @@ def test_real_google_translate_without_api_key():
     assert outcome.engine == "deep" and outcome.text
     assert outcome.text != "Where the hell did you park the car?"
     print(f"\n{outcome.text!r} in {outcome.latency_ms:.0f} ms")
+
+
+def test_network_outage_sets_offline_and_recovers(clip, monkeypatch):
+    """SPEC M5: no connection -> one clear notice; back online -> it clears by itself."""
+    from subwizard.config import load_config
+    from subwizard.core.metrics import M, MetricsHub
+    from subwizard.pipeline.subtitle_state import SubtitleLine
+    from subwizard.pipeline.translate_worker import TranslateWorker
+    from subwizard.translator.deep import DeepTranslatorFallback
+    from subwizard.translator.service import build_service
+
+    online = {"up": False}
+
+    def google(self, text):
+        if not online["up"]:
+            raise ConnectionError("no network")
+        return f"[tr] {text}"
+
+    monkeypatch.setattr(DeepTranslatorFallback, "_google", google)
+    config = load_config(None, {"translator": {"engine": "deep", "offline_after": 2,
+                                               "disk_cache": False}})  # fmt: skip
+    metrics = MetricsHub()
+    worker = TranslateWorker(config, metrics, build_service, lambda item: None)
+    worker.service = build_service(config, metrics)
+    for i in range(2):
+        worker._translate(SubtitleLine(i, f"Line {i}", None, 0.0))
+    assert metrics.snapshot().gauge(M.TR_OFFLINE) is True
+    online["up"] = True
+    worker._translate(SubtitleLine(9, "Back again", None, 0.0))
+    assert metrics.snapshot().gauge(M.TR_OFFLINE) is False
+    worker.service.close()

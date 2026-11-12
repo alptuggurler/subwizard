@@ -192,6 +192,7 @@ class TranslatorConfig(_Section):
     system_prompt: str = ""  # empty = built-in prompt (translator/prompt.py)
     fallback: bool = True  # use deep-translator when Gemini fails or has no key
     fallback_timeout_s: float = Field(4.0, gt=0)
+    offline_after: int = Field(3, ge=1)  # this many failed lines in a row = "no connection" notice
     cache_size: int = Field(2000, ge=0)  # in-memory LRU entries
     disk_cache: bool = True  # cache/translations.sqlite, kept across sessions
     prices: dict[str, ModelPrice] = Field(default_factory=_default_prices)

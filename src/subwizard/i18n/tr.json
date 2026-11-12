@@ -390,5 +390,6 @@
   "wizard.back": "Geri",
   "diag.bundle": "Destek paketi",
   "diag.bundle.saved": "Kaydedildi",
-  "diag.bundle.tip": "Loglar, ayarlar (gizli bilgiler maskeli) ve bu rapor tek bir .zip dosyasında; hata bildirirken ekle. API anahtarları pakete girmez."
+  "diag.bundle.tip": "Loglar, ayarlar (gizli bilgiler maskeli) ve bu rapor tek bir .zip dosyasında; hata bildirirken ekle. API anahtarları pakete girmez.",
+  "home.translator.offline": "Çeviri servisine ulaşılamıyor. İnternet bağlantını kontrol et; bağlantı gelince kendiliğinden devam eder."
 }

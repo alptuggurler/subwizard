@@ -63,6 +63,7 @@ class M:
     TR_COST_PER_HOUR = "tr.cost_per_hour"  # gauge
     TR_ENGINE = "tr.engine"  # gauge: engine of the last translation
     TR_TEXT = "tr.text"  # gauge: last translation
+    TR_OFFLINE = "tr.offline"  # gauge: True after translator.offline_after failures in a row
     WEB_CLIENTS = "web.clients"  # gauge: connected web overlay pages
     SYS_CPU_PROC = "sys.cpu_proc_pct"
     SYS_CPU_TOTAL = "sys.cpu_total_pct"

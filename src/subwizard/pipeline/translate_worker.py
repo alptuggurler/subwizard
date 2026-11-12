@@ -51,6 +51,7 @@ class TranslateWorker(threading.Thread):
         self._pending: tuple[SubtitleLine, bool] | None = None
         self._history: deque[tuple[str, str]] = deque(maxlen=max(1, config.translator.context_lines))
         self.service: TranslationService | None = None
+        self._failures = 0  # lines in a row nothing could translate (network down?)
 
     def submit(self, line: SubtitleLine, force: bool = False) -> None:
         """`force` skips the cache (F7: retranslate)."""
@@ -97,8 +98,22 @@ class TranslateWorker(threading.Thread):
         except Exception:  # one bad line must not end translation for the session
             log.exception("Çeviri sırasında beklenmeyen hata")
             result = None
+        self._track_connection(result is not None)
         if result is not None:
             self._history.append((line.text, result.text))
             self._metrics.set_gauge(M.TR_ENGINE, result.engine + (" (önbellek)" if result.cached else ""))
             self._metrics.set_gauge(M.TR_TEXT, result.text)
         self._on_translated(Translated(line, result))
+
+    def _track_connection(self, ok: bool) -> None:
+        """SPEC M5: a network outage becomes one clear notice, and clears by itself on
+        the next line that translates (requests keep going, no restart needed)."""
+        limit = self._config.translator.offline_after
+        was_offline = self._failures >= limit
+        self._failures = 0 if ok else self._failures + 1
+        offline = self._failures >= limit
+        if offline and not was_offline:
+            log.warning("Çeviri servisine ulaşılamıyor (%d satır çevrilemedi)", self._failures)
+        elif was_offline and not offline:
+            log.warning("Çeviri bağlantısı geri geldi")
+        self._metrics.set_gauge(M.TR_OFFLINE, offline)
