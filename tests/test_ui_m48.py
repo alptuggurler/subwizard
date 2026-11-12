@@ -11,7 +11,7 @@ from subwizard.app import create_app  # noqa: E402
 from subwizard.config import load_config  # noqa: E402
 from subwizard.ui.pages.device import SOURCE_KINDS  # noqa: E402
 from subwizard.ui.wizard import STEPS, SetupWizard  # noqa: E402
-from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtCore import QEvent, Qt  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
 from tests.test_pipeline_m3 import ScriptedOCR  # noqa: E402
@@ -49,6 +49,9 @@ def fresh(tmp_path):
     win.close()
     win.deleteLater()
     app.processEvents()
+    # deleteLater needs a DeferredDelete pass; without it every old window stays alive,
+    # and each new one restyles them all (the suite slowed down test by test).
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 def test_first_start_needs_the_wizard(fresh):

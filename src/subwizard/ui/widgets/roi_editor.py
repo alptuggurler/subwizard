@@ -14,12 +14,15 @@ from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter, QPaintEvent, QP
 from PySide6.QtWidgets import QWidget
 
 from subwizard.controller import AppController
-from subwizard.ocr.roi import Rect
+from subwizard.ocr.roi import Rect, config_layout, to_frame
 from subwizard.sources.base import Frame
 from subwizard.ui.widgets.video_view import PADDING_COLOR, REGION_COLOR
 
 LINE_BOX_COLOR = QColor(80, 220, 120)
 PENDING_COLOR = QColor(255, 196, 0)
+EXTRA_COLOR = QColor(90, 170, 255)  # more regions read together with the main one
+EXCLUDE_COLOR = QColor(235, 80, 80)  # blacked out before OCR
+EXCLUDE_FILL = QColor(235, 80, 80, 70)
 PENDING_FILL = QColor(255, 196, 0, 50)
 SHADE = QColor(0, 0, 0, 90)  # dims everything outside the region
 HINT_BACKGROUND = QColor(0, 0, 0, 170)
@@ -162,13 +165,21 @@ class RoiEditor(QWidget):
         region = Rect(*roi.rect)
         padded = region.padded(roi.padding_pct)
         self._draw_shade(painter, self._to_widget(padded))
+        for extra in roi.extra_rects:
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(EXTRA_COLOR, REGION_PEN_WIDTH, Qt.PenStyle.DashLine))
+            painter.drawRect(self._to_widget(Rect(*extra)))
+        for excluded in roi.exclude_rects:
+            painter.setPen(QPen(EXCLUDE_COLOR, REGION_PEN_WIDTH))
+            painter.setBrush(EXCLUDE_FILL)
+            painter.drawRect(self._to_widget(Rect(*excluded)))
 
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(REGION_COLOR, REGION_PEN_WIDTH))
         painter.drawRect(self._to_widget(region))
         painter.setPen(QPen(PADDING_COLOR, 1, Qt.PenStyle.DashLine))
         painter.drawRect(self._to_widget(padded))
-        self._draw_line_boxes(painter, padded, width, height, scale)
+        self._draw_line_boxes(painter, width, height, scale)
 
         if self._pending is not None:
             painter.setPen(QPen(PENDING_COLOR, REGION_PEN_WIDTH))
@@ -191,19 +202,18 @@ class RoiEditor(QWidget):
             if part.width() > 0 and part.height() > 0:
                 painter.drawRect(part)
 
-    def _draw_line_boxes(self, painter: QPainter, padded: Rect, width: int, height: int,
-                         scale: float) -> None:  # fmt: skip
+    def _draw_line_boxes(self, painter: QPainter, width: int, height: int, scale: float) -> None:
         tick = self._controller.last_ocr
         if tick is None or self._drag_from is not None:
             return
-        # Line boxes are in crop pixels; the crop starts at the padded region's corner.
-        x0, y0, _, _ = padded.to_pixels(width, height)
+        # Line boxes are in OCR-image pixels; `to_frame` undoes the region stacking.
+        strips = config_layout(self._controller.config.roi, width, height)
         painter.setPen(QPen(LINE_BOX_COLOR, 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         for line in tick.lines:
-            x, y, w, h = line.box
-            painter.drawRect(QRectF(self._target.left() + (x0 + x) * scale,
-                                    self._target.top() + (y0 + y) * scale,
+            x, y, w, h = to_frame(line.box, strips)
+            painter.drawRect(QRectF(self._target.left() + x * scale,
+                                    self._target.top() + y * scale,
                                     w * scale, h * scale))  # fmt: skip
 
     def _draw_hint(self, painter: QPainter) -> None:

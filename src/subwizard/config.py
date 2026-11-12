@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -90,12 +90,19 @@ class AudioConfig(_Section):
     clip_db: float = -0.1  # at or above this = clipping warning
 
 
+RectList = Annotated[list[float], Field(min_length=4, max_length=4)]
+
+
 class RoiConfig(_Section):
     template: Literal["bottom_center", "bottom_wide", "lower_half", "top", "custom"] = "bottom_center"
     # x, y, w, h as fractions of the frame; templates fill this in, F2 draws it.
     rect: list[float] = Field(default_factory=lambda: [0.15, 0.78, 0.70, 0.18],
                               min_length=4, max_length=4)  # fmt: skip
     padding_pct: float = Field(4.0, ge=0, le=50)  # grow every side by this % of the region
+    # More regions read together with `rect` (e.g. a speaker name at the top), and areas
+    # blacked out before OCR (minimap, HUD counters). Same x, y, w, h fractions.
+    extra_rects: list[RectList] = Field(default_factory=list)
+    exclude_rects: list[RectList] = Field(default_factory=list)
 
 
 class PreprocessConfig(_Section):

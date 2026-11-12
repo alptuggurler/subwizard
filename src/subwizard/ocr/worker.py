@@ -20,7 +20,7 @@ from subwizard.core.metrics import M, MetricsHub
 from subwizard.ocr.base import BaseOCR, OCRLine, OCRResult
 from subwizard.ocr.change_detect import ChangeDetector
 from subwizard.ocr.preprocess import preprocess
-from subwizard.ocr.roi import Rect, crop
+from subwizard.ocr.roi import Rect, crop_regions
 from subwizard.pipeline.text_utils import join_lines
 from subwizard.sources.base import Frame
 from subwizard.utils import timing
@@ -75,7 +75,7 @@ class OCRWorker(threading.Thread):
         self._stop_event = threading.Event()
         self._force = threading.Event()
         self._last_index = -1
-        self._last_rect: tuple[float, ...] | None = None
+        self._last_rect: tuple[object, ...] | None = None
         self._lines: tuple[OCRLine, ...] = ()
         self._ticks = self._skips = 0
         self._summary_at = timing.now()
@@ -126,12 +126,13 @@ class OCRWorker(threading.Thread):
         m = self._metrics
         m.tick(M.OCR_TICKS)
 
-        rect = Rect(*cfg.roi.rect)
-        key = (*cfg.roi.rect, cfg.roi.padding_pct)
+        roi = cfg.roi
+        key = (repr(roi.rect), repr(roi.extra_rects), repr(roi.exclude_rects), roi.padding_pct)
         if key != self._last_rect:
             self._last_rect = key
             self._detector.reset()
-        region = crop(frame.image, rect, cfg.roi.padding_pct)
+        region = crop_regions(frame.image, Rect(*roi.rect), [Rect(*r) for r in roi.extra_rects],
+                              [Rect(*r) for r in roi.exclude_rects], roi.padding_pct)  # fmt: skip
 
         forced = self._force.is_set()
         self._force.clear()

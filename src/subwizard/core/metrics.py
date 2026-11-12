@@ -57,6 +57,7 @@ class M:
     TR_CACHE_HITS = "tr.cache_hits"
     TR_FALLBACKS = "tr.fallbacks"
     TR_ERRORS = "tr.errors"  # nothing could translate the line
+    TR_GLOSSARY_MISSES = "tr.glossary_misses"  # a glossary term not translated as listed
     TR_TOKENS_IN = "tr.tokens_in"
     TR_TOKENS_OUT = "tr.tokens_out"
     TR_COST = "tr.cost_usd"  # gauge: session total

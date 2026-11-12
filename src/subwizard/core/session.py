@@ -22,6 +22,7 @@ from subwizard.ocr.base import BaseOCR
 from subwizard.ocr.worker import OCRState, OCRTick, OCRWorker, build_ocr
 from subwizard.pipeline.board import SubtitleBoard, SubtitleView
 from subwizard.pipeline.history import SubtitleHistory
+from subwizard.profiles import load_profile
 from subwizard.pipeline.subtitle_state import LineCleared, LineStable, SubtitleStateMachine
 from subwizard.pipeline.translate_worker import TranslateWorker, Translated
 from subwizard.translator.service import TranslationService, build_service
@@ -140,7 +141,7 @@ class Session:
         self._on_translated = on_translated
         self._translate_factory = translate_factory  # None disables translation
         self._translator: TranslateWorker | None = None
-        self._states = SubtitleStateMachine(config.subtitle)
+        self._states = SubtitleStateMachine(config.subtitle, self._profile_ignore())
         self._board = SubtitleBoard(config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now())
         self.translation_paused = False  # F8: lines are still recorded, not translated
@@ -175,7 +176,7 @@ class Session:
         )
         self._runner.start()
         self.start_audio()
-        self._states = SubtitleStateMachine(self._config.subtitle)
+        self._states = SubtitleStateMachine(self._config.subtitle, self._profile_ignore())
         self._board = SubtitleBoard(self._config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
         self._start_translator()
@@ -186,6 +187,14 @@ class Session:
                 on_tick=self._ocr_tick, on_state=self._on_ocr_state,
             )  # fmt: skip
             self._ocr.start()
+
+    def _profile_ignore(self) -> tuple[str, ...]:
+        return tuple(load_profile(self._config.profile).ignore_phrases)
+
+    def apply_profile(self) -> None:
+        """The game profile (or its contents) changed: new ignore list, new prompt."""
+        self._states.profile_ignore = self._profile_ignore()
+        self.restart_translation()
 
     def _subtitle_log_path(self):  # noqa: ANN202
         if not self.write_subtitle_log:

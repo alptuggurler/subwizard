@@ -21,7 +21,9 @@ from subwizard.translator.base import (
     TranslationRequest,
     TranslationResult,
 )
+from subwizard.profiles import DEFAULT, GameProfile, glossary_violations, load_profile
 from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key
+from subwizard.translator.prompt import system_prompt
 from subwizard.utils import timing
 from subwizard.utils.paths import user_data_dir
 
@@ -59,8 +61,10 @@ class TranslationService:
         fallback: BaseTranslator | None,
         cache: TranslationCache,
         clock=timing.now,  # noqa: ANN001
+        profile: GameProfile | None = None,
     ) -> None:
         self._config = config
+        self.profile = profile or GameProfile()
         self._metrics = metrics
         self.primary = primary
         self.fallback = fallback
@@ -82,7 +86,11 @@ class TranslationService:
         skips the cache lookup (F7); the new result replaces the cached one."""
         tr = self._config.translator
         m = self._metrics
-        key = cache_key(request.text, tr.target_language)
+        # A profile changes how lines are translated (glossary), so it has its own cache
+        # entries; `default` keeps the plain key so existing caches stay valid.
+        scope = tr.target_language if self.profile.name == DEFAULT else (
+            f"{tr.target_language}@{self.profile.name}")
+        key = cache_key(request.text, scope)
         hit = None if force else self.cache.get(key)
         # A fallback translation is cached too, but when Gemini is available it gets a
         # chance to do better next time instead of the weaker result living forever.
@@ -135,6 +143,13 @@ class TranslationService:
             m.incr(M.TR_ERRORS)
             raise TranslationError("all_engines_failed")
 
+        missed = glossary_violations(request.text, result.text, self.profile)
+        if missed:
+            m.incr(M.TR_GLOSSARY_MISSES)
+            log.warning("Sözlük ihlali (%s, profil %s): %s; %r -> %r", result.engine,
+                        self.profile.name, ", ".join(f"{t} → {self.profile.expected(t)}"
+                                                     for t in missed),
+                        request.text, result.text)  # fmt: skip
         m.observe(M.TR_MS, result.latency_ms)
         self.cache.put(key, CachedTranslation(result.text, result.engine))
         self._publish()
@@ -163,12 +178,20 @@ def cache_path() -> str:
     return str(user_data_dir() / "cache" / "translations.sqlite")
 
 
-def build_engines(config: AppConfig) -> tuple[BaseTranslator | None, BaseTranslator | None, str]:
+def build_engines(
+    config: AppConfig, profile: GameProfile | None = None,
+) -> tuple[BaseTranslator | None, BaseTranslator | None, str]:  # fmt: skip
     """(primary, fallback, note). The note says why Gemini is not used, if it is not."""
     from subwizard.translator.deep import DeepTranslatorFallback
 
     tr = config.translator
-    deep = DeepTranslatorFallback(tr.source_language, tr.target_language, tr.fallback_timeout_s)
+    profile = profile or load_profile(config.profile)
+    log.info("Oyun profili: %s (%d sözlük terimi, %d yok sayılan ifade)", profile.name,
+             len(profile.glossary), len(profile.ignore_phrases))  # fmt: skip
+    log.debug("Sistem prompt'u (profil %s):\n%s", profile.name,
+              system_prompt(tr.system_prompt, profile))  # fmt: skip
+    deep = DeepTranslatorFallback(tr.source_language, tr.target_language, tr.fallback_timeout_s,
+                                  profile=profile)  # fmt: skip
     if tr.engine == "deep":
         return None, deep, ""
     keys, _source = load_api_keys()
@@ -179,7 +202,7 @@ def build_engines(config: AppConfig) -> tuple[BaseTranslator | None, BaseTransla
 
     gemini = GeminiTranslator(
         keys, model=tr.model, timeout_s=tr.timeout_s, retries=tr.retries,
-        thinking_level=tr.thinking_level, prompt=tr.system_prompt,
+        thinking_level=tr.thinking_level, prompt=tr.system_prompt, profile=profile,
         quota_cooldown_s=tr.quota_cooldown_s,
     )  # fmt: skip
     return gemini, deep if tr.fallback else None, ""
@@ -193,5 +216,7 @@ def open_cache(config: AppConfig) -> TranslationCache:
 
 
 def build_service(config: AppConfig, metrics: MetricsHub) -> TranslationService:
-    primary, fallback, _note = build_engines(config)
-    return TranslationService(config, metrics, primary, fallback, open_cache(config))
+    profile = load_profile(config.profile)
+    primary, fallback, _note = build_engines(config, profile)
+    return TranslationService(config, metrics, primary, fallback, open_cache(config),
+                              profile=profile)  # fmt: skip

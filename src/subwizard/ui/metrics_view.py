@@ -178,6 +178,8 @@ def _translation_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
     fallbacks, errors = snap.counter(M.TR_FALLBACKS), snap.counter(M.TR_ERRORS)
     rows.append(Row(sec, "diag.tr_counts", f"{requests} / {hits} / {fallbacks} / {errors}",
                     "warn" if fallbacks or errors else None))  # fmt: skip
+    misses = snap.counter(M.TR_GLOSSARY_MISSES)
+    rows.append(Row(sec, "diag.tr_glossary", str(misses), "warn" if misses else None))
     rows.append(Row(sec, "diag.tr_tokens",
                     f"{snap.counter(M.TR_TOKENS_IN)} / {snap.counter(M.TR_TOKENS_OUT)}"))  # fmt: skip
     cost, per_hour = snap.gauge(M.TR_COST), snap.gauge(M.TR_COST_PER_HOUR)

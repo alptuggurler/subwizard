@@ -12,7 +12,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QLocale, QObject, QTimer, Signal, Slot
 
-from subwizard import platform
+from subwizard import platform, profiles
 from subwizard.audio.devices import guess_capture_input, list_audio_devices
 from subwizard.config import (
     AppConfig,
@@ -43,8 +43,6 @@ log = logging.getLogger(__name__)
 
 SAVE_DEBOUNCE_MS = 400  # sliders fire many changes; write the file once they settle
 PERF_OVERLAY_CYCLE: tuple[PerfOverlay, ...] = ("off", "compact", "detailed")
-# Wizard step 6: game profile -> subtitle region template (full profiles: M6).
-GAME_PROFILE_TEMPLATES = {"gta6": "bottom_center", "default": "bottom_wide"}
 # Appearance presets (SPEC 3.12): only the keys they change.
 OVERLAY_PRESETS: dict[str, dict[str, object]] = {
     "netflix": {"text_color": "#FFFFFF", "background_opacity": 0.0, "outline": True,
@@ -79,6 +77,7 @@ class AppController(QObject):
     hotkeysChanged = Signal()
     historyChanged = Signal()
     webChanged = Signal()
+    profileChanged = Signal()  # game profile selected, saved or deleted
     wizardRequested = Signal()  # Ayarlar -> "Kurulum sihirbazını aç"  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
@@ -121,6 +120,7 @@ class AppController(QObject):
         self._subtitleFromThread.connect(self._on_subtitle)
         self.subtitle: SubtitleView | None = None
         self._key_status: tuple[int, str] | None = None
+        self._masked_keys: list[str] = []
 
         self._metrics_timer = QTimer(self)
         self._metrics_timer.setInterval(int(1000 / config.metrics.ui_hz))
@@ -436,6 +436,24 @@ class AppController(QObject):
         self._save()
         self.settingsChanged.emit()
 
+    def add_roi_region(self, rect: Rect, *, exclude: bool) -> None:
+        """One more region read together with the main one, or an area blacked out."""
+        if not rect.usable:
+            return
+        roi = self.config.roi
+        if exclude:
+            roi.exclude_rects = [*roi.exclude_rects, rect.as_list()]
+        else:
+            roi.extra_rects = [*roi.extra_rects, rect.as_list()]
+        self._save()
+        self.settingsChanged.emit()
+
+    def clear_roi_regions(self) -> None:
+        self.config.roi.extra_rects = []
+        self.config.roi.exclude_rects = []
+        self._save()
+        self.settingsChanged.emit()
+
     def set_roi_padding(self, padding_pct: float) -> None:
         self.config.roi.padding_pct = padding_pct
         self._save(debounce=True)
@@ -483,6 +501,7 @@ class AppController(QObject):
         if self._key_status is None:
             keys, source = secrets.load_api_keys()
             self._key_status = (len(keys), source)
+            self._masked_keys = [secrets.mask(k) for k in keys]
         return self._key_status
 
     def set_api_keys(self, text: str) -> None:
@@ -494,6 +513,32 @@ class AppController(QObject):
                  ", ".join(secrets.mask(k) for k in keys) or "yok")  # fmt: skip
         self._session.restart_translation()
         self.settingsChanged.emit()
+
+    def api_keys(self) -> list[tuple[str, str, float]]:
+        """The keys for the UI: (masked key, state, seconds left to rest). The state is
+        "active" / "ready" / "resting" while translating, else "saved"."""
+        self.api_key_status()  # fills the cache: the credential store is slow to ask
+        keys = self._masked_keys
+        service = self._session.translation
+        engine = service.primary if service is not None else None
+        states = engine.key_states() if hasattr(engine, "key_states") else []
+        if len(states) != len(keys):
+            states = [("saved", 0.0)] * len(keys)
+        return [(k, state, left) for k, (state, left) in zip(keys, states)]
+
+    def add_api_keys(self, text: str) -> int:
+        """Append keys (comma / newline separated) to the saved ones; returns how many
+        were new. Keys from the environment cannot be edited here."""
+        saved = secrets.keys_from_keyring()
+        new = [k for k in secrets.split_keys(text) if k not in saved]
+        if new:
+            self.set_api_keys(",".join([*saved, *new]))
+        return len(new)
+
+    def remove_api_key(self, index: int) -> None:
+        saved = secrets.keys_from_keyring()
+        if 0 <= index < len(saved):
+            self.set_api_keys(",".join(saved[:index] + saved[index + 1:]))
 
     def test_translation(self, text: str) -> None:
         """Translate `text` once with the current settings on a helper thread; the
@@ -622,10 +667,31 @@ class AppController(QObject):
 
     # --- setup wizard (SPEC 3.12) ----------------------------------------------------------
     def set_game_profile(self, name: str) -> None:
-        """Wizard step 6. Full profiles (prompt, glossary) arrive in M6; for now a profile
-        picks its subtitle region template."""
-        self.config.profile = name
-        self.set_roi_template(GAME_PROFILE_TEMPLATES.get(name, "bottom_center"))
+        """Select a game profile: its region template, ignore list and prompt apply now."""
+        profile = profiles.load_profile(name)
+        self.config.profile = profile.name
+        self._save()
+        if profile.roi_template in TEMPLATES:
+            self.set_roi_template(profile.roi_template)
+        self._session.apply_profile()
+        self.profileChanged.emit()
+
+    def save_game_profile(self, profile: profiles.GameProfile) -> None:
+        """Store a profile (as the user's copy); if it is the active one, apply it."""
+        profiles.save_profile(profile)
+        if profile.name == self.config.profile:
+            self._session.apply_profile()
+        self.profileChanged.emit()
+
+    def delete_game_profile(self, name: str) -> None:
+        """A user profile is removed; a built-in one goes back to how it shipped."""
+        profiles.delete_profile(name)
+        if name == self.config.profile and not profiles.is_builtin(name):
+            self.set_game_profile(profiles.DEFAULT)
+            return
+        if name == self.config.profile:
+            self._session.apply_profile()
+        self.profileChanged.emit()
 
     def request_wizard(self) -> None:
         self.wizardRequested.emit()

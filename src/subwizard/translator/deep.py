@@ -19,6 +19,8 @@ from subwizard.translator.base import (
     TranslationRequest,
     TranslationResult,
 )
+from subwizard.profiles import GameProfile
+from subwizard.translator.prompt import protect, restore
 from subwizard.utils import timing
 
 log = logging.getLogger(__name__)
@@ -32,8 +34,10 @@ class DeepTranslatorFallback(BaseTranslator):
     def __init__(
         self, source: str, target: str, timeout_s: float,
         backend: Callable[[str], str] | None = None,
+        profile: GameProfile | None = None,
     ) -> None:  # fmt: skip
         self._source, self._target = source, target
+        self._profile = profile  # keep terms are shielded from Google (no prompt here)
         self._timeout_s = timeout_s
         self._backend = backend
         self._pool = ThreadPoolExecutor(POOL_THREADS, thread_name_prefix="deep")
@@ -50,7 +54,8 @@ class DeepTranslatorFallback(BaseTranslator):
 
     def translate(self, request: TranslationRequest) -> TranslationResult:
         started = timing.now()
-        future = self._pool.submit(self._call, request.text)
+        text, originals = protect(request.text, self._profile)
+        future = self._pool.submit(self._call, text)
         try:
             translated = future.result(timeout=self._timeout_s)
         except FutureTimeout as exc:
@@ -60,7 +65,8 @@ class DeepTranslatorFallback(BaseTranslator):
             raise TranslationError("fallback_failed") from exc
         if not translated or not translated.strip():
             raise TranslationError("empty")
-        return TranslationResult(translated.strip(), self.name, timing.ms_since(started))
+        translated = restore(translated.strip(), originals)
+        return TranslationResult(translated, self.name, timing.ms_since(started))
 
     def close(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)

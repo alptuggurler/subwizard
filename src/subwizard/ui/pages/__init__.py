@@ -18,6 +18,7 @@ from subwizard.ui.pages.diagnostics import DiagnosticsPage
 from subwizard.ui.pages.history import HistoryPage
 from subwizard.ui.pages.home import HomePage
 from subwizard.ui.pages.hotkeys import HotkeysPage
+from subwizard.ui.pages.profiles import ProfilesPage
 from subwizard.ui.pages.roi import RoiPage
 from subwizard.ui.pages.settings import SettingsPage
 from subwizard.ui.pages.translate import TranslatePage
@@ -41,7 +42,7 @@ PAGES: tuple[PageSpec, ...] = (
     PageSpec(RoiPage, FluentIcon.ZOOM_IN),
     PageSpec(TranslatePage, FluentIcon.LANGUAGE),
     PageSpec(AppearancePage, FluentIcon.PALETTE),
-    PageSpec(_placeholder("profiles", "M6"), FluentIcon.GAME),
+    PageSpec(ProfilesPage, FluentIcon.GAME),
     PageSpec(WebPage, FluentIcon.GLOBE),
     PageSpec(DevicePage, FluentIcon.VIDEO),
     PageSpec(DiagnosticsPage, FluentIcon.SPEED_HIGH),

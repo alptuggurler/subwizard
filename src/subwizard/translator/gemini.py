@@ -17,6 +17,7 @@ from collections.abc import Callable
 from typing import Any
 
 from subwizard.core.secrets import mask
+from subwizard.profiles import GameProfile
 from subwizard.translator.base import (
     BaseTranslator,
     TranslationError,
@@ -56,6 +57,7 @@ class GeminiTranslator(BaseTranslator):
         retries: int,
         thinking_level: str,
         prompt: str = "",
+        profile: GameProfile | None = None,
         quota_cooldown_s: float = 60.0,
         client_factory: Callable[..., Any] | None = None,
         clock: Callable[[], float] = timing.now,
@@ -67,7 +69,7 @@ class GeminiTranslator(BaseTranslator):
         self._timeout_s = timeout_s
         self._retries = retries
         self._thinking_level = thinking_level
-        self._system = system_prompt(prompt)
+        self._system = system_prompt(prompt, profile)
         self._cooldown_s = quota_cooldown_s
         self._client_factory = client_factory or _make_client
         self._clock = clock
@@ -79,6 +81,19 @@ class GeminiTranslator(BaseTranslator):
     @property
     def model(self) -> str:
         return self._model
+
+    def key_states(self) -> list[tuple[str, float]]:
+        """Per key (in order): "active" (used for the next line), "ready", or "resting"
+        (hit its quota), with the seconds left to rest. Read by the UI thread."""
+        now = self._clock()
+        states = []
+        for index in range(len(self._keys)):
+            left = self._resting_until.get(index, 0.0) - now
+            if left > 0:
+                states.append(("resting", left))
+            else:
+                states.append(("active" if index == self._current else "ready", 0.0))
+        return states
 
     def _client(self, index: int) -> Any:
         if index not in self._clients:

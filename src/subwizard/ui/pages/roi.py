@@ -35,6 +35,7 @@ from subwizard.ui.widgets.roi_editor import RoiEditor, frame_to_qimage
 from subwizard.ui.widgets.value_slider import ValueSlider
 
 COMBO_WIDTH = 220
+DRAW_MODES = ("main", "extra", "exclude")
 EDITOR_MIN_HEIGHT = 360
 PREVIEW_HEIGHT = 72  # crop previews are scaled to this height (width follows)
 PREVIEW_MAX_WIDTH = 640
@@ -127,6 +128,25 @@ class RoiPage(BasePage):
         toolbar.addStretch(1)
         self.body.addLayout(toolbar)
 
+        # What a drag in the editor draws: the main region, one more region read with
+        # it, or an area to black out (minimap, HUD).
+        self._draw_mode = ComboBox()
+        self._draw_mode.setMinimumWidth(COMBO_WIDTH)
+        self._draw_mode.addItems(list(DRAW_MODES))
+        self._clear_regions = PushButton()
+        self._clear_regions.setIcon(FluentIcon.ERASE_TOOL)
+        self._clear_regions.clicked.connect(self._on_clear_regions)
+        self._regions_info = CaptionLabel()
+        self._regions_info.setWordWrap(True)
+        self.regions_bar = QWidget()
+        regions = QHBoxLayout(self.regions_bar)
+        regions.setContentsMargins(0, 0, 0, 0)
+        regions.setSpacing(8)
+        regions.addWidget(self._draw_mode)
+        regions.addWidget(self._clear_regions)
+        regions.addWidget(self._regions_info, 1)
+        self.body.addWidget(self.regions_bar)
+
         self._notice = Notice()
         self.body.addWidget(self._notice)
 
@@ -163,7 +183,7 @@ class RoiPage(BasePage):
         for row in (self._padding_row, self._hz_row, self._confidence_row,
                     self._white_mask_row, self._contrast_row):  # fmt: skip
             self.body.addWidget(row)
-        self.settings_section = [self._settings_title, self._padding_row, self._hz_row,
+        self.settings_section = [self.regions_bar, self._settings_title, self._padding_row, self._hz_row,
                                  self._confidence_row, self._white_mask_row,
                                  self._contrast_row]  # fmt: skip
 
@@ -180,8 +200,21 @@ class RoiPage(BasePage):
         self.controller.set_roi_template(TEMPLATE_NAMES[index])
         self.controller.force_ocr()
 
+    @property
+    def draw_mode(self) -> str:
+        return DRAW_MODES[max(0, self._draw_mode.currentIndex())]
+
     def _on_rect(self, rect: object) -> None:
-        self.controller.set_roi_rect(rect)
+        if self.draw_mode == "extra":
+            self.controller.add_roi_region(rect, exclude=False)
+        elif self.draw_mode == "exclude":
+            self.controller.add_roi_region(rect, exclude=True)
+        else:
+            self.controller.set_roi_rect(rect)
+        self.controller.force_ocr()
+
+    def _on_clear_regions(self) -> None:
+        self.controller.clear_roi_regions()
         self.controller.force_ocr()
 
     def _on_freeze(self, frozen: bool) -> None:
@@ -246,6 +279,13 @@ class RoiPage(BasePage):
             switch.blockSignals(True)
             switch.setChecked(value)
             switch.blockSignals(False)
+        self._refresh_regions()
+
+    def _refresh_regions(self) -> None:
+        roi = self.controller.config.roi
+        extra, excluded = len(roi.extra_rects), len(roi.exclude_rects)
+        self._regions_info.setText(t("roi.regions.info", extra=extra, exclude=excluded))
+        self._clear_regions.setEnabled(bool(extra or excluded))
 
     def retranslate(self, *_: object) -> None:
         super().retranslate()
@@ -257,6 +297,12 @@ class RoiPage(BasePage):
         self._read_now.setText(t("roi.read_now"))
         self._calibrate.setText(t("roi.calibrate"))
         self._wait_freeze.setText(t("roi.wait_freeze"))
+        self._draw_mode.blockSignals(True)
+        for i, mode in enumerate(DRAW_MODES):
+            self._draw_mode.setItemText(i, t(f"roi.draw.{mode}"))
+        self._draw_mode.blockSignals(False)
+        self._clear_regions.setText(t("roi.regions.clear"))
+        self._refresh_regions()
         self._wait_freeze.setToolTip(t("roi.wait_freeze.tip"))
         self.editor.set_placeholder(t("roi.placeholder"))
         self.preview.retranslate()

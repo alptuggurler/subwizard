@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QWidget
 from subwizard.controller import AppController
 from subwizard.core.metrics import M, Snapshot
 from subwizard.i18n import t
-from subwizard.ocr.roi import Rect
+from subwizard.ocr.roi import Rect, config_layout, to_frame
 from subwizard.sources.base import Frame
 from subwizard.ui.metrics_view import DASH, GRADE_COLORS, metric_rows
 from subwizard.ui.subtitle_paint import (
@@ -190,8 +190,12 @@ class VideoView(QWidget):
             return None
         roi = c.config.roi
         height, width = frame.image.shape[:2]
-        x0, y0, _, _ = Rect(*roi.rect).padded(roi.padding_pct).to_pixels(width, height)
-        bounds = text_bounds([line.box for line in tick.lines], (x0, y0))
+        strips = config_layout(roi, width, height)
+        main = strips[0]
+        # Only the subtitle region is covered (not an extra region, e.g. a name at the top).
+        boxes = [b for b in (to_frame(line.box, strips) for line in tick.lines)
+                 if main.y0 <= b[1] + b[3] / 2 < main.y1]  # fmt: skip
+        bounds = text_bounds(boxes, (0, 0))
         if bounds is None:
             return None
         line_id = c.subtitle.line_id if c.subtitle else -1

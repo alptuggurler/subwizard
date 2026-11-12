@@ -79,6 +79,7 @@ class _Candidate:
 @dataclass
 class SubtitleStateMachine:
     config: SubtitleConfig
+    profile_ignore: tuple[str, ...] = ()  # the game profile's ignore list, on top of config's
     state: State = State.EMPTY
     current: SubtitleLine | None = None  # the STABLE line (also while a new candidate forms)
     _candidate: _Candidate | None = None
@@ -89,7 +90,7 @@ class SubtitleStateMachine:
 
     # --- text cleaning ------------------------------------------------------------
     def _patterns(self) -> list[re.Pattern[str]]:
-        phrases = tuple(self.config.ignore_phrases)
+        phrases = (*self.config.ignore_phrases, *self.profile_ignore)
         if phrases != self._ignore_src:  # settings are live; recompile when they change
             self._ignore_src = phrases
             self._ignore = []

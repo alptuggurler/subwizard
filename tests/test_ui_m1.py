@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("PySide6")
 pytestmark = pytest.mark.ui
 
+from PySide6.QtCore import QEvent  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from subwizard.app import create_app  # noqa: E402
@@ -45,6 +46,9 @@ def window(tmp_path, clip):
     win.close()
     win.deleteLater()
     app.processEvents()
+    # deleteLater needs a DeferredDelete pass; without it every old window stays alive,
+    # and each new one restyles them all (the suite slowed down test by test).
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 def _page(win, key):

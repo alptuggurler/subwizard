@@ -67,6 +67,8 @@ roi:
   template: bottom_center   # bottom_center | bottom_wide | lower_half | top | custom
   rect: [0.15, 0.78, 0.7, 0.18]   # x, y, genislik, yukseklik (karenin orani, 0-1)
   padding_pct: 4.0          # kesik kelimeler icin alan her yonde bu % kadar buyutulur
+  extra_rects: []           # ek alanlar, ana alanla birlikte okunur: [[x, y, w, h], ...]
+  exclude_rects: []         # okunmadan once karartilan alanlar (mini harita, HUD)
 
 ocr:
   engine: rapid

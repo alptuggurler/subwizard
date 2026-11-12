@@ -1,0 +1,14 @@
+title: GTA 6
+game_info: "Grand Theft Auto VI. Vice City ve Leonida eyaleti. Ana karakterler Jason ve Lucia. Suç dünyası, sokak dili, kara mizah."
+prompt_extra: "Sokak ağzını ve argoyu koru; resmî dil kullanma. Sen/siz hitabında karakterlerin samimiyetine göre 'sen' tercih et."
+roi_template: bottom_center
+ignore_phrases:
+  - "(?i)press .{1,12} to skip"
+  - "(?i)hold .{1,12} to skip"
+glossary:
+  Jason: keep
+  Lucia: keep
+  Vice City: keep
+  Leonida: keep
+  homie: kanka
+  cops: aynasızlar

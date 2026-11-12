@@ -21,6 +21,7 @@ from qfluentwidgets import (
     PushButton,
     StrongBodyLabel,
     SwitchButton,
+    TransparentToolButton,
 )
 
 from subwizard.controller import AppController
@@ -73,6 +74,14 @@ class TranslatePage(BasePage):
         key_layout.addWidget(self._save)
         self._key_row = SettingRow(FluentIcon.VPN, key_control)
 
+        # Every saved key with its live state (rotation on quota, SPEC 3.6) and a remove
+        # button; keys from the environment are listed but not editable here.
+        self.key_list = CardWidget()
+        self._key_list_layout = QVBoxLayout(self.key_list)
+        self._key_list_layout.setContentsMargins(20, 10, 20, 10)
+        self._key_list_layout.setSpacing(4)
+        self._shown_keys: list[tuple[str, str, int]] | None = None
+
         self._context = ValueSlider(CONTEXT_RANGE, str)
         self._context.slider.valueChanged.connect(controller.set_context_lines)
         self._context_row = SettingRow(FluentIcon.HISTORY, self._context)
@@ -83,8 +92,8 @@ class TranslatePage(BasePage):
         self._fallback.checkedChanged.connect(controller.set_fallback_enabled)
         self._fallback_row = SettingRow(FluentIcon.SYNC, self._fallback)
 
-        for row in (self._engine_row, self._model_row, self._key_row, self._context_row,
-                    self._fallback_row):  # fmt: skip
+        for row in (self._engine_row, self._model_row, self._key_row, self.key_list,
+                    self._context_row, self._fallback_row):  # fmt: skip
             self.body.addWidget(row)
 
         # --- test
@@ -121,7 +130,7 @@ class TranslatePage(BasePage):
         self._usage_row = SettingRow(FluentIcon.SPEED_HIGH, self._cache_label)
         self.body.addWidget(self._cache_row)
         self.body.addWidget(self._usage_row)
-        self.advanced_section = [self._context_row, self._cache_row, self._usage_row]
+        self.advanced_section = [self.key_list, self._context_row, self._cache_row, self._usage_row]
 
         controller.settingsChanged.connect(self._load)
         controller.translationTested.connect(self._on_tested)
@@ -135,8 +144,40 @@ class TranslatePage(BasePage):
             self.controller.set_translator_model(model)
 
     def _save_keys(self) -> None:
-        self.controller.set_api_keys(self._keys.text())
+        """Adds to the saved keys (the list below removes them one by one)."""
+        self.controller.add_api_keys(self._keys.text())
         self._keys.clear()
+
+    def refresh_key_list(self) -> None:
+        c = self.controller
+        _count, source = c.api_key_status()
+        keys = [(masked, state, round(left)) for masked, state, left in c.api_keys()]
+        if keys == self._shown_keys:
+            return
+        self._shown_keys = keys
+        while self._key_list_layout.count():
+            item = self._key_list_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.hide()
+                widget.setParent(None)  # gone from the card now (Python frees it)
+        self.key_list.setVisible(bool(keys))
+        for index, (masked, state, left) in enumerate(keys):
+            label = CaptionLabel(f"{index + 1}.  {masked}  ·  "
+                                 + t(f"translate.key.{state}", s=left))  # fmt: skip
+            row = QHBoxLayout()
+            row.addWidget(label, 1)
+            if source != "env":
+                remove = TransparentToolButton(FluentIcon.DELETE)
+                remove.setToolTip(t("translate.key.remove"))
+                remove.clicked.connect(lambda _=False, i=index: c.remove_api_key(i))
+                row.addWidget(remove)
+            holder = QWidget()
+            holder.setLayout(row)
+            row.setContentsMargins(0, 0, 0, 0)
+            self._key_list_layout.addWidget(holder)
+        if source == "env":
+            self._key_list_layout.addWidget(CaptionLabel(t("translate.key.env_note")))
 
     def _run_test(self) -> None:
         self._test_button.setEnabled(False)
@@ -168,6 +209,7 @@ class TranslatePage(BasePage):
         self._cache_label.setText(t(
             "translate.usage.value", requests=snap.counter(M.TR_REQUESTS),
             hits=snap.counter(M.TR_CACHE_HITS), cost=f"{cost:.4f}"))  # fmt: skip
+        self.refresh_key_list()  # a key may have started or finished resting
 
     def _load(self) -> None:
         tr = self.controller.config.translator
@@ -209,6 +251,8 @@ class TranslatePage(BasePage):
                 grade)  # fmt: skip
         else:
             self._notice.show_message("")
+        self._shown_keys = None
+        self.refresh_key_list()
         self._cache_row.set_texts(t("translate.cache"),
                                   t("translate.cache.desc", n=c.translation_cache_size()))  # fmt: skip
 

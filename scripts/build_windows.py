@@ -28,6 +28,7 @@ NAME = "SubWizard"
 DATA = [
     (SRC / "i18n", "subwizard/i18n"),
     (SRC / "web" / "static", "subwizard/web/static"),
+    (SRC / "profiles", "subwizard/profiles"),  # built-in game profiles (.yaml)
 ]
 # Imported lazily or by name, so PyInstaller's analysis cannot see them.
 HIDDEN = ["subwizard.ui.wizard", "subwizard.app", "rapidocr", "deep_translator",
