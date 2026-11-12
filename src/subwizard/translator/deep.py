@@ -18,6 +18,7 @@ from subwizard.translator.base import (
     TranslationError,
     TranslationRequest,
     TranslationResult,
+    brief,
 )
 from subwizard.profiles import GameProfile
 from subwizard.translator.prompt import protect, restore
@@ -62,7 +63,7 @@ class DeepTranslatorFallback(BaseTranslator):
             raise TranslationError("timeout") from exc
         except Exception as exc:  # network, HTML changes on Google's side
             log.warning("Yedek çevirmen başarısız: %s", exc)
-            raise TranslationError("fallback_failed") from exc
+            raise TranslationError(f"fallback_failed ({brief(exc)})") from exc
         if not translated or not translated.strip():
             raise TranslationError("empty")
         translated = restore(translated.strip(), originals)

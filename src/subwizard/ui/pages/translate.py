@@ -136,6 +136,8 @@ class TranslatePage(BasePage):
         self._test_result.setWordWrap(True)
         self._test_result.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self._test_meta = CaptionLabel()
+        self._test_meta.setWordWrap(True)  # an error reason can be long; copyable for reports
+        self._test_meta.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         test_row = QHBoxLayout()
         test_row.addWidget(self._test_input, 1)
         test_row.addWidget(self._test_button)

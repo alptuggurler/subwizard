@@ -249,9 +249,22 @@ def test_a_fallback_translation_in_the_cache_gets_retried_with_gemini():
 def test_without_any_engine_working_an_error_is_raised():
     svc = service(primary=FakeEngine(fail=TranslationError("x")),
                   fallback=FakeEngine("deep", fail=TranslationError("y")))  # fmt: skip
-    with pytest.raises(TranslationError):
+    with pytest.raises(TranslationError) as raised:
         svc.translate(TranslationRequest("Run!"))
     assert svc.usage.errors == 1
+    assert str(raised.value) == "all_engines_failed; gemini: x; deep: y"  # shown by "Test"
+
+
+def test_engine_errors_carry_the_reason_without_the_key():
+    key = "AIza" + "B" * 35
+    error = FakeAPIError(400)
+    error.args = (f"400 INVALID_ARGUMENT API key not valid ?key={key}",)
+    gemini, _ = gemini_with([error])
+    with pytest.raises(TranslationError) as raised:
+        gemini.translate(TranslationRequest("Run!"))
+    text = str(raised.value)
+    assert text.startswith("api_error:400 (FakeAPIError: 400 INVALID_ARGUMENT API key not valid")
+    assert key not in text
 
 
 def test_disk_cache_survives_a_restart(tmp_path):

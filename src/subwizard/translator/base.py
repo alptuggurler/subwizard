@@ -39,6 +39,19 @@ class TranslationError(Exception):
     """Engine failed (timeout, quota, blocked/empty reply); the caller falls back."""
 
 
+BRIEF_CHARS = 200
+
+
+def brief(exc: BaseException) -> str:
+    """One line of an underlying error for the "Test" button and the log: the type and the
+    start of the message, with API keys masked (SDK errors may echo request URLs)."""
+    from subwizard.core.support import scrub
+
+    text = " ".join(str(exc).split()) or type(exc).__name__
+    text = scrub(f"{type(exc).__name__}: {text}")
+    return text if len(text) <= BRIEF_CHARS else text[: BRIEF_CHARS - 1] + "…"
+
+
 class BaseTranslator(ABC):
     name: str
 

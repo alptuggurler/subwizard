@@ -121,6 +121,7 @@ class TranslationService:
                                      fallback=hit.engine == "deep" and tr.engine != "deep")  # fmt: skip
 
         result: TranslationResult | None = None
+        reasons: list[str] = []  # why each engine failed, for the "Test" button
         if self.primary is not None:
             with self._lock:
                 self.usage.requests += 1
@@ -129,6 +130,7 @@ class TranslationService:
                 result = self.primary.translate(request)
             except TranslationError as exc:
                 log.warning("%s çeviremedi (%s); yedeğe geçiliyor.", self.primary.name, exc)
+                reasons.append(f"{self.primary.name}: {exc}")
             else:
                 result = self._account(result)
                 cost = result.cost_usd
@@ -142,6 +144,7 @@ class TranslationService:
                                  fallback=self.primary is not None or tr.engine != "deep")  # fmt: skip
             except TranslationError as exc:
                 log.warning("Yedek çevirmen de çeviremedi (%s): %r", exc, request.text)
+                reasons.append(f"{self.fallback.name}: {exc}")
             else:
                 if result.fallback:
                     with self._lock:
@@ -154,7 +157,7 @@ class TranslationService:
             with self._lock:
                 self.usage.errors += 1
             m.incr(M.TR_ERRORS)
-            raise TranslationError("all_engines_failed")
+            raise TranslationError("; ".join(["all_engines_failed", *reasons]))
 
         missed = glossary_violations(request.text, result.text, self.profile)
         if missed:

@@ -24,6 +24,7 @@ from subwizard.translator.base import (
     TranslationRequest,
     TranslationResult,
     VisionResult,
+    brief,
 )
 from subwizard.translator.prompt import (
     VISION_INSTRUCTION,
@@ -186,7 +187,7 @@ class GeminiTranslator(BaseTranslator):
                 if attempts_left > 0 and (code in RETRYABLE_CODES or code is None):
                     log.warning("Gemini hatası (%s), tekrar deneniyor: %s", code, exc)
                     continue
-                raise TranslationError(f"api_error:{code}") from exc
+                raise TranslationError(f"api_error:{code} ({brief(exc)})") from exc
             return self._result(response, timing.ms_since(started))
 
     def _result(self, response: Any, latency_ms: float) -> TranslationResult:
