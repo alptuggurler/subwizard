@@ -57,14 +57,19 @@ class BasePage(ScrollArea):
     def embed(self, hide: list[QWidget] | None = None) -> None:
         """Used inside the setup wizard: no page header, no outer margins, and the given
         sections hidden. Visibility set by the page itself later (notices) still works,
-        because hidden sections are removed from the layout instead of just hidden."""
+        because hidden sections are removed from the layout instead of just hidden.
+
+        Removed widgets go into a hidden holder, never to no parent: a parentless widget that
+        the page later calls setVisible(True) on becomes its own top-level window."""
         self._title.hide()
         self._desc.hide()
         self.body.setContentsMargins(0, 0, 0, 0)
+        if hide and not hasattr(self, "_detached"):
+            self._detached = QWidget(self)
+            self._detached.hide()
         for widget in hide or []:
             self.body.removeWidget(widget)
-            widget.setParent(None)
-            widget.hide()
+            widget.setParent(self._detached)
 
     def retranslate(self) -> None:
         self._title.setText(t(f"nav.{self.key}"))

@@ -88,3 +88,17 @@ def test_wizard_pc_game_card_switches_to_the_screen_and_skips_audio(window):
     wizard.mode_cards["web"].chosen.emit("web")
     assert c.config.source.kind == "capture" and c.config.display.mode == "web"
     wizard.deleteLater()
+
+
+def test_wizard_hidden_rows_never_become_windows(window):
+    """Regression (Windows): switching the source showed the rows the wizard had cut out of
+    its embedded pages, and parentless rows opened as a dozen separate windows."""
+    from subwizard.ui.wizard import PC_GAME, SetupWizard
+
+    wizard = SetupWizard(window.controller)
+    cut = (wizard.device_video.audio_section + wizard.device_audio.video_section
+           + wizard.translate.advanced_section + wizard.roi.settings_section)
+    for card in (PC_GAME, "window", PC_GAME, "web"):
+        wizard.mode_cards[card].chosen.emit(card)
+        assert not [w for w in cut if w.isWindow()]
+    wizard.deleteLater()
