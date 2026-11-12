@@ -56,6 +56,8 @@ class SourceConfig(_Section):
     fourcc: str = Field("MJPG", min_length=4, max_length=4)
     buffer_size: int = Field(1, ge=1)
     loop: bool = True  # kind: file — restart the clip when it ends
+    monitor: int = Field(1, ge=1)  # kind: screen — which monitor (1 = first)
+    screen_fps: float = Field(10.0, ge=1, le=60)  # kind: screen — frames for OCR only
     reconnect_initial_s: float = Field(0.5, gt=0)  # backoff after a lost device
     reconnect_max_s: float = Field(8.0, gt=0)
     max_read_failures: int = Field(30, ge=1)  # consecutive failed reads = device lost

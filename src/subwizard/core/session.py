@@ -63,6 +63,10 @@ def build_source(config: AppConfig) -> BaseSource:
             src.buffer_size,
             resolve_name=platform.find_video_device,
         )
+    if src.kind == "screen":
+        from subwizard.sources.screen import ScreenSource
+
+        return ScreenSource(src.monitor, src.screen_fps)
     raise SourceError("error.source_unsupported", kind=src.kind)
 
 

@@ -38,7 +38,7 @@ from subwizard.ui.widgets.vu_meter import VUMeter
 COMBO_WIDTH = 300
 PREVIEW_HEIGHT = 200
 PREVIEW_WIDTH = int(PREVIEW_HEIGHT * 16 / 9)
-SOURCE_KINDS = ("capture", "file")
+SOURCE_KINDS = ("capture", "screen", "file")
 AUDIO_PROFILES = ("low", "balanced", "safe")
 FALLBACK_DEVICE_COUNT = 4  # indexes offered when devices cannot be listed by name
 # Offered when the card's own mode list is unavailable (non-Windows, or the query failed).
@@ -105,7 +105,14 @@ class DevicePage(BasePage):
         self._browse.clicked.connect(self._pick_file)
         self._file_row = SettingRow(FluentIcon.MOVIE, self._browse)
 
-        for row in (self._kind_row, self._device_row, self._mode_row, self._file_row):
+        self._monitor = _combo()
+        self._monitor.currentIndexChanged.connect(
+            lambda i: controller.set_source_monitor(i + 1) if i >= 0 else None)
+        self._monitor_row = SettingRow(FluentIcon.FIT_PAGE, self._monitor)
+        self._monitors: list[dict[str, int]] = []
+
+        for row in (self._kind_row, self._device_row, self._mode_row, self._monitor_row,
+                    self._file_row):  # fmt: skip
             self.body.addWidget(row)
 
         # Live preview + "requested -> actual" card side by side.
@@ -130,7 +137,8 @@ class DevicePage(BasePage):
         mode_layout.addLayout(mode_text, 1)
         self.body.addWidget(mode_card)
         self.video_section = [self._video_title, self._kind_row, self._device_row,
-                              self._mode_row, self._file_row, mode_card]  # fmt: skip
+                              self._mode_row, self._monitor_row, self._file_row,
+                              mode_card]  # fmt: skip
 
         # --- audio ---------------------------------------------------------------
         self.body.addSpacing(12)
@@ -235,6 +243,9 @@ class DevicePage(BasePage):
         self._found_video = found
         self._inputs = [None, *(d.name for d in list_audio_devices("input"))]
         self._outputs = [None, *(d.name for d in list_audio_devices("output"))]
+        from subwizard.sources.screen import list_monitors
+
+        self._monitors = list_monitors()
         self._reload_modes()
         self.retranslate()
 
@@ -285,7 +296,9 @@ class DevicePage(BasePage):
                 message, grade = t("audio.clipping"), "bad"
             elif snap.gauge(M.AUDIO_SILENT):
                 message = t("audio.no_signal")
-        if not message and c.config.audio.delay_ms < 0:
+        if c.config.source.kind == "screen":
+            message, grade = t("device.audio.screen"), "ok"
+        elif not message and c.config.audio.delay_ms < 0:
             message = t("device.delay.negative")
         self._audio_notice.show_message(message, grade)  # type: ignore[arg-type]
 
@@ -388,10 +401,23 @@ class DevicePage(BasePage):
         self._file_row.set_texts(
             t("device.file"), str(src.path) if src.path else t("device.file.none")
         )
+        monitors = [t("device.monitor.item", number=i + 1, width=m["width"], height=m["height"])
+                    for i, m in enumerate(self._monitors)] or [
+                        t("device.monitor.item_unknown", number=1)]  # fmt: skip
+        if src.monitor > len(monitors):  # unplugged: keep showing the saved choice
+            monitors += [t("device.monitor.item_unknown", number=n)
+                         for n in range(len(monitors) + 1, src.monitor + 1)]  # fmt: skip
+        _set_items(self._monitor, monitors, src.monitor - 1)
+        self._monitor_row.set_texts(t("device.monitor"), t("device.monitor.desc"))
         is_capture = src.kind == "capture"
         self._device_row.setVisible(is_capture)
         self._mode_row.setVisible(is_capture)
-        self._file_row.setVisible(not is_capture)
+        self._monitor_row.setVisible(src.kind == "screen")
+        self._file_row.setVisible(src.kind == "file")
+        # PC game: its sound plays on the PC already; nothing to pass through.
+        for row in self.audio_section[2:]:
+            row.setVisible(src.kind != "screen")
+        self._refresh_audio_notice()
 
         default = t("device.audio.default")
         none = t("device.audio.none")

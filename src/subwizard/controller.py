@@ -342,6 +342,13 @@ class AppController(QObject):
         self.config.source.kind = kind
         self._source_changed()
 
+    def set_source_monitor(self, monitor: int) -> None:
+        """PC game mode: which monitor is captured (1 = first)."""
+        if monitor == self.config.source.monitor:
+            return
+        self.config.source.monitor = monitor
+        self._source_changed()
+
     def set_source_device(self, device: int | str) -> None:
         if device == self.config.source.device:
             return

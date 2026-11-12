@@ -37,6 +37,7 @@ from subwizard.ui.pages.web import QrView
 
 STEPS = ("welcome", "mode", "capture", "audio", "translate", "profile", "region", "summary")
 MODES = ("window", "web", "both")
+PC_GAME = "pc"  # 4th card: no capture card, the PC's own screen is the source
 PROFILES = ("gta6", "default")
 SIZE = (1080, 760)
 SIDEBAR_WIDTH = 220
@@ -103,9 +104,10 @@ class _Step(QWidget):
         self.layout_.addWidget(self.title)
         self.layout_.addWidget(self.text)
 
-    def retranslate(self) -> None:
-        self.title.setText(t(f"wizard.{self.key}.title"))
-        self.text.setText(t(f"wizard.{self.key}.text"))
+    def retranslate(self, variant: str = "") -> None:
+        key = variant or self.key  # a variant uses its own texts (PC game: "screen")
+        self.title.setText(t(f"wizard.{key}.title"))
+        self.text.setText(t(f"wizard.{key}.text"))
 
 
 class SetupWizard(QWidget):
@@ -155,10 +157,11 @@ class SetupWizard(QWidget):
 
         # 2 display mode
         self.mode_cards = {m: ChoiceCard(m, icon) for m, icon in
-                           zip(MODES, (FluentIcon.VIDEO, FluentIcon.PHONE, FluentIcon.TILES),
+                           zip((*MODES, PC_GAME), (FluentIcon.VIDEO, FluentIcon.PHONE,
+                                                   FluentIcon.TILES, FluentIcon.GAME),
                                strict=True)}  # fmt: skip
         for card in self.mode_cards.values():
-            card.chosen.connect(c.set_display_mode)
+            card.chosen.connect(self._choose_mode)
             self.steps["mode"].layout_.addWidget(card)
         self.steps["mode"].layout_.addStretch(1)
 
@@ -251,7 +254,13 @@ class SetupWizard(QWidget):
 
     def _skipped(self, key: str) -> bool:
         # Mode B: the sound comes from the TV, the PC plays nothing (SPEC 3.12 step 4).
-        return key == "audio" and self.controller.config.display.mode == "web"
+        # PC game: the game plays its own sound.
+        cfg = self.controller.config
+        return key == "audio" and (cfg.display.mode == "web" or cfg.source.kind == "screen")
+
+    @property
+    def pc_game(self) -> bool:
+        return self.controller.config.source.kind == "screen"
 
     def go(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
@@ -297,6 +306,17 @@ class SetupWizard(QWidget):
         self.controller.set_translator_engine("deep")
         self.next()
 
+    def _choose_mode(self, mode: str) -> None:
+        c = self.controller
+        if mode == PC_GAME:
+            c.set_source_kind("screen")
+            c.set_display_mode("window")  # over the game; the web page stays optional
+        else:
+            if c.config.source.kind == "screen":
+                c.set_source_kind("capture")
+            c.set_display_mode(mode)
+        self._load()
+
     def _profile_title(self, name: str) -> str:
         if name in PROFILES:
             return t(f"wizard.profile.{name}")
@@ -314,7 +334,9 @@ class SetupWizard(QWidget):
         self._language.setCurrentIndex(self._languages.index(cfg.ui.language))
         self._language.blockSignals(False)
         for mode, card in self.mode_cards.items():
-            card.set_selected(mode == cfg.display.mode)
+            card.set_selected(mode == PC_GAME if self.pc_game
+                              else mode == cfg.display.mode)  # fmt: skip
+        self.steps["capture"].retranslate("screen" if self.pc_game else "")
         for name, card in self.profile_cards.items():
             card.set_selected(name == cfg.profile)
         self._refresh_sidebar()
@@ -324,7 +346,8 @@ class SetupWizard(QWidget):
     def _refresh_sidebar(self) -> None:
         for i, (key, label) in enumerate(zip(STEPS, self._step_labels, strict=True)):
             mark = "●" if i == self.index else ("✓" if i < self.index else "○")
-            text = f"{mark}  {t(f'wizard.{key}.short')}"
+            short = "screen" if key == "capture" and self.pc_game else key
+            text = f"{mark}  {t(f'wizard.{short}.short')}"
             if self._skipped(key):
                 text += f"  ({t('wizard.skipped')})"
             label.setText(text)
@@ -340,10 +363,12 @@ class SetupWizard(QWidget):
         engine = (t("wizard.summary.gemini", n=count) if cfg.translator.engine == "gemini" and count
                   else t("wizard.summary.free"))  # fmt: skip
         source = (str(cfg.source.path) if cfg.source.kind == "file"
+                  else t("device.monitor.item_unknown", number=cfg.source.monitor) if self.pc_game
                   else str(cfg.source.device))  # fmt: skip
+        mode = t("web.mode.pc") if self.pc_game else t(f"web.mode.{cfg.display.mode}")
         rows = [
-            (t("wizard.mode.short"), t(f"web.mode.{cfg.display.mode}")),
-            (t("wizard.capture.short"), source),
+            (t("wizard.mode.short"), mode),
+            (t("wizard.screen.short" if self.pc_game else "wizard.capture.short"), source),
             (t("wizard.translate.short"), engine),
             (t("wizard.profile.short"), self._profile_title(cfg.profile)),
             (t("wizard.region.short"), t(f"roi.template.{cfg.roi.template}")),
@@ -367,7 +392,7 @@ class SetupWizard(QWidget):
     def retranslate(self, *_: object) -> None:
         self.setWindowTitle(f"{APP_NAME} — {t('wizard.window')}")
         for step in self.steps.values():
-            step.retranslate()
+            step.retranslate("screen" if step.key == "capture" and self.pc_game else "")
         self._language.blockSignals(True)
         self._language.clear()
         self._language.addItems([t("settings.language.auto"), *available_languages().values()])

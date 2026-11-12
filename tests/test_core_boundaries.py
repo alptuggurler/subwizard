@@ -57,6 +57,7 @@ QT_FREE_MODULES = [
     "subwizard.audio.test_tone",
     "subwizard.ocr.vision",
     "subwizard.audio.avsync",
+    "subwizard.sources.screen",
     "subwizard.tts",
     "subwizard.tts.base",
     "subwizard.tts.edge",

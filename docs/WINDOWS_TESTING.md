@@ -89,3 +89,15 @@ Sorun olursa Tanılama sayfasındaki **Raporu kopyala** çıktısını paylaş.
    Windows Ayarlar → Konuşma → Ses ekle → Türkçe. "İngilizceyi oku" seçeneği çeviriyi durduruyor mu?
 4. Gemini anahtarıyla: Çeviri → "Okuma yöntemi: Görsel mod" altyazıyı okuyup çeviriyor mu?
    `uv run python scripts/benchmark.py` raporunu (docs/benchmark.md) paylaş.
+
+## Faz 2'yi Windows'ta doğrulama (PC oyunu, capture card yok)
+
+1. Bir PC oyununu **kenarlıksız pencere** modunda aç (altyazılı bir sahne).
+2. SubWizard → Cihaz & Ses → Kaynak: **Ekran (PC oyunu)**, oyunun ekranını seç → Başlat.
+3. Oyuna geç (Alt+Tab): Türkçe altyazı oyunun üstünde görünüyor mu, fare/klavye oyuna gidiyor mu?
+4. Oyunun FPS'i belirgin düştü mü (SubWizard açıkken / kapalıyken karşılaştır)?
+5. Alan & OCR → OCR önizleme: yalnızca İngilizce okunuyor mu? Türkçe çeviriyi de okuyorsa overlay
+   ekran yakalamadan çıkarılamamıştır (logda "Overlay ekran yakalamadan çıkarılamadı").
+6. İki monitör varsa: ekran 2'yi seç, overlay doğru monitörde mi ve altyazı doğru yerde mi
+   (farklı ölçekleme, ör. %150, ile de dene)?
+7. Oyunu exclusive tam ekrana al: overlay kaybolur (beklenen); web sayfası hâlâ çeviri gösteriyor mu?

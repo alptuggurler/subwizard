@@ -48,3 +48,13 @@ def find_video_device(name: str) -> int | None:
         if lowered in device.name.lower():
             return device.index
     return None
+
+
+def exclude_from_capture(window_id: int) -> bool:
+    """Keep a window (the PC-game overlay) out of screen captures, so OCR never reads
+    our own text. Windows only; False elsewhere."""
+    if sys.platform == "win32":
+        from subwizard.platform.windows import window
+
+        return window.exclude_from_capture(window_id)
+    return False

@@ -28,6 +28,8 @@ class MainWindow(FluentWindow):
         super().__init__()
         self.controller = controller
         self.tray = None  # set by app.create_app when a system tray exists
+        self.screen_overlay = None  # PC game mode, created on first start
+        self._overlay_monitor = 0
         self.pages: list[BasePage] = []
         self._nav_items = []
         self._shown_once = False
@@ -74,6 +76,8 @@ class MainWindow(FluentWindow):
         controller.wizardRequested.connect(self.open_wizard)
         controller.frameReady.connect(self._frame_for_calibration)
         controller.runningChanged.connect(self._on_running)
+        controller.settingsChanged.connect(self._update_screen_overlay)
+        controller.overlayChanged.connect(self._update_screen_overlay)
 
     # --- hotkeys (SPEC 3.8) ---------------------------------------------------------------
     def bind_hotkeys(self) -> None:
@@ -155,6 +159,31 @@ class MainWindow(FluentWindow):
     def _on_running(self, running: bool) -> None:
         if not running:
             self._calibrate_on_frame = False
+        self._update_screen_overlay()
+
+    def _update_screen_overlay(self, *_: object) -> None:
+        """PC game mode: the translation in a click-through window over the game."""
+        c = self.controller
+        wanted = (c.running and c.config.source.kind == "screen"
+                  and c.config.display.mode != "web")  # fmt: skip
+        if not wanted:
+            if self.screen_overlay is not None:
+                self.screen_overlay.hide()
+            return
+        if self.screen_overlay is None:
+            from subwizard.ui.screen_overlay import ScreenOverlay
+
+            self.screen_overlay = ScreenOverlay(c)
+        number = c.config.source.monitor
+        if self.screen_overlay.isVisible() and self._overlay_monitor == number:
+            return  # settingsChanged fires often (sliders): measure screens only on change
+        from subwizard.sources.screen import list_monitors
+
+        monitors = list_monitors()
+        region = monitors[number - 1] if 1 <= number <= len(monitors) else None
+        self.screen_overlay.cover(region, number)
+        self._overlay_monitor = number
+        self.screen_overlay.show()
 
     def _calibration_closed(self) -> None:
         self.calibration = None
@@ -177,5 +206,7 @@ class MainWindow(FluentWindow):
             self.hide()
             return
         self._global.stop()
+        if self.screen_overlay is not None:
+            self.screen_overlay.close()
         super().closeEvent(event)
         QApplication.quit()
