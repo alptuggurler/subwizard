@@ -66,3 +66,26 @@ Sorun olursa Tanılama sayfasındaki **Raporu kopyala** çıktısını paylaş.
 3. Çeviri adımında anahtar yapıştır, **Test et**: çeviri ve ms görünüyor mu?
 4. Altyazı alanı adımında "Altyazıda dondur" oyunda altyazı çıkınca donduruyor mu?
 5. Başla: Ana Sayfa'da çeviri görünüyor mu? Ayarlar → "Sihirbazı aç" yeniden açıyor mu?
+
+## M5'i Windows'ta doğrulama (sağlamlaştırma, kurulum)
+
+1. GitHub Actions'ın ürettiği `SubWizard-*-setup.exe`'yi Python kurulu olmayan bir Windows'a kur:
+   açılıyor mu, ilk açılışta sihirbaz geliyor mu?
+2. Cihaz & Ses → **Sesi test et**: seçili çıkıştan bip geliyor mu?
+3. Cihaz & Ses → **Otomatik ölç**: konsolda (ya da telefonda, capture card'a bağlı ekranda) bir
+   A/V senkron test videosu (beyaz flaş + bip; YouTube'da "AV sync test") oynat, düğmeye bas.
+   10 sn sonra kaç ms önerdi, kaç olay eşleşti? Sonra flaş ile bip birlikte mi görünüp duyuluyor?
+   "Ölçülemedi" diyorsa Tanılama → Destek paketi'ni paylaş (logda "A/V otomatik ölçüm" satırı).
+4. Tanılama: grafikler (FPS, kare aralığı, ses, OCR) son 60 sn'yi çiziyor mu, CSV dışa aktarma açılıyor mu?
+
+## M6–M7'yi Windows'ta doğrulama (profiller, deneysel modlar)
+
+1. `uv run run.py --profile gta6` (ya da Oyun Profilleri → GTA 6 → Kullan): debug logda profil
+   prompt'u görünüyor mu, "Vice City" gibi `keep` terimleri çeviride korunuyor mu?
+2. Alan & OCR → "OCR motoru: Windows OCR": logda "Windows OCR: en-US" (ya da kurulu dil) var mı,
+   OCR önizleme okuyor mu, süre RapidOCR'a göre kaç ms? "açılamadı" yazıyorsa Windows Ayarlar →
+   Saat ve dil → Dil → İngilizce (ABD) dil paketini ekle.
+3. Çeviri → "Sesli okuma: Çeviriyi oku": Türkçe ses okuyor mu? Türkçe ses yoksa logda uyarı olur;
+   Windows Ayarlar → Konuşma → Ses ekle → Türkçe. "İngilizceyi oku" seçeneği çeviriyi durduruyor mu?
+4. Gemini anahtarıyla: Çeviri → "Okuma yöntemi: Görsel mod" altyazıyı okuyup çeviriyor mu?
+   `uv run python scripts/benchmark.py` raporunu (docs/benchmark.md) paylaş.
