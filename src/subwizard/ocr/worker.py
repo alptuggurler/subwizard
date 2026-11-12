@@ -182,10 +182,34 @@ class OCRWorker(threading.Thread):
 
 
 def build_ocr(config: AppConfig) -> BaseOCR:
+    ocr = config.ocr
+    if config.translator.mode == "vision":
+        vision = _build_vision(config)
+        if vision is not None:
+            return vision
     from subwizard.ocr.rapid import RapidOCREngine
 
-    ocr = config.ocr
     return RapidOCREngine(det_max_side=ocr.det_max_side, threads=ocr.threads)
 
 
-__all__ = ["OCRState", "OCRTick", "OCRWorker", "build_ocr", "filter_lines"]
+def _build_vision(config: AppConfig) -> BaseOCR | None:
+    """Vision mode needs Gemini; without a key it falls back to local OCR (logged)."""
+    from subwizard.core.secrets import load_api_keys
+    from subwizard.ocr.vision import VisionOCR
+    from subwizard.profiles import load_profile
+    from subwizard.translator.gemini import GeminiTranslator
+
+    keys, _source = load_api_keys()
+    if not keys:
+        log.warning("Görsel mod Gemini anahtarı ister; yerel OCR kullanılıyor.")
+        return None
+    tr = config.translator
+    gemini = GeminiTranslator(
+        keys, model=tr.model, timeout_s=tr.timeout_s, retries=tr.retries,
+        thinking_level=tr.thinking_level, prompt=tr.system_prompt,
+        profile=load_profile(config.profile), quota_cooldown_s=tr.quota_cooldown_s,
+        media_resolution=tr.vision_media_resolution,
+    )  # fmt: skip
+    log.info("Görsel mod açık (deneysel): %s, media_resolution %s", tr.model,
+             tr.vision_media_resolution)  # fmt: skip
+    return VisionOCR(gemini)

@@ -22,6 +22,7 @@ from subwizard.translator.base import (
     TranslationResult,
 )
 from subwizard.profiles import DEFAULT, GameProfile, glossary_violations, load_profile
+from subwizard.ocr.vision import HANDOFF
 from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key
 from subwizard.translator.prompt import system_prompt
 from subwizard.utils import timing
@@ -81,6 +82,17 @@ class TranslationService:
         return (result.input_tokens * price.input
                 + result.output_tokens * price.output) / TOKENS_PER_PRICE_UNIT  # fmt: skip
 
+    def _account(self, result: TranslationResult) -> TranslationResult:
+        """Tokens and cost of one Gemini answer into the session usage and metrics."""
+        cost = self._price(result)
+        with self._lock:
+            self.usage.input_tokens += result.input_tokens
+            self.usage.output_tokens += result.output_tokens
+            self.usage.cost_usd += cost
+        self._metrics.incr(M.TR_TOKENS_IN, result.input_tokens)
+        self._metrics.incr(M.TR_TOKENS_OUT, result.output_tokens)
+        return replace(result, cost_usd=cost)
+
     def translate(self, request: TranslationRequest, force: bool = False) -> TranslationResult:
         """Raises TranslationError only when neither engine produced anything. `force`
         skips the cache lookup (F7); the new result replaces the cached one."""
@@ -91,6 +103,13 @@ class TranslationService:
         scope = tr.target_language if self.profile.name == DEFAULT else (
             f"{tr.target_language}@{self.profile.name}")
         key = cache_key(request.text, scope)
+        handed = None if force else HANDOFF.take(request.text)
+        if handed is not None:  # vision mode: read and translated in one call already
+            handed = self._account(handed)
+            m.observe(M.TR_MS, handed.latency_ms)
+            self.cache.put(key, CachedTranslation(handed.text, handed.engine))
+            self._publish()
+            return handed
         hit = None if force else self.cache.get(key)
         # A fallback translation is cached too, but when Gemini is available it gets a
         # chance to do better next time instead of the weaker result living forever.
@@ -111,14 +130,8 @@ class TranslationService:
             except TranslationError as exc:
                 log.warning("%s çeviremedi (%s); yedeğe geçiliyor.", self.primary.name, exc)
             else:
-                cost = self._price(result)
-                result = replace(result, cost_usd=cost)
-                with self._lock:
-                    self.usage.input_tokens += result.input_tokens
-                    self.usage.output_tokens += result.output_tokens
-                    self.usage.cost_usd += cost
-                m.incr(M.TR_TOKENS_IN, result.input_tokens)
-                m.incr(M.TR_TOKENS_OUT, result.output_tokens)
+                result = self._account(result)
+                cost = result.cost_usd
                 log.info("Çeviri (%s, %.0f ms, %d+%d token, $%.5f): %r -> %r",
                          result.engine, result.latency_ms, result.input_tokens,
                          result.output_tokens, cost, request.text, result.text)  # fmt: skip

@@ -268,3 +268,52 @@ def test_benchmark_report_runs_offline(tmp_path, monkeypatch):
     text = out.read_text(encoding="utf-8")
     assert "| ocr+text | 1.000 |" in text or "| ocr+text | 0.9" in text
     assert "no Gemini API key" in text  # conftest: no keys, no network
+
+
+def test_vision_engine_reads_and_hands_the_translation_to_the_service():
+    import numpy as np
+
+    from subwizard.ocr.vision import VisionHandoff, VisionOCR
+    from subwizard.translator.base import VisionResult
+
+    class FakeGemini:
+        calls = 0
+
+        def translate_image(self, image, mime_type="image/png", context=()):
+            FakeGemini.calls += 1
+            assert mime_type == "image/jpeg" and image[:2] == b"\xff\xd8"
+            return VisionResult("We need to go.", "Gitmemiz lazım.",
+                                TranslationResult("EN/TR", "gemini", 900.0,
+                                                  input_tokens=300, output_tokens=20))  # fmt: skip
+
+    handoff = VisionHandoff()
+    engine = VisionOCR(FakeGemini(), handoff)
+    result = engine.recognize(np.zeros((60, 400), dtype=np.uint8))
+    assert result.text == "We need to go." and result.confidence == 1.0
+    assert result.lines[0].box == (0, 0, 400, 60)
+    assert handoff.take("we  need to go.").text == "Gitmemiz lazım."  # normalised key
+    assert handoff.take("We need to go.") is None  # taken once
+
+
+def test_service_uses_the_handed_over_vision_translation(monkeypatch):
+    from subwizard.ocr import vision
+
+    handoff = vision.VisionHandoff()
+    monkeypatch.setattr("subwizard.translator.service.HANDOFF", handoff)
+    handoff.put("Run!", TranslationResult("Koş!", "gemini", 800.0, input_tokens=280,
+                                          output_tokens=5))  # fmt: skip
+    metrics = MetricsHub()
+    engine = LiteralEngine("SHOULD NOT BE CALLED")
+    svc = TranslationService(AppConfig(), metrics, engine, None, TranslationCache(10))
+    result = svc.translate(TranslationRequest("Run!"))
+    assert result.text == "Koş!" and result.cost_usd > 0
+    assert metrics.snapshot().counter(M.TR_TOKENS_IN) == 280
+    assert svc.translate(TranslationRequest("Run!")).cached  # cached for next time
+
+
+def test_vision_mode_without_a_key_falls_back_to_local_ocr():
+    from subwizard.ocr.worker import _build_vision
+
+    config = AppConfig()
+    config.translator.mode = "vision"
+    assert _build_vision(config) is None  # conftest: no keys
