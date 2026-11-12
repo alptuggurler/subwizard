@@ -1,0 +1,35 @@
+# SPEC M5: a version tag (v0.2.0) builds setup.exe + the portable zip on Windows and
+# attaches them to a GitHub release. Tests run first; hardware/network tests are skipped.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --group build
+      - run: uv run pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+      - run: uv run python scripts/build_windows.py --zip
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = (uv run python -c "import subwizard; print(subwizard.__version__)").Trim()
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" installer\subwizard.iss
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/SubWizard-*-setup.exe
+            dist/SubWizard-*-portable.zip
