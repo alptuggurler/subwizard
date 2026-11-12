@@ -56,6 +56,7 @@ QT_FREE_MODULES = [
     "subwizard.profiles",
     "subwizard.audio.test_tone",
     "subwizard.ocr.vision",
+    "subwizard.audio.avsync",
     "subwizard.utils.paths",
 ]
 

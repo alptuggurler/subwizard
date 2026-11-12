@@ -192,3 +192,37 @@ def test_test_tone_is_a_quiet_faded_sine_on_the_chosen_output(monkeypatch):
     assert abs(20 * np.log10(peak) - test_tone.TONE_DB) < 0.5
     assert abs(tone[0, 0]) < 1e-3 and abs(tone[-1, 0]) < 1e-2  # faded: no click
     assert test_tone.play_test_tone(None, 48000, player=lambda *a: None) == "Speakers"
+
+
+def _signal(events, delay_s, rate_hz, seconds=6.0, high=1.0, noise=0.02):
+    import random
+
+    rnd = random.Random(1)
+    times = [i / rate_hz for i in range(int(seconds * rate_hz))]
+    values = [(high if any(e + delay_s <= t < e + delay_s + 0.1 for e in events) else 0.0)
+              + rnd.uniform(-noise, noise) for t in times]  # fmt: skip
+    return times, values
+
+
+def test_avsync_finds_picture_late_and_suggests_more_audio_delay():
+    from subwizard.audio.avsync import estimate, onsets
+
+    events = [0.5, 1.7, 3.0, 4.4]
+    v_times, v_vals = _signal(events, 0.120, 60)  # picture 120 ms after the event
+    a_times, a_vals = _signal(events, 0.040, 1000)  # sound 40 ms after
+    est = estimate(onsets(v_times, v_vals), onsets(a_times, a_vals))
+    assert est is not None and est.reliable and est.pairs == 4
+    assert -100 <= est.offset_ms <= -64  # sound ~80 ms earlier (one video frame = 16.7 ms)
+    assert est.suggested_delay_ms(0, 500) in range(64, 101)
+    assert est.suggested_delay_ms(400, 450) == 450  # clamped to the limit
+
+
+def test_avsync_sound_late_lowers_delay_but_never_below_zero():
+    from subwizard.audio.avsync import SyncEstimate, estimate
+
+    est = estimate([1.0, 2.0, 3.0], [1.05, 2.05, 3.05])
+    assert round(est.offset_ms) == 50
+    assert est.suggested_delay_ms(80, 500) == 30
+    assert est.suggested_delay_ms(20, 500) == 0
+    assert not SyncEstimate(0, 2, 0).reliable
+    assert estimate([1.0], [3.0]) is None  # too far apart: different events
