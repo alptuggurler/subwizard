@@ -171,3 +171,24 @@ DEVICES = [
 )
 def test_find_device(name, expected):
     assert find_device(name, "input", DEVICES) == expected
+
+
+def test_test_tone_is_a_quiet_faded_sine_on_the_chosen_output(monkeypatch):
+    import numpy as np
+
+    from subwizard.audio import test_tone
+    from subwizard.audio.devices import AudioDevice
+
+    outputs = [AudioDevice(3, "Speakers", "CoreAudio", 0, 2, 48000, True),
+               AudioDevice(5, "TV (HDMI)", "CoreAudio", 0, 8, 48000, False)]  # fmt: skip
+    monkeypatch.setattr(test_tone, "list_audio_devices", lambda kind: outputs)
+    played = []
+    name = test_tone.play_test_tone("TV (HDMI)", 48000,
+                                    player=lambda tone, rate, dev: played.append((tone, rate, dev)))  # fmt: skip
+    tone, rate, device = played[0]
+    assert name == "TV (HDMI)" and device == 5 and rate == 48000
+    assert tone.shape == (int(48000 * test_tone.TONE_S), 2) and tone.dtype == np.float32
+    peak = float(np.abs(tone).max())
+    assert abs(20 * np.log10(peak) - test_tone.TONE_DB) < 0.5
+    assert abs(tone[0, 0]) < 1e-3 and abs(tone[-1, 0]) < 1e-2  # faded: no click
+    assert test_tone.play_test_tone(None, 48000, player=lambda *a: None) == "Speakers"

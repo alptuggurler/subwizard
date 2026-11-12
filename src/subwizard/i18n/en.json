@@ -438,5 +438,10 @@
   "diag.graph.fps": "FPS — blue: source, orange: drawing",
   "diag.graph.interval": "Frame interval (~16.7 ms at 60 FPS)",
   "diag.graph.audio": "Audio level (louder channel)",
-  "diag.graph.work": "Time — blue: OCR, orange: translation"
+  "diag.graph.work": "Time — blue: OCR, orange: translation",
+  "device.sound_test": "Test sound",
+  "device.sound_test.tip": "Plays a short beep on the selected output (independent of the capture card).",
+  "device.sound_test.playing": "Playing…",
+  "device.sound_test.done": "If you heard a beep, the output works.",
+  "device.sound_test.failed": "Could not play: {error}"
 }

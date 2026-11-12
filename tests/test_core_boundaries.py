@@ -54,6 +54,7 @@ QT_FREE_MODULES = [
     "subwizard.core.metrics_log",
     "subwizard.utils.logging",
     "subwizard.profiles",
+    "subwizard.audio.test_tone",
     "subwizard.utils.paths",
 ]
 

@@ -146,7 +146,17 @@ class DevicePage(BasePage):
         self._input = _combo()
         self._input_row = SettingRow(FluentIcon.MICROPHONE, self._input)
         self._output = _combo()
-        self._output_row = SettingRow(FluentIcon.SPEAKERS, self._output)
+        self._sound_test = PushButton(FluentIcon.PLAY, "")
+        self._sound_test.clicked.connect(self._on_sound_test)
+        self._sound_result = CaptionLabel()
+        output_control = QWidget()
+        output_layout = QHBoxLayout(output_control)
+        output_layout.setContentsMargins(0, 0, 0, 0)
+        output_layout.addWidget(self._sound_result)
+        output_layout.addWidget(self._output)
+        output_layout.addWidget(self._sound_test)
+        self._output_row = SettingRow(FluentIcon.SPEAKERS, output_control)
+        controller.soundTested.connect(self._on_sound_tested)
 
         self._vu = VUMeter()
         self._vu.setFixedWidth(SLIDER_WIDTH)
@@ -302,6 +312,16 @@ class DevicePage(BasePage):
         )
         self._refresh_audio_notice(snap)
 
+    def _on_sound_test(self) -> None:
+        self._sound_test.setEnabled(False)
+        self._sound_result.setText(t("device.sound_test.playing"))
+        self.controller.test_sound()
+
+    def _on_sound_tested(self, ok: bool, text: str) -> None:
+        self._sound_test.setEnabled(True)
+        self._sound_result.setText(t("device.sound_test.done") if ok
+                                   else t("device.sound_test.failed", error=text))  # fmt: skip
+
     def retranslate(self, *_: object) -> None:
         super().retranslate()
         c = self.controller
@@ -367,6 +387,8 @@ class DevicePage(BasePage):
         self._output_row.set_texts(t("device.audio.output"), t("device.audio.output.desc"))
         self._vu_row.set_texts(t("device.vu"), t("device.vu.desc"))
         self._gain_row.set_texts(t("device.gain"), t("device.gain.desc"))
+        self._sound_test.setText(t("device.sound_test"))
+        self._sound_test.setToolTip(t("device.sound_test.tip"))
         self._muted_row.set_texts(t("device.muted"), t("device.muted.desc"))
         self._profile_row.set_texts(t("device.profile"), t("device.profile.desc"))
         self._delay_row.set_texts(t("device.delay"), t("device.delay.desc"))

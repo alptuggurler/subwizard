@@ -78,6 +78,7 @@ class AppController(QObject):
     historyChanged = Signal()
     webChanged = Signal()
     profileChanged = Signal()  # game profile selected, saved or deleted
+    soundTested = Signal(bool, str)  # test_sound(): ok, device name or error
     wizardRequested = Signal()  # Ayarlar -> "Kurulum sihirbazını aç"  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
@@ -550,6 +551,26 @@ class AppController(QObject):
             target=lambda: self.translationTested.emit(run_test(config, text)),
             name="translate-test", daemon=True,
         ).start()  # fmt: skip
+
+    def test_sound(self) -> None:
+        """Cihaz & Ses "Sesi test et": a short tone on the output device, on a helper
+        thread. `soundTested(ok, text)`: the device name, or the error to show."""
+        import threading
+
+        from subwizard.audio.test_tone import play_test_tone
+
+        audio = self.config.audio
+
+        def run() -> None:
+            try:
+                name = play_test_tone(audio.output_device, audio.sample_rate)
+            except Exception as exc:  # PortAudio: device busy, unsupported rate, unplugged
+                log.warning("Ses testi başarısız: %s", exc)
+                self.soundTested.emit(False, str(exc))
+            else:
+                self.soundTested.emit(True, name)
+
+        threading.Thread(target=run, name="sound-test", daemon=True).start()
 
     def translation_cache_size(self) -> int:
         service = self._session.translation

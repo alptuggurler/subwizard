@@ -438,5 +438,10 @@
   "diag.graph.fps": "FPS — mavi: kaynak, turuncu: çizim",
   "diag.graph.interval": "Kareler arası süre (60 FPS'te ~16,7 ms)",
   "diag.graph.audio": "Ses seviyesi (en yüksek kanal)",
-  "diag.graph.work": "Süre — mavi: OCR, turuncu: çeviri"
+  "diag.graph.work": "Süre — mavi: OCR, turuncu: çeviri",
+  "device.sound_test": "Sesi test et",
+  "device.sound_test.tip": "Seçili çıkışta kısa bir bip çalar (capture card'dan bağımsız).",
+  "device.sound_test.playing": "Çalıyor…",
+  "device.sound_test.done": "Bip duyduysan çıkış çalışıyor.",
+  "device.sound_test.failed": "Çalınamadı: {error}"
 }
