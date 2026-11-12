@@ -194,6 +194,23 @@ def test_test_tone_is_a_quiet_faded_sine_on_the_chosen_output(monkeypatch):
     assert test_tone.play_test_tone(None, 48000, player=lambda *a: None) == "Speakers"
 
 
+def test_one_shot_playback_uses_the_wasapi_converter(monkeypatch):
+    """Regression (Windows, SteelSeries Sonar at 96 kHz): the test tone and edge-tts played
+    without the converter and failed with "Invalid sample rate [PaErrorCode -9997]"."""
+    import sounddevice as sd
+
+    from subwizard.audio import devices, test_tone
+    from subwizard.tts import edge
+
+    assert test_tone.play_test_tone.__defaults__[-1] is devices.play_blocking
+    marker, calls = object(), []
+    monkeypatch.setattr(devices, "wasapi_settings", lambda: marker)
+    monkeypatch.setattr(sd, "play", lambda *a, **kw: calls.append(kw))
+    edge._play(np.zeros(4, np.float32), edge.SAMPLE_RATE, 7)
+    devices.play_blocking(np.zeros(4, np.float32), 48000, 3)
+    assert [(kw["device"], kw["extra_settings"]) for kw in calls] == [(7, marker), (3, marker)]
+
+
 def _signal(events, delay_s, rate_hz, seconds=6.0, high=1.0, noise=0.02):
     import random
 

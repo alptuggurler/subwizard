@@ -9,7 +9,10 @@ from __future__ import annotations
 import logging
 import sys
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -103,3 +106,12 @@ def wasapi_settings():
     import sounddevice as sd
 
     return sd.WasapiSettings(auto_convert=True)
+
+
+def play_blocking(samples: np.ndarray, sample_rate: int, device: int | None) -> None:
+    """Play a whole buffer on an output device (test tone, TTS). Same WASAPI converter as
+    the passthrough, or a 96 kHz output rejects anything else ("Invalid sample rate")."""
+    import sounddevice as sd
+
+    sd.play(samples, sample_rate, device=device, blocking=True,
+            extra_settings=wasapi_settings())  # fmt: skip

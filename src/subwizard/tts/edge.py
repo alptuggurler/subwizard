@@ -53,9 +53,9 @@ def decode_mp3(data: bytes) -> np.ndarray:
 
 
 def _play(samples: np.ndarray, sample_rate: int, device: int | None) -> None:
-    import sounddevice as sd
+    from subwizard.audio.devices import play_blocking
 
-    sd.play(samples, sample_rate, device=device, blocking=True)
+    play_blocking(samples, sample_rate, device)  # 24 kHz: needs the WASAPI converter
 
 
 def _stop_playback() -> None:

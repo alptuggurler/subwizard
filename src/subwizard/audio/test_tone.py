@@ -9,7 +9,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from subwizard.audio.devices import find_device, list_audio_devices
+from subwizard.audio.devices import find_device, list_audio_devices, play_blocking
 
 if TYPE_CHECKING:
     import numpy as np
@@ -38,14 +38,8 @@ def make_tone(sample_rate: int, channels: int, seconds: float = TONE_S, hz: floa
     return np.repeat(wave.astype(np.float32)[:, None], channels, axis=1)
 
 
-def _play(tone: np.ndarray, sample_rate: int, device: int | None) -> None:
-    import sounddevice as sd
-
-    sd.play(tone, sample_rate, device=device, blocking=True)
-
-
 def play_test_tone(output_device: str | None, sample_rate: int,
-                   player: Callable[[np.ndarray, int, int | None], None] = _play) -> str:
+                   player: Callable[[np.ndarray, int, int | None], None] = play_blocking) -> str:
     """Blocking. Returns the device name used; raises OSError-like errors from PortAudio
     (the caller shows them)."""
     outputs = list_audio_devices("output")
