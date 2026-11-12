@@ -147,3 +147,15 @@ def test_wizard_lists_user_profiles_too(window):
         assert window.controller.config.profile == "rdr2"
     finally:
         wizard.close()
+
+
+def test_reading_method_switch_rebuilds_ocr(window):
+    c = window.controller
+    page = _page(window, "translate")
+    c.start()
+    page._mode.setCurrentIndex(1)
+    assert c.config.translator.mode == "vision"
+    assert c._session._ocr is not None  # restarted (local OCR: no key in tests)
+    page._mode.setCurrentIndex(0)
+    assert c.config.translator.mode == "ocr"
+    c.stop()

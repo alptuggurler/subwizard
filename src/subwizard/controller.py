@@ -484,6 +484,14 @@ class AppController(QObject):
         self.config.translator.engine = engine
         self._translation_changed()
 
+    def set_translator_mode(self, mode: str) -> None:
+        """"ocr" or "vision" (experimental): the reading engine is rebuilt."""
+        if mode != self.config.translator.mode:
+            self.config.translator.mode = mode
+            self._save()
+            self.settingsChanged.emit()
+            self._session.restart_ocr()
+
     def set_translator_model(self, model: str) -> None:
         self.config.translator.model = model
         self._translation_changed()

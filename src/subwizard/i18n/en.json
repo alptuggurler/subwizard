@@ -443,5 +443,9 @@
   "device.sound_test.tip": "Plays a short beep on the selected output (independent of the capture card).",
   "device.sound_test.playing": "Playing…",
   "device.sound_test.done": "If you heard a beep, the output works.",
-  "device.sound_test.failed": "Could not play: {error}"
+  "device.sound_test.failed": "Could not play: {error}",
+  "translate.mode": "Reading method",
+  "translate.mode.desc": "Experimental vision mode: the subtitle image goes to Gemini, which reads and translates it in one request. May read stylised fonts better, but costs more and is slower per line.",
+  "translate.mode.ocr": "OCR + translation (recommended)",
+  "translate.mode.vision": "Vision mode (experimental)"
 }

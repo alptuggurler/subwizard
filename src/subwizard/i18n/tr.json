@@ -443,5 +443,9 @@
   "device.sound_test.tip": "Seçili çıkışta kısa bir bip çalar (capture card'dan bağımsız).",
   "device.sound_test.playing": "Çalıyor…",
   "device.sound_test.done": "Bip duyduysan çıkış çalışıyor.",
-  "device.sound_test.failed": "Çalınamadı: {error}"
+  "device.sound_test.failed": "Çalınamadı: {error}",
+  "translate.mode": "Okuma yöntemi",
+  "translate.mode.desc": "Deneysel görsel mod: altyazı resmi Gemini'ye gider, okuma ve çeviri tek istekte yapılır. Süslü fontlarda daha iyi okuyabilir ama satır başına daha pahalı ve yavaştır.",
+  "translate.mode.ocr": "OCR + çeviri (önerilen)",
+  "translate.mode.vision": "Görsel mod (deneysel)"
 }

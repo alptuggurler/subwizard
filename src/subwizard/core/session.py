@@ -180,6 +180,9 @@ class Session:
         self._board = SubtitleBoard(self._config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
         self._start_translator()
+        self._start_ocr()
+
+    def _start_ocr(self) -> None:
         if self._ocr_factory is not None:
             self._ocr = OCRWorker(
                 self._config, self._metrics, self._slot.get,
@@ -187,6 +190,19 @@ class Session:
                 on_tick=self._ocr_tick, on_state=self._on_ocr_state,
             )  # fmt: skip
             self._ocr.start()
+
+    def _stop_ocr(self) -> None:
+        ocr, self._ocr = self._ocr, None
+        if ocr is not None:
+            ocr.stop()
+            ocr.join(STOP_JOIN_TIMEOUT_S)  # an OCR call in flight finishes first (~0.1 s)
+
+    def restart_ocr(self) -> None:
+        """The reading engine changed (local OCR <-> vision): video keeps running."""
+        if self._runner is None:
+            return
+        self._stop_ocr()
+        self._start_ocr()
 
     def _profile_ignore(self) -> tuple[str, ...]:
         return tuple(load_profile(self._config.profile).ignore_phrases)
@@ -276,10 +292,7 @@ class Session:
 
     def stop(self) -> None:
         self.stop_audio()
-        ocr, self._ocr = self._ocr, None
-        if ocr is not None:
-            ocr.stop()
-            ocr.join(STOP_JOIN_TIMEOUT_S)  # an OCR call in flight finishes first (~0.1 s)
+        self._stop_ocr()
         self._stop_translator()
         self._states.reset()
         self.history.close_all()
