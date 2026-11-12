@@ -118,13 +118,14 @@ class PreprocessConfig(_Section):
 def _default_preprocess() -> dict[str, PreprocessConfig]:
     return {
         "rapid": PreprocessConfig(),
+        "windows": PreprocessConfig(),
         "tesseract": PreprocessConfig(contrast_stretch=True, threshold="otsu",
                                       upscale_below_px=400),  # fmt: skip
     }
 
 
 class OCRConfig(_Section):
-    engine: Literal["rapid"] = "rapid"
+    engine: Literal["rapid", "windows"] = "rapid"  # windows: built-in Windows OCR (M7)
     hz: float = Field(4.0, gt=0, le=30)
     min_confidence: float = Field(0.6, ge=0, le=1)  # lines below this are dropped
     change_threshold: float = Field(2.0, ge=0)  # mean abs diff (0-255) below which OCR is skipped
@@ -137,6 +138,11 @@ class OCRConfig(_Section):
     det_max_side: int = Field(960, ge=64)  # detection input is scaled down to this
     threads: int = Field(0, ge=0)  # 0 = onnxruntime decides
     preprocess: dict[str, PreprocessConfig] = Field(default_factory=_default_preprocess)
+
+    def prep(self, engine: str | None = None) -> PreprocessConfig:
+        """Preprocessing for `engine` (default: the chosen one); added if a saved config
+        predates that engine."""
+        return self.preprocess.setdefault(engine or self.engine, PreprocessConfig())
 
 
 class MetricsConfig(_Section):

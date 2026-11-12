@@ -8,6 +8,7 @@ drop low-confidence lines -> normalise. The render loop never waits on any of it
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -187,9 +188,27 @@ def build_ocr(config: AppConfig) -> BaseOCR:
         vision = _build_vision(config)
         if vision is not None:
             return vision
+    if ocr.engine == "windows":
+        windows = _build_windows()
+        if windows is not None:
+            return windows
     from subwizard.ocr.rapid import RapidOCREngine
 
     return RapidOCREngine(det_max_side=ocr.det_max_side, threads=ocr.threads)
+
+
+def _build_windows() -> BaseOCR | None:
+    """Windows OCR (M7); anywhere else, or without a language pack, RapidOCR (logged)."""
+    if sys.platform != "win32":
+        log.warning("Windows OCR yalnızca Windows'ta var; RapidOCR kullanılıyor.")
+        return None
+    from subwizard.platform.windows.ocr_winrt import WindowsOCR, WindowsOCRUnavailable
+
+    try:
+        return WindowsOCR()
+    except WindowsOCRUnavailable as exc:
+        log.warning("Windows OCR açılamadı (%s); RapidOCR kullanılıyor.", exc)
+        return None
 
 
 def _build_vision(config: AppConfig) -> BaseOCR | None:

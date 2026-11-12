@@ -34,6 +34,7 @@ from subwizard.ui.widgets.notice import Notice
 from subwizard.ui.widgets.roi_editor import RoiEditor, frame_to_qimage
 from subwizard.ui.widgets.value_slider import ValueSlider
 
+OCR_ENGINES = ("rapid", "windows")
 COMBO_WIDTH = 180  # the toolbar must fit the default window (1180 px) without scrolling
 DRAW_MODES = ("main", "extra", "exclude")
 EDITOR_MIN_HEIGHT = 360
@@ -177,15 +178,21 @@ class RoiPage(BasePage):
         self._contrast.checkedChanged.connect(
             lambda on: controller.set_preprocess_option("contrast_stretch", on))
         self._contrast_row = SettingRow(FluentIcon.BRIGHTNESS, self._contrast)
+        self._engine = ComboBox()
+        self._engine.setMinimumWidth(COMBO_WIDTH)
+        self._engine.addItems(list(OCR_ENGINES))
+        self._engine.currentIndexChanged.connect(
+            lambda i: controller.set_ocr_engine(OCR_ENGINES[i]) if i >= 0 else None)
+        self._engine_row = SettingRow(FluentIcon.SEARCH, self._engine)
         self._settings_title = StrongBodyLabel()
         self.body.addSpacing(8)
         self.body.addWidget(self._settings_title)
         for row in (self._padding_row, self._hz_row, self._confidence_row,
-                    self._white_mask_row, self._contrast_row):  # fmt: skip
+                    self._white_mask_row, self._contrast_row, self._engine_row):  # fmt: skip
             self.body.addWidget(row)
         self.settings_section = [self.regions_bar, self._settings_title, self._padding_row, self._hz_row,
                                  self._confidence_row, self._white_mask_row,
-                                 self._contrast_row]  # fmt: skip
+                                 self._contrast_row, self._engine_row]  # fmt: skip
 
         controller.settingsChanged.connect(self._load_settings)
         controller.ocrTick.connect(self._on_tick)
@@ -273,7 +280,10 @@ class RoiPage(BasePage):
         self._padding.set_value(round(cfg.roi.padding_pct))
         self._hz.set_value(round(cfg.ocr.hz))
         self._confidence.set_value(round(cfg.ocr.min_confidence * 100))
-        prep = cfg.ocr.preprocess[cfg.ocr.engine]
+        self._engine.blockSignals(True)
+        self._engine.setCurrentIndex(OCR_ENGINES.index(cfg.ocr.engine))
+        self._engine.blockSignals(False)
+        prep = cfg.ocr.prep()
         for switch, value in ((self._white_mask, prep.white_text_mask),
                               (self._contrast, prep.contrast_stretch)):  # fmt: skip
             switch.blockSignals(True)
@@ -311,6 +321,11 @@ class RoiPage(BasePage):
         self._settings_title.setText(t("roi.settings"))
         self._padding_row.set_texts(t("roi.padding"), t("roi.padding.desc"))
         self._hz_row.set_texts(t("roi.hz"), t("roi.hz.desc"))
+        self._engine_row.set_texts(t("roi.engine"), t("roi.engine.desc"))
+        self._engine.blockSignals(True)
+        for i, engine in enumerate(OCR_ENGINES):
+            self._engine.setItemText(i, t(f"roi.engine.{engine}"))
+        self._engine.blockSignals(False)
         self._confidence_row.set_texts(t("roi.min_confidence"), t("roi.min_confidence.desc"))
         self._white_mask_row.set_texts(t("roi.white_mask"), t("roi.white_mask.desc"))
         self._contrast_row.set_texts(t("roi.contrast"), t("roi.contrast.desc"))

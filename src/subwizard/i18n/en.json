@@ -459,5 +459,9 @@
   "translate.tts.desc": "Reads subtitles aloud. Skips old lines when they pile up. Uses SAPI voices on Windows; Turkish needs the Turkish voice pack installed.",
   "translate.tts.off": "Off",
   "translate.tts.translation": "Read translation",
-  "translate.tts.source": "Read English (no translation)"
+  "translate.tts.source": "Read English (no translation)",
+  "roi.engine": "OCR engine",
+  "roi.engine.desc": "Windows OCR (experimental) is Windows' own engine, no model download; Windows only, RapidOCR is used elsewhere. It gives no confidence score.",
+  "roi.engine.rapid": "RapidOCR",
+  "roi.engine.windows": "Windows OCR (experimental)"
 }

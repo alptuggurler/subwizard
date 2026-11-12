@@ -469,8 +469,16 @@ class AppController(QObject):
         self.force_ocr()  # re-read now so the effect is visible at once
         self._save(debounce=True)
 
+    def set_ocr_engine(self, engine: str) -> None:
+        """"rapid" or "windows" (M7, experimental; RapidOCR off Windows)."""
+        if engine != self.config.ocr.engine:
+            self.config.ocr.engine = engine
+            self._save()
+            self.settingsChanged.emit()
+            self._session.restart_ocr()
+
     def set_preprocess_option(self, key: str, value: object) -> None:
-        prep = self.config.ocr.preprocess[self.config.ocr.engine]
+        prep = self.config.ocr.prep()
         setattr(prep, key, value)
         self.force_ocr()
         self._save()

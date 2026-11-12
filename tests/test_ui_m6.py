@@ -196,3 +196,15 @@ def test_read_aloud_setting_is_saved_and_starts_the_worker(window, monkeypatch):
     page._tts.setCurrentIndex(0)
     assert c.config.tts.mode == "off" and c._session._tts is None
     c.stop()
+
+
+def test_ocr_engine_choice_is_saved_and_rebuilds_ocr(window):
+    c = window.controller
+    page = _page(window, "roi")
+    c.start()
+    page._engine.setCurrentIndex(1)
+    assert c.config.ocr.engine == "windows"
+    assert c._session._ocr is not None  # off Windows: rebuilt with RapidOCR
+    page._engine.setCurrentIndex(0)
+    assert c.config.ocr.engine == "rapid"
+    c.stop()

@@ -459,5 +459,9 @@
   "translate.tts.desc": "Altyazıyı sesli okur. Satırlar birikirse eskileri atlar. Windows'ta SAPI sesleri; Türkçe için Windows'a Türkçe ses paketi kurulu olmalı.",
   "translate.tts.off": "Kapalı",
   "translate.tts.translation": "Çeviriyi oku",
-  "translate.tts.source": "İngilizceyi oku (çevirme)"
+  "translate.tts.source": "İngilizceyi oku (çevirme)",
+  "roi.engine": "OCR motoru",
+  "roi.engine.desc": "Windows OCR (deneysel) Windows'un kendi motorudur, model indirmez; yalnızca Windows'ta çalışır, başka yerde RapidOCR kullanılır. Güven puanı vermez.",
+  "roi.engine.rapid": "RapidOCR",
+  "roi.engine.windows": "Windows OCR (deneysel)"
 }

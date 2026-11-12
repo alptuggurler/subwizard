@@ -71,7 +71,7 @@ roi:
   exclude_rects: []         # okunmadan once karartilan alanlar (mini harita, HUD)
 
 ocr:
-  engine: rapid
+  engine: rapid             # rapid | windows (deneysel: Windows'un kendi OCR'i)
   hz: 4.0                   # saniyede kac kez okunur
   min_confidence: 0.6       # bu guvenin altindaki satirlar atilir
   change_threshold: 2.0     # alan bundan az degistiyse OCR atlanir (0-255 ortalama fark)
@@ -86,6 +86,14 @@ ocr:
       contrast_stretch: false
       threshold: none       # none | otsu | adaptive
       upscale_below_px: 48  # bundan alcak alanlar 2x buyutulur
+      white_text_mask: false
+      mask_min_value: 180
+      mask_max_saturation: 60
+    windows:
+      grayscale: true
+      contrast_stretch: false
+      threshold: none
+      upscale_below_px: 48
       white_text_mask: false
       mask_min_value: 180
       mask_max_saturation: 60
