@@ -161,7 +161,7 @@ class Session:
         self._on_translated = on_translated
         self._translate_factory = translate_factory  # None disables translation
         self._translator: TranslateWorker | None = None
-        self._states = SubtitleStateMachine(config.subtitle, self._profile_ignore())
+        self._states = self._new_states(config)
         self._board = SubtitleBoard(config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now())
         # F8: lines are still recorded, not translated. Starts off when the user asked for it.
@@ -174,6 +174,11 @@ class Session:
         self.av_recorder = AVSyncRecorder()  # A/V "Otomatik ölç", fed only while active
         self._tts_factory = tts_factory
         self._tts: TTSWorker | None = None
+
+    def _new_states(self, config: AppConfig) -> SubtitleStateMachine:
+        tr = config.translator
+        return SubtitleStateMachine(config.subtitle, self._profile_ignore(),
+                                    tr.source_language, tr.target_language)  # fmt: skip
 
     @property
     def translation_paused(self) -> bool:
@@ -216,7 +221,7 @@ class Session:
         )
         self._runner.start()
         self.start_audio()
-        self._states = SubtitleStateMachine(self._config.subtitle, self._profile_ignore())
+        self._states = self._new_states(self._config)
         self._board = SubtitleBoard(self._config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
         self._start_translator()

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -76,10 +77,34 @@ class _Candidate:
     extends_id: int | None = None
 
 
+# Text that is not the game's subtitle: the console's own menus in the player's language
+# ("Oyun Yardımı Kupalar Kullanın") and stray glyphs from other scripts (人, φ) that the OCR
+# reads out of icons. Only judged for Latin-script sources.
+LATIN_SOURCES = frozenset({"en", "es", "fr", "de", "it", "pt", "nl"})
+# Letters the target language has and the usual sources do not.
+TARGET_ONLY_LETTERS = {"tr": "ığşİĞŞ"}
+FOREIGN_MIN_WORDS = 2  # this many words with target-only letters: already in the target language
+
+
+def strip_other_scripts(text: str) -> str:
+    """Letters outside the Latin script removed (icons read as 人 / φ), spaces collapsed."""
+    kept = [c for c in text if not c.isalpha() or unicodedata.name(c, "").startswith("LATIN")]
+    return _SPACES.sub(" ", "".join(kept)).strip()
+
+
+def in_target_language(text: str, target: str) -> bool:
+    letters = TARGET_ONLY_LETTERS.get(target, "")
+    if not letters:
+        return False
+    return sum(any(c in letters for c in word) for word in text.split()) >= FOREIGN_MIN_WORDS
+
+
 @dataclass
 class SubtitleStateMachine:
     config: SubtitleConfig
     profile_ignore: tuple[str, ...] = ()  # the game profile's ignore list, on top of config's
+    source_language: str = ""  # "" = no language check (tests of the machine alone)
+    target_language: str = ""
     state: State = State.EMPTY
     current: SubtitleLine | None = None  # the STABLE line (also while a new candidate forms)
     _candidate: _Candidate | None = None
@@ -106,6 +131,11 @@ class SubtitleStateMachine:
         for pattern in self._patterns():
             text = pattern.sub(" ", text)
         text = _SPACES.sub(" ", text).strip()
+        if self.config.skip_foreign and self.source_language in LATIN_SOURCES:
+            text = strip_other_scripts(text)
+            if (self.target_language != self.source_language
+                    and in_target_language(text, self.target_language)):  # fmt: skip
+                return ""
         if len(text) < self.config.min_chars:
             return ""
         visible = [c for c in text if not c.isspace()]

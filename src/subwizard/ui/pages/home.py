@@ -41,7 +41,12 @@ SOURCE_GRADES: dict[str, Grade | None] = {
 def translator_state(c: AppController) -> tuple[str, Grade | None]:
     """One line for the Home card: which engine will translate, and is it set up."""
     tr = c.config.translator
-    if c.snapshot().gauge(M.TR_OFFLINE):
+    snapshot = c.snapshot()
+    if snapshot.gauge(M.TR_QUOTA):  # checked first: it is the more specific reason
+        if snapshot.gauge(M.TR_OFFLINE):
+            return t("home.translator.quota_stopped"), "bad"
+        return t("home.translator.quota_fallback"), "warn"
+    if snapshot.gauge(M.TR_OFFLINE):
         return t("home.translator.offline"), "bad"
     if tr.engine == "deep":
         return t("home.translator.deep"), "ok"

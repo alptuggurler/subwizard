@@ -490,18 +490,18 @@ def test_worker_translates_with_context_and_keeps_only_the_newest_pending():
     worker = TranslateWorker(AppConfig(), MetricsHub(),
                              lambda cfg, m: service(primary=engine), done.append)  # fmt: skip
     worker.start()
-    worker.submit(_line(1, "one"))
-    time.sleep(0.2)  # "one" is now in flight
-    worker.submit(_line(2, "two"))
-    worker.submit(_line(3, "three"))  # "two" left the screen before its turn: skipped
+    worker.submit(_line(1, "One."))
+    time.sleep(0.2)  # "One." is now in flight
+    worker.submit(_line(2, "Two."))
+    worker.submit(_line(3, "Three."))  # "Two." left the screen before its turn: skipped
     gate.set()
     deadline = time.time() + 3
     while len(done) < 2 and time.time() < deadline:
         time.sleep(0.01)
     worker.stop()
     worker.join(2)
-    assert [d.line.text for d in done] == ["one", "three"]
-    assert engine.calls[1].context == (("one", "TR<one>"),)
+    assert [d.line.text for d in done] == ["One.", "Three."]
+    assert engine.calls[1].context == (("One.", "TR<One.>"),)
 
 
 def test_metrics_record_requests_and_cache_hits():

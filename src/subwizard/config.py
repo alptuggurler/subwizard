@@ -175,6 +175,9 @@ class SubtitleConfig(_Section):
     min_chars: int = Field(3, ge=0)  # shorter texts are noise
     min_letter_ratio: float = Field(0.5, ge=0, le=1)  # share of letters among non-spaces
     ignore_phrases: list[str] = Field(default_factory=list)  # regexes, removed before use
+    # Drop text that is not the game's subtitle: lines already in the target language
+    # (the console's own menus) and glyphs from other scripts read out of icons.
+    skip_foreign: bool = True
     # "LUCIA: ...", "Jason: ...": 1-3 capitalised words before a colon.
     speaker_pattern: str = r"^((?:[A-Z][\w'.-]*\s?){1,3}):\s+"
     min_display_ms: int = Field(1500, ge=0)  # a shown translation stays at least this long
@@ -206,6 +209,9 @@ class TranslatorConfig(_Section):
     source_language: str = "en"
     target_language: str = "tr"
     context_lines: int = Field(5, ge=0)
+    # A sentence shown in pieces is translated as a whole: the unfinished part so far is
+    # sent with each new piece (pipeline/translate_worker.FragmentJoiner).
+    merge_fragments: bool = True
     timeout_s: float = Field(2.5, gt=0)  # per Gemini request; on timeout -> fallback
     retries: int = Field(1, ge=0)  # extra tries on server / network errors
     thinking_level: Literal["minimal", "low", "medium", "high"] = "minimal"

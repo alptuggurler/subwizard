@@ -485,5 +485,7 @@
   "toast.translation_on": "Translation on",
   "toast.translation_off": "Translation off",
   "toast.translation_off_hint": "Translation off · press {hotkey} to turn on",
-  "device.audio.not_card": "The selected audio input '{selected}' is not the capture card's; the console sound comes in on '{card}'. Switch the audio input to it."
+  "device.audio.not_card": "The selected audio input '{selected}' is not the capture card's; the console sound comes in on '{card}'. Switch the audio input to it.",
+  "home.translator.quota_stopped": "The Gemini quota is used up and the fallback translator is not answering; translation has stopped. It resumes by itself when the quota is back. If this happens often, enable billing in AI Studio or add a second key.",
+  "home.translator.quota_fallback": "The Gemini quota is used up; lines are translated by the fallback (lower quality). Gemini is used again once the quota is back."
 }

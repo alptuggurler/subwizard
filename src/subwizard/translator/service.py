@@ -74,6 +74,14 @@ class TranslationService:
         self._started = clock()
         self._lock = threading.Lock()  # usage is read by the UI thread
         self.usage = Usage()
+        self._quota = False  # Gemini is refusing for quota right now
+
+    def _set_quota(self, on: bool) -> None:
+        if on != self._quota:
+            self._quota = on
+            self._metrics.set_gauge(M.TR_QUOTA, on)
+            if not on:
+                log.info("Gemini kotası yeniden kullanılabilir.")
 
     def _price(self, result: TranslationResult) -> float:
         price = self._config.translator.prices.get(self._config.translator.model)
@@ -129,9 +137,14 @@ class TranslationService:
             try:
                 result = self.primary.translate(request)
             except TranslationError as exc:
-                log.warning("%s çeviremedi (%s); yedeğe geçiliyor.", self.primary.name, exc)
+                quota = str(exc).startswith("quota")
+                # While every key rests each line fails the same way: say it once.
+                if not (quota and self._quota):
+                    log.warning("%s çeviremedi (%s); yedeğe geçiliyor.", self.primary.name, exc)
+                self._set_quota(quota)
                 reasons.append(f"{self.primary.name}: {exc}")
             else:
+                self._set_quota(False)
                 result = self._account(result)
                 cost = result.cost_usd
                 log.info("Çeviri (%s, %.0f ms, %d+%d token, $%.5f): %r -> %r",

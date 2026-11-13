@@ -69,6 +69,10 @@ def fake_google_translate(self, text: str) -> str:
     return f"[tr] {text}"
 
 
+def no_mymemory(self, text: str) -> str:
+    raise ConnectionError("MyMemory is not reachable in tests")
+
+
 @pytest.fixture(autouse=True)
 def isolated_user_state(tmp_path, monkeypatch, request):
     """Every test gets its own user data dir (config, logs, translation cache), no real
@@ -89,4 +93,5 @@ def isolated_user_state(tmp_path, monkeypatch, request):
         from subwizard.translator.deep import DeepTranslatorFallback
 
         monkeypatch.setattr(DeepTranslatorFallback, "_google", fake_google_translate)
+        monkeypatch.setattr(DeepTranslatorFallback, "_mymemory", no_mymemory)
     return memory

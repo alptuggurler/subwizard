@@ -23,6 +23,65 @@ log = logging.getLogger(__name__)
 
 IDLE_WAIT_S = 0.5  # wake-up period while idle, to notice stop()
 
+# Games show one sentence in pieces ("...scientists, the most" / "effective treatment for
+# cancer the world" / "has ever seen."). A piece alone cannot be translated into a
+# verb-final language ("has ever seen." -> "gördüğü"), so the unfinished sentence so far is
+# sent together with the new piece and the translation of the whole is shown.
+SENTENCE_END = ".!?…"
+CLOSERS = "\"”’')]"  # may follow the final punctuation
+CUT_OFF = ("--", "—", "–")  # an interrupted line is not continued by the next one
+CONTINUES_AFTER = ",;:"
+MERGE_MAX_FRAGMENTS = 4
+MERGE_MAX_CHARS = 240
+MERGE_WINDOW_S = 8.0  # pieces further apart than this are separate sentences
+
+
+def sentence_open(text: str) -> bool:
+    """True when the line stops in the middle of a sentence."""
+    text = text.rstrip().rstrip(CLOSERS).rstrip()
+    return bool(text) and text[-1] not in SENTENCE_END and not text.endswith(CUT_OFF)
+
+
+def continues(previous: str, text: str) -> bool:
+    """`text` goes on where the unfinished `previous` stopped: it starts in lower case, or
+    the previous piece ended with a comma."""
+    first = next((c for c in text if c.isalpha()), "")
+    return first.islower() or previous.rstrip().endswith(tuple(CONTINUES_AFTER))
+
+
+class FragmentJoiner:
+    """Keeps the pieces of the sentence being shown; `text_for` returns what to translate
+    for a new line: the line itself, or the open sentence so far plus the line."""
+
+    def __init__(self) -> None:
+        self._fragments: list[str] = []
+        self._last_id: int | None = None
+        self._last_speaker: str | None = None
+        self._last_seen = 0.0
+
+    def text_for(self, line: SubtitleLine) -> str:
+        fragments = self._fragments
+        grown = line.replaces is not None and line.replaces == self._last_id
+        if fragments and grown:
+            fragments.pop()  # the same piece, grown (typewriter): not a new one
+        if fragments and (
+            (not grown and line.id != (self._last_id or 0) + 1)  # a piece was skipped
+            or line.speaker != self._last_speaker
+            or line.seen_at - self._last_seen > MERGE_WINDOW_S
+            or not continues(fragments[-1], line.text)
+        ):
+            fragments.clear()
+        joined = " ".join([*fragments, line.text])
+        if len(fragments) + 1 > MERGE_MAX_FRAGMENTS or len(joined) > MERGE_MAX_CHARS:
+            fragments.clear()
+            joined = line.text
+        if sentence_open(line.text):
+            fragments.append(line.text)
+        else:
+            fragments.clear()
+        self._last_id, self._last_speaker, self._last_seen = line.id, line.speaker, line.seen_at
+        return joined
+
 
 @dataclass(frozen=True, slots=True)
 class Translated:
@@ -52,6 +111,9 @@ class TranslateWorker(threading.Thread):
         self._history: deque[tuple[str, str]] = deque(maxlen=max(1, config.translator.context_lines))
         self.service: TranslationService | None = None
         self._failures = 0  # lines in a row nothing could translate (network down?)
+        self._joiner = FragmentJoiner()
+        self._sent: tuple[int, str] | None = None  # (line id, text sent for it): F7 resends it
+        self._partial_in_history = False  # the last context entry is an unfinished sentence
 
     def submit(self, line: SubtitleLine, force: bool = False) -> None:
         """`force` skips the cache (F7: retranslate)."""
@@ -90,7 +152,18 @@ class TranslateWorker(threading.Thread):
             self.service.close()
 
     def _translate(self, line: SubtitleLine, force: bool = False) -> None:
-        request = TranslationRequest(line.text, self._context(), line.speaker)
+        text = line.text
+        if force and self._sent is not None and self._sent[0] == line.id:
+            text = self._sent[1]  # F7: the same (possibly joined) text again
+        elif not force and self._config.translator.merge_fragments:
+            text = self._joiner.text_for(line)
+        merged = text != line.text
+        if merged:
+            log.debug("Yarım cümle birleştirildi: %r", text)
+            if self._partial_in_history and self._history:
+                self._history.pop()  # the shorter version of this sentence is not context
+        self._sent = (line.id, text)
+        request = TranslationRequest(text, self._context(), line.speaker)
         try:
             result: TranslationResult | None = self.service.translate(request, force=force)
         except TranslationError:
@@ -100,9 +173,14 @@ class TranslateWorker(threading.Thread):
             result = None
         self._track_connection(result is not None)
         if result is not None:
-            self._history.append((line.text, result.text))
+            if self._history and self._history[-1][0] == text:
+                self._history.pop()  # F7: the new translation replaces the old as context
+            self._history.append((text, result.text))
+            self._partial_in_history = sentence_open(line.text)
             self._metrics.set_gauge(M.TR_ENGINE, result.engine + (" (önbellek)" if result.cached else ""))
             self._metrics.set_gauge(M.TR_TEXT, result.text)
+        else:
+            self._partial_in_history = False
         self._on_translated(Translated(line, result))
 
     def _track_connection(self, ok: bool) -> None:
