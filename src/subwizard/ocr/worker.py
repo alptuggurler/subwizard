@@ -184,7 +184,7 @@ class OCRWorker(threading.Thread):
 
 def build_ocr(config: AppConfig) -> BaseOCR:
     ocr = config.ocr
-    if config.translator.mode == "vision":
+    if config.translator.mode == "vision" and config.translator.engine != "test":
         vision = _build_vision(config)
         if vision is not None:
             return vision

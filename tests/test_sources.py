@@ -228,6 +228,9 @@ def test_runner_delivers_frames_and_measures_them():
     assert frames == list(range(7))
     assert snap.counter(M.SOURCE_DROPPED) == 3
     assert snap.counter(M.SOURCE_REPEATED) == 1
+    # The repeated frame is not one of the game's own frames: 6 of the 7 count.
+    game, source = snap.rate(M.SOURCE_GAME_FPS).long, snap.rate(M.SOURCE_FPS).long
+    assert 0 < game < source
     assert snap.gauge(M.SOURCE_REQUESTED) == WANT
     assert [s for s, _ in states] == [
         SourceState.CONNECTING, SourceState.RUNNING, SourceState.ENDED

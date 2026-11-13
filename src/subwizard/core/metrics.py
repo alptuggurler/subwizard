@@ -26,6 +26,7 @@ class M:
     """Metric names, so producers and the UI cannot drift apart."""
 
     SOURCE_FPS = "source.fps"
+    SOURCE_GAME_FPS = "source.game_fps"  # frames that differ from the one before
     SOURCE_INTERVAL_MS = "source.interval_ms"
     SOURCE_DROPPED = "source.dropped"
     SOURCE_REPEATED = "source.repeated"

@@ -32,6 +32,7 @@ QT_FREE_MODULES = [
     "subwizard.core.secrets",
     "subwizard.translator.cache",
     "subwizard.translator.deep",
+    "subwizard.translator.echo",
     "subwizard.translator.gemini",
     "subwizard.translator.prompt",
     "subwizard.translator.service",

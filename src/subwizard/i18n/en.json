@@ -197,7 +197,7 @@
   "diag.ocr_confidence": "OCR confidence",
   "diag.ocr_text": "Text read",
   "translate.engine": "Translation engine",
-  "translate.engine.desc": "Gemini gives natural, context-aware translations (needs an API key). Google Translate is free but more literal.",
+  "translate.engine.desc": "Gemini translates naturally and in context (needs an API key). Google Translate is free but more mechanical. Test sends nothing: it shows the text that was read in place of the translation, for setting up the region and the look.",
   "translate.engine.gemini": "Gemini (recommended)",
   "translate.engine.deep": "Google Translate (free)",
   "translate.model": "Model",
@@ -487,5 +487,9 @@
   "toast.translation_off_hint": "Translation off · press {hotkey} to turn on",
   "device.audio.not_card": "The selected audio input '{selected}' is not the capture card's; the console sound comes in on '{card}'. Switch the audio input to it.",
   "home.translator.quota_stopped": "The Gemini quota is used up and the fallback translator is not answering; translation has stopped. It resumes by itself when the quota is back. If this happens often, enable billing in AI Studio or add a second key.",
-  "home.translator.quota_fallback": "The Gemini quota is used up; lines are translated by the fallback (lower quality). Gemini is used again once the quota is back."
+  "home.translator.quota_fallback": "The Gemini quota is used up; lines are translated by the fallback (lower quality). Gemini is used again once the quota is back.",
+  "translate.engine.test": "Test (sends nothing)",
+  "translate.notice.test": "Test mode is on: nothing is translated, the English text that was read is shown in its place. Switch the engine back to Gemini when you are done.",
+  "home.translator.test": "Test mode: no translation, the text that was read is shown",
+  "diag.game_fps": "Game FPS (changed frames, 2 s / 60 s)"
 }

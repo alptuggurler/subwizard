@@ -48,6 +48,8 @@ def translator_state(c: AppController) -> tuple[str, Grade | None]:
         return t("home.translator.quota_fallback"), "warn"
     if snapshot.gauge(M.TR_OFFLINE):
         return t("home.translator.offline"), "bad"
+    if tr.engine == "test":
+        return t("home.translator.test"), "warn"
     if tr.engine == "deep":
         return t("home.translator.deep"), "ok"
     keys, _source = c.api_key_status()

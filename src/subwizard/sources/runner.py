@@ -131,4 +131,8 @@ class SourceRunner(threading.Thread):
         digest = hash(frame.image[::HASH_STRIDE, ::HASH_STRIDE].tobytes())
         if digest == self._last_hash:
             m.incr(M.SOURCE_REPEATED)
+        else:
+            # A console sends a 30 FPS game as 60 Hz with every frame doubled: the frames
+            # that really change are the game's own frame rate.
+            m.tick(M.SOURCE_GAME_FPS)
         self._last_hash = digest

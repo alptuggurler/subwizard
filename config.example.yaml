@@ -120,7 +120,7 @@ subtitle:                   # altyazi durum makinesi
   min_display_ms: 1500      # ceviri ekranda en az bu kadar kalir
 
 translator:
-  engine: gemini            # gemini | deep (deep = anahtarsiz, ucretsiz, daha dusuk kalite)
+  engine: gemini            # gemini | deep (anahtarsiz, ucretsiz) | test (istek atmaz, okunani gosterir)
   mode: ocr                 # ocr | vision (deneysel: resmi Gemini okur ve cevirir; anahtar ister)
   vision_media_resolution: medium   # low | medium | high (vision: resim basina token)
   model: gemini-3.5-flash-lite

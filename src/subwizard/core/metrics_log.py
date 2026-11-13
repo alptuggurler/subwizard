@@ -22,6 +22,7 @@ ROW_INTERVAL_S = 1.0
 # column -> value from a snapshot (gauges may be None: written as empty cells)
 COLUMNS: dict[str, Callable[[Snapshot], object]] = {
     "source_fps": lambda s: round(s.rate(M.SOURCE_FPS).short, 2),
+    "game_fps": lambda s: round(s.rate(M.SOURCE_GAME_FPS).short, 2),
     "render_fps": lambda s: round(s.rate(M.RENDER_FPS).short, 2),
     "frame_age_ms": lambda s: round(s.stat(M.RENDER_FRAME_AGE_MS).mean, 2),
     "frame_age_worst_ms": lambda s: round(s.stat(M.RENDER_FRAME_AGE_MS).worst, 2),

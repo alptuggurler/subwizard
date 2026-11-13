@@ -197,7 +197,7 @@
   "diag.ocr_confidence": "OCR güveni",
   "diag.ocr_text": "Okunan metin",
   "translate.engine": "Çeviri motoru",
-  "translate.engine.desc": "Gemini doğal, bağlama uygun çeviri yapar (API anahtarı gerekir). Google Çeviri ücretsizdir ama daha mekaniktir.",
+  "translate.engine.desc": "Gemini doğal, bağlama uygun çeviri yapar (API anahtarı gerekir). Google Çeviri ücretsizdir ama daha mekaniktir. Test hiçbir yere istek atmaz: okunan yazıyı çeviri yerine gösterir, alan ve görünüm ayarı içindir.",
   "translate.engine.gemini": "Gemini (önerilen)",
   "translate.engine.deep": "Google Çeviri (ücretsiz)",
   "translate.model": "Model",
@@ -487,5 +487,9 @@
   "toast.translation_off_hint": "Çeviri kapalı · açmak için {hotkey}",
   "device.audio.not_card": "Seçili ses girişi '{selected}' capture card'ın değil; PS5'in sesi '{card}' girişinden gelir. Ses girişini ona çevir.",
   "home.translator.quota_stopped": "Gemini kotası doldu ve yedek çevirmen de yanıt vermiyor; çeviri durdu. Kota açılınca kendiliğinden devam eder. Sık oluyorsa AI Studio'da faturalandırmayı aç ya da ikinci bir anahtar ekle.",
-  "home.translator.quota_fallback": "Gemini kotası doldu; satırlar yedek çevirmenle (daha düşük kalite) çevriliyor. Kota açılınca Gemini'ye döner."
+  "home.translator.quota_fallback": "Gemini kotası doldu; satırlar yedek çevirmenle (daha düşük kalite) çevriliyor. Kota açılınca Gemini'ye döner.",
+  "translate.engine.test": "Test (istek atmaz)",
+  "translate.notice.test": "Test modu açık: çeviri yapılmıyor, okunan İngilizce yazı çeviri yerine gösteriliyor. Ayarı bitirince motoru Gemini'ye geri al.",
+  "home.translator.test": "Test modu: çeviri yapılmıyor, okunan yazı gösteriliyor",
+  "diag.game_fps": "Oyun FPS (değişen kare, 2 sn / 60 sn)"
 }

@@ -198,7 +198,8 @@ def _default_prices() -> dict[str, ModelPrice]:
 
 
 class TranslatorConfig(_Section):
-    engine: Literal["gemini", "deep"] = "gemini"
+    # "test": nothing is sent; the text that was read is shown as the translation.
+    engine: Literal["gemini", "deep", "test"] = "gemini"
     # "vision" (experimental, M7): the region image goes to Gemini, which reads and
     # translates it in one call (ocr/vision.py); needs a key, else local OCR is used.
     mode: Literal["ocr", "vision"] = "ocr"

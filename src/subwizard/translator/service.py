@@ -214,6 +214,11 @@ def build_engines(
     from subwizard.translator.deep import DeepTranslatorFallback
 
     tr = config.translator
+    if tr.engine == "test":
+        from subwizard.translator.echo import EchoTranslator
+
+        log.info("Çeviri test modunda: istek atılmıyor, okunan metin gösteriliyor.")
+        return EchoTranslator(), None, ""
     profile = profile or load_profile(config.profile)
     log.info("Oyun profili: %s (%d sözlük terimi, %d yok sayılan ifade)", profile.name,
              len(profile.glossary), len(profile.ignore_phrases))  # fmt: skip
@@ -247,5 +252,6 @@ def open_cache(config: AppConfig) -> TranslationCache:
 def build_service(config: AppConfig, metrics: MetricsHub) -> TranslationService:
     profile = load_profile(config.profile)
     primary, fallback, _note = build_engines(config, profile)
-    return TranslationService(config, metrics, primary, fallback, open_cache(config),
-                              profile=profile)  # fmt: skip
+    # Test mode keeps its echoes out of the real cache (and real translations out of it).
+    cache = TranslationCache(0) if config.translator.engine == "test" else open_cache(config)
+    return TranslationService(config, metrics, primary, fallback, cache, profile=profile)

@@ -225,3 +225,26 @@ def test_console_menus_and_other_scripts_are_not_subtitles():
     off = SubtitleStateMachine(SubtitleConfig(skip_foreign=False), (), "en", "tr")
     assert off.clean("Oyun Yardımı Kupalar Kullanım Kola") != ""
     assert SubtitleStateMachine(SubtitleConfig(), (), "tr", "en").clean("Yardımı Kullanın") != ""
+
+
+# --- test mode: nothing is sent -------------------------------------------------------
+def test_test_engine_shows_what_was_read_and_sends_nothing(monkeypatch):
+    from subwizard.ocr import worker as ocr_worker
+    from subwizard.translator import service as service_module
+
+    def no_keys():
+        raise AssertionError("test mode must not even look for a key")
+
+    monkeypatch.setattr(service_module, "load_api_keys", no_keys)
+    monkeypatch.setattr(service_module, "open_cache", no_keys)  # the real cache stays untouched
+    config = load_config(None, {"translator": {"engine": "test", "mode": "vision"}})
+    svc = service_module.build_service(config, MetricsHub())
+    assert svc.fallback is None
+    for _ in range(2):
+        result = svc.translate(TranslationRequest("Turn that shit off."))
+        assert (result.text, result.engine, result.cached) == ("Turn that shit off.", "test", False)
+        assert result.cost_usd == 0
+    svc.close()
+    monkeypatch.setattr(ocr_worker, "_build_vision", no_keys)  # vision would call Gemini
+    monkeypatch.setattr(ocr_worker, "_build_windows", lambda: None)
+    assert ocr_worker.build_ocr(config) is not None

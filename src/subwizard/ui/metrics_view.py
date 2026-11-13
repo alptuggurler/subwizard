@@ -59,6 +59,9 @@ def metric_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
     source_fps, render_fps = snap.rate(M.SOURCE_FPS), snap.rate(M.RENDER_FPS)
     rows.append(Row(video, "diag.source_fps", f"{source_fps.short:.1f}  ({source_fps.long:.1f})",
                     _fps_grade(source_fps.short, target, config), compact=True))  # fmt: skip
+    game_fps = snap.rate(M.SOURCE_GAME_FPS)
+    rows.append(Row(video, "diag.game_fps", f"{game_fps.short:.1f}  ({game_fps.long:.1f})",
+                    None, compact=True))  # fmt: skip
     # Nothing is rendered while the video is not on screen (another page is open):
     # that is "not measured", not a 0 FPS problem.
     age = snap.stat(M.RENDER_FRAME_AGE_MS)

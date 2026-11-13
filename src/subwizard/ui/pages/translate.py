@@ -32,7 +32,7 @@ from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.widgets.notice import Notice
 from subwizard.ui.widgets.value_slider import ValueSlider
 
-ENGINES = ("gemini", "deep")
+ENGINES = ("gemini", "deep", "test")
 MODES = ("ocr", "vision")
 TTS_MODES = ("off", "translation", "source")
 TTS_ENGINES = ("auto", "edge")
@@ -286,7 +286,9 @@ class TranslatePage(BasePage):
         else:
             status = t("translate.keys.none")
         self._key_row.set_texts(t("translate.keys"), f"{t('translate.keys.desc')} {status}")
-        if tr.engine == "gemini" and not count:
+        if tr.engine == "test":
+            self._notice.show_message(t("translate.notice.test"), "warn")
+        elif tr.engine == "gemini" and not count:
             grade = "warn" if tr.fallback else "bad"
             self._notice.show_message(
                 t("translate.notice.no_key_fallback" if tr.fallback else "translate.notice.no_key"),
