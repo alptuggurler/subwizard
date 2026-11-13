@@ -118,6 +118,7 @@ subtitle:                   # altyazi durum makinesi
   skip_foreign: true        # hedef dildeki yazilari (konsol menusu) ve baska alfabeleri ele
   speaker_pattern: "^((?:[A-Z][\\w'.-]*\\s?){1,3}):\\s+"   # "LUCIA: ..." konusmaci adi
   min_display_ms: 1500      # ceviri ekranda en az bu kadar kalir
+  save_lines: true          # cevrilen satirlari oyuna (profile) gore subtitles.sqlite'a kaydet
 
 translator:
   engine: gemini            # gemini | deep (anahtarsiz, ucretsiz) | test (istek atmaz, okunani gosterir)

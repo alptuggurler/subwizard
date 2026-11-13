@@ -181,6 +181,8 @@ class SubtitleConfig(_Section):
     # "LUCIA: ...", "Jason: ...": 1-3 capitalised words before a colon.
     speaker_pattern: str = r"^((?:[A-Z][\w'.-]*\s?){1,3}):\s+"
     min_display_ms: int = Field(1500, ge=0)  # a shown translation stays at least this long
+    # Keep every translated line per game in <data>/subtitles.sqlite (pipeline/corpus.py).
+    save_lines: bool = True
 
 
 class ModelPrice(_Section):

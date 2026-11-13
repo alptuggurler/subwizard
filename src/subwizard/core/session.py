@@ -28,10 +28,11 @@ from subwizard.ocr import vision
 from subwizard.ocr.base import BaseOCR
 from subwizard.ocr.worker import OCRState, OCRTick, OCRWorker, build_ocr
 from subwizard.pipeline.board import SubtitleBoard, SubtitleView
+from subwizard.pipeline.corpus import SubtitleCorpus
 from subwizard.pipeline.history import SubtitleHistory
 from subwizard.profiles import load_profile
 from subwizard.pipeline.subtitle_state import LineCleared, LineStable, SubtitleStateMachine
-from subwizard.pipeline.translate_worker import TranslateWorker, Translated
+from subwizard.pipeline.translate_worker import TranslateWorker, Translated, sentence_open
 from subwizard.translator.service import TranslationService, build_service
 from subwizard.sources.base import BaseSource, Frame, LatestSlot, SourceError, VideoMode
 from subwizard.sources.capture_card import CaptureCardSource
@@ -41,7 +42,7 @@ from subwizard.tts import build_tts
 from subwizard.tts.base import BaseTTS
 from subwizard.tts.worker import TTSWorker, Utterance
 from subwizard.utils import timing
-from subwizard.utils.paths import default_log_dir
+from subwizard.utils.paths import default_log_dir, user_data_dir
 
 log = logging.getLogger(__name__)
 
@@ -164,6 +165,7 @@ class Session:
         self._states = self._new_states(config)
         self._board = SubtitleBoard(config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now())
+        self._corpus: SubtitleCorpus | None = None  # open while a session runs
         # F8: lines are still recorded, not translated. Starts off when the user asked for it.
         self._paused = False
         self.translation_paused = config.translator.start_paused
@@ -224,6 +226,7 @@ class Session:
         self._states = self._new_states(self._config)
         self._board = SubtitleBoard(self._config.subtitle.min_display_ms)
         self.history = SubtitleHistory(timing.now(), self._subtitle_log_path())
+        self._open_corpus()
         self._start_translator()
         self._start_ocr()
         self.restart_tts()
@@ -284,6 +287,8 @@ class Session:
     def apply_profile(self) -> None:
         """The game profile (or its contents) changed: new ignore list, new prompt."""
         self._states.profile_ignore = self._profile_ignore()
+        if self._corpus is not None:
+            self._open_corpus()  # lines now belong to the new game
         self.restart_translation()
 
     def _subtitle_log_path(self):  # noqa: ANN202
@@ -352,9 +357,25 @@ class Session:
         if changed:
             self._on_subtitle(self._board.shown)
 
+    def _open_corpus(self) -> None:
+        self._close_corpus()
+        if self._config.subtitle.save_lines:
+            self._corpus = SubtitleCorpus(user_data_dir() / "subtitles.sqlite",
+                                          self._config.profile)  # fmt: skip
+
+    def _close_corpus(self) -> None:
+        corpus, self._corpus = self._corpus, None
+        if corpus is not None:
+            corpus.close()
+
     def _translation_done(self, item: Translated) -> None:
         if item.result is not None:
             self.history.translated(item.line.id, item.result)
+            # Test mode echoes the English: that is not a translation worth keeping.
+            if self._corpus is not None and item.result.engine != "test":
+                source = item.source or item.line.text
+                self._corpus.record(source, item.result.text, item.line.speaker,
+                                    item.result.engine, not sentence_open(source))  # fmt: skip
         self._on_translated(item)
         if item.result is None:
             return
@@ -379,6 +400,7 @@ class Session:
         self._stop_translator()
         self._states.reset()
         self.history.close_all()
+        self._close_corpus()
         if self._board.reset():
             self._on_subtitle(None)
         runner, self._runner = self._runner, None

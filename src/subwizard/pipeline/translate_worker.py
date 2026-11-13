@@ -87,6 +87,7 @@ class FragmentJoiner:
 class Translated:
     line: SubtitleLine
     result: TranslationResult | None  # None: nothing could translate it
+    source: str = ""  # the text that was translated: the line, or the joined sentence
 
 
 class TranslateWorker(threading.Thread):
@@ -181,7 +182,7 @@ class TranslateWorker(threading.Thread):
             self._metrics.set_gauge(M.TR_TEXT, result.text)
         else:
             self._partial_in_history = False
-        self._on_translated(Translated(line, result))
+        self._on_translated(Translated(line, result, text))
 
     def _track_connection(self, ok: bool) -> None:
         """SPEC M5: a network outage becomes one clear notice, and clears by itself on
