@@ -92,6 +92,7 @@ class GeminiTranslator(BaseTranslator):
         self._clients: dict[int, Any] = {}
         self._resting_until: dict[int, float] = {}  # key index -> time it may be used again
         self._current = 0
+        self._last_quota = ""  # the API's own words for the last quota error
         self._config: Any = None
         self._vision: Any = None
         self._media_resolution = media_resolution
@@ -174,7 +175,9 @@ class GeminiTranslator(BaseTranslator):
         while True:
             index = self._next_key()
             if index is None:
-                raise TranslationError("quota")  # every key is resting: caller falls back
+                # Every key is resting: the caller falls back.
+                detail = f" ({self._last_quota})" if self._last_quota else ""
+                raise TranslationError(f"quota{detail}")
             try:
                 response = self._client(index).models.generate_content(
                     model=self._model, contents=contents, config=config
@@ -182,8 +185,11 @@ class GeminiTranslator(BaseTranslator):
             except Exception as exc:  # noqa: BLE001 - classified below
                 code = getattr(exc, "code", None)
                 if code in QUOTA_CODES:
-                    log.warning("Gemini kotası doldu (anahtar %s); sıradaki anahtar deneniyor.",
-                                mask(self._keys[index]))  # fmt: skip
+                    # The reply says which limit it was (per minute or per day) and how
+                    # long to wait; without it a daily limit looks like a short hiccup.
+                    self._last_quota = brief(exc)
+                    log.warning("Gemini kotası doldu (anahtar %s): %s; sıradaki anahtar "
+                                "deneniyor.", mask(self._keys[index]), self._last_quota)  # fmt: skip
                     self._resting_until[index] = self._clock() + self._cooldown_s
                     continue  # rotating keys does not use up a retry
                 if is_timeout(exc):

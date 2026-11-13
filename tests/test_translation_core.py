@@ -376,8 +376,10 @@ def test_quota_error_rotates_to_the_next_key_without_using_a_retry(clock):
 def test_all_keys_on_quota_raises_for_fallback(clock):
     pytest.importorskip("google.genai")
     engine, _ = gemini_with([FakeAPIError(429), FakeAPIError(429)], clock=clock)
-    with pytest.raises(TranslationError, match="quota"):
+    with pytest.raises(TranslationError, match="quota") as raised:
         engine.translate(TranslationRequest("OK"))
+    # Which limit it was (per minute / per day) is in the API's words: keep them.
+    assert str(raised.value) == "quota (FakeAPIError: HTTP 429)"
 
 
 def test_timeout_goes_to_fallback_without_retry():
