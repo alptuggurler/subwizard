@@ -186,3 +186,33 @@ def test_diagnostics_support_bundle(window, tmp_path):
     out = page.save_bundle(tmp_path / "s.zip")
     with zipfile.ZipFile(out) as z:
         assert "diagnostics.txt" in z.namelist()
+
+
+def test_translation_sits_next_to_the_english_text_not_the_whole_region():
+    """Found on Windows: with a tall region (lower half of the screen) the translation was
+    drawn above the region, in the middle of the picture, far from the subtitle."""
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from subwizard.config import RoiConfig
+    from subwizard.ocr.base import OCRLine
+    from subwizard.sources.base import Frame
+    from subwizard.ui.widgets.video_view import VideoView
+
+    roi = RoiConfig(template="custom", rect=[0.1, 0.5, 0.8, 0.45], padding_pct=0.0)
+    tick = SimpleNamespace(lines=(OCRLine("Turn that off.", 0.9, (100, 300, 400, 40)),))
+    controller = SimpleNamespace(config=SimpleNamespace(roi=roi), last_ocr=tick)
+    view = SimpleNamespace(_controller=controller, _anchor_cache=None)
+    view._source_bounds = lambda frame: VideoView._source_bounds(view, frame)
+    frame = Frame(np.zeros((1000, 1000, 3), np.uint8), 0.0, 1)
+
+    top, bottom = VideoView._anchor(view, frame, 7, 0.5, 0.95)
+    assert (top, bottom) == pytest.approx((0.8, 0.84))
+    video = QRectF(0, 0, 1000, 1000)
+    box = place("bottom", 400, 60, video, top, bottom, 1.5)
+    assert 700 < box.bottom() < 800  # just above the English line, not above y=500
+
+    controller.last_ocr = SimpleNamespace(lines=())  # the English left first
+    assert VideoView._anchor(view, frame, 7, 0.5, 0.95) == pytest.approx((0.8, 0.84))
+    assert VideoView._anchor(view, frame, 8, 0.5, 0.95) == (0.5, 0.95)  # another line: region

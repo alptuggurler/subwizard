@@ -78,6 +78,7 @@ class VideoView(QWidget):
         self._subtitle_key: tuple | None = None
         self._subtitle_pixmap: QPixmap | None = None
         self._replace_cache: tuple | None = None
+        self._anchor_cache: tuple[int, tuple[float, float]] | None = None
         self.show_history = False  # F12
         self.fullscreen = False
         self.setMouseTracking(True)
@@ -226,27 +227,46 @@ class VideoView(QWidget):
             box = QRectF(area.center().x() - w / 2, area.center().y() - h / 2, w, h)
         else:
             position = "bottom" if cfg.position == "replace" else cfg.position
-            box = place(position, w, h, target, roi.rect[1], roi.rect[1] + roi.rect[3],
-                        cfg.margin_pct)  # fmt: skip
+            top, bottom = self._anchor(frame, view.line_id, roi.rect[1], roi.rect[1] + roi.rect[3])
+            box = place(position, w, h, target, top, bottom, cfg.margin_pct)
         painter.drawPixmap(box.topLeft(), pixmap)
+
+    def _source_bounds(self, frame: Frame) -> tuple[int, int, int, int] | None:
+        """Frame pixels (x0, y0, x1, y1) around the English text of the last OCR result,
+        inside the subtitle region only (not an extra region, e.g. a name at the top)."""
+        c = self._controller
+        tick = c.last_ocr
+        if tick is None or not tick.lines:
+            return None
+        height, width = frame.image.shape[:2]
+        strips = config_layout(c.config.roi, width, height)
+        main = strips[0]
+        boxes = [b for b in (to_frame(line.box, strips) for line in tick.lines)
+                 if main.y0 <= b[1] + b[3] / 2 < main.y1]  # fmt: skip
+        return text_bounds(boxes, (0, 0))
+
+    def _anchor(self, frame: Frame, line_id: int, roi_top: float, roi_bottom: float
+                ) -> tuple[float, float]:  # fmt: skip
+        """Top and bottom (share of the video height) of what the translation sits next to:
+        the English text itself, so a tall region (lower half of the screen) does not push
+        the translation to the middle of the picture. Kept per line: the translation does
+        not jump when the English leaves first. The region when OCR gave no boxes."""
+        bounds = self._source_bounds(frame)
+        if bounds is not None:
+            height = frame.image.shape[0]
+            self._anchor_cache = (line_id, (bounds[1] / height, bounds[3] / height))
+        elif self._anchor_cache is None or self._anchor_cache[0] != line_id:
+            return roi_top, roi_bottom
+        return self._anchor_cache[1]
 
     def _replace_area(self, frame: Frame, target: QRectF):  # noqa: ANN202
         """(widget rect over the English text, its surrounding color, line count) from the
         last OCR result; None when there are no boxes (falls back to `bottom`)."""
         c = self._controller
-        tick = c.last_ocr
-        if tick is None or not tick.lines:
-            return None
-        roi = c.config.roi
-        height, width = frame.image.shape[:2]
-        strips = config_layout(roi, width, height)
-        main = strips[0]
-        # Only the subtitle region is covered (not an extra region, e.g. a name at the top).
-        boxes = [b for b in (to_frame(line.box, strips) for line in tick.lines)
-                 if main.y0 <= b[1] + b[3] / 2 < main.y1]  # fmt: skip
-        bounds = text_bounds(boxes, (0, 0))
+        bounds = self._source_bounds(frame)
         if bounds is None:
             return None
+        width = frame.image.shape[1]
         line_id = c.subtitle.line_id if c.subtitle else -1
         if self._replace_cache is None or self._replace_cache[0] != (line_id, bounds):
             # Sampled once per line and position, not every frame.
@@ -257,7 +277,7 @@ class VideoView(QWidget):
         area = QRectF(target.left() + bounds[0] * scale - pad, target.top() + bounds[1] * scale - pad,
                       (bounds[2] - bounds[0]) * scale + 2 * pad,
                       (bounds[3] - bounds[1]) * scale + 2 * pad)  # fmt: skip
-        return area, color, len(tick.lines)
+        return area, color, len(c.last_ocr.lines)
 
     def _draw_history(self, painter: QPainter) -> None:
         """F12: the last few lines, for subtitles that went by too fast."""
