@@ -491,5 +491,9 @@
   "translate.engine.test": "Test (istek atmaz)",
   "translate.notice.test": "Test modu açık: çeviri yapılmıyor, okunan İngilizce yazı çeviri yerine gösteriliyor. Ayarı bitirince motoru Gemini'ye geri al.",
   "home.translator.test": "Test modu: çeviri yapılmıyor, okunan yazı gösteriliyor",
-  "diag.game_fps": "Oyun FPS (değişen kare, 2 sn / 60 sn)"
+  "diag.game_fps": "Oyun FPS (değişen kare, 2 sn / 60 sn)",
+  "appearance.smooth": "Yumuşak geçiş",
+  "appearance.smooth.desc": "Altyazı birden çıkıp kaybolmaz: yumuşakça belirir, kaybolur ve yeni yüksekliğine kayarak oturur.",
+  "appearance.previous_line": "Önceki satırı göster",
+  "appearance.previous_line.desc": "Hızlı konuşmalarda bir önceki çeviri, yenisinin üstünde küçük ve soluk olarak kısa süre kalır."
 }

@@ -6,6 +6,8 @@ and the paint path does no OCR, I/O or locking beyond reading the latest-only sl
 
 from __future__ import annotations
 
+import math
+
 from PySide6.QtCore import QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
@@ -24,6 +26,7 @@ from subwizard.controller import AppController
 from subwizard.core.metrics import M, Snapshot
 from subwizard.i18n import t
 from subwizard.ocr.roi import Rect, config_layout, to_frame
+from subwizard.pipeline.subtitle_stack import SubtitleStack
 from subwizard.sources.base import Frame
 from subwizard.ui.metrics_view import DASH, GRADE_COLORS, metric_rows
 from subwizard.ui.subtitle_paint import (
@@ -52,6 +55,10 @@ HISTORY_FONT_PX = 14
 HISTORY_WIDTH_RATIO = 0.45
 HISTORY_MAX_WIDTH = 720
 HISTORY_SOURCE = QColor(170, 170, 170)
+ANIMATION_TICK_MS = 16  # repaint period while a subtitle fades or glides
+GLIDE_TAU_S = 0.06  # the subtitle box eases to a new height instead of jumping
+GLIDE_DONE_PX = 0.5
+STACK_GAP_EM = 0.25  # gap between the current line and the older one above it
 TOAST_MS = 1800  # "Çeviri açık / kapalı" after the pause key
 TOAST_FONT_PX = 22
 TOAST_PADDING = 14
@@ -75,8 +82,16 @@ class VideoView(QWidget):
         self._last_painted = -1
         self._snapshot: Snapshot | None = None
         self._placeholder = ""
-        self._subtitle_key: tuple | None = None
-        self._subtitle_pixmap: QPixmap | None = None
+        self._pixmaps: dict[tuple, QPixmap] = {}  # rendered subtitle lines, by text and style
+        overlay = controller.config.overlay
+        self._stack = SubtitleStack(overlay.stack_lines, overlay.fade_ms)
+        self._stack_view = None  # the controller's subtitle the stack was last told about
+        self._glide: tuple[float, float] | None = None  # (bottom edge now, time)
+        self._gliding = False
+        self._last_cover: tuple | None = None  # replace mode: where the line fades out
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(ANIMATION_TICK_MS)
+        self._anim_timer.timeout.connect(self._animate)
         self._replace_cache: tuple | None = None
         self._anchor_cache: tuple[int, tuple[float, float]] | None = None
         self.show_history = False  # F12
@@ -93,8 +108,8 @@ class VideoView(QWidget):
         controller.runningChanged.connect(self.update)
         controller.perfOverlayChanged.connect(self.update)
         controller.metricsUpdated.connect(self._on_metrics)
-        controller.subtitleChanged.connect(self.update)
-        controller.overlayChanged.connect(self.update)
+        controller.subtitleChanged.connect(self._on_subtitle)
+        controller.overlayChanged.connect(self._on_overlay)
 
         self._toast: tuple[str, QColor] | None = None
         self._toast_timer = QTimer(self)
@@ -102,6 +117,54 @@ class VideoView(QWidget):
         self._toast_timer.setInterval(TOAST_MS)
         self._toast_timer.timeout.connect(self._end_toast)
         controller.pauseChanged.connect(self._on_pause)
+
+    # --- subtitle animation ------------------------------------------------------
+    def _on_subtitle(self, _view: object = None) -> None:
+        self._anim_timer.start()  # frames may not be arriving (game overlay, paused source)
+        self.update()
+
+    def _on_overlay(self) -> None:
+        overlay = self._controller.config.overlay
+        self._stack.configure(overlay.stack_lines, overlay.fade_ms)
+        self.update()
+
+    def _animate(self) -> None:
+        self.update()
+        if not self._stack.animating(timing.now()) and not self._gliding:
+            self._anim_timer.stop()
+
+    def _sync_stack(self, now: float) -> None:
+        """Tell the stack what the board shows now (checked at paint time, so it holds
+        even when the subtitle was set without the signal)."""
+        view = self._controller.subtitle
+        if view == self._stack_view:
+            return
+        self._stack_view = view
+        if view is None:
+            self._stack.clear(now)
+        else:
+            self._stack.show(view, now)
+
+    def _line_pixmap(self, view, style: Style, dpr: float, used: dict) -> QPixmap:  # noqa: ANN001
+        key = (view.line_id, view.text, style, dpr)
+        pixmap = self._pixmaps.get(key)
+        if pixmap is None:  # rendered only when text, style or size change
+            pixmap = render_subtitle(view, style, dpr, t("subtitle.fallback"))
+        used[key] = pixmap
+        return pixmap
+
+    def _eased_bottom(self, target: float, now: float, fresh: bool) -> float:
+        """The box's bottom edge, moving toward `target` over a few frames."""
+        if fresh or self._glide is None or self._stack.fade_s <= 0:
+            self._glide, self._gliding = (target, now), False
+            return target
+        value, at = self._glide
+        value += (target - value) * (1.0 - math.exp(-max(0.0, now - at) / GLIDE_TAU_S))
+        self._gliding = abs(target - value) > GLIDE_DONE_PX
+        if not self._gliding:
+            value = target
+        self._glide = (value, now)
+        return value
 
     def set_placeholder(self, text: str) -> None:
         """Shown centered while there is no frame (stopped, connecting, error)."""
@@ -198,12 +261,28 @@ class VideoView(QWidget):
 
     def _draw_subtitle(self, painter: QPainter, target: QRectF, frame: Frame) -> None:
         c = self._controller
-        cfg, view = c.config.overlay, c.subtitle
-        if not cfg.visible or view is None or c.config.display.mode == "web":
+        cfg = c.config.overlay
+        now = timing.now()
+        was_empty = not self._pixmaps
+        self._sync_stack(now)
+        items = self._stack.items(now)
+        if not cfg.visible or not items or c.config.display.mode == "web":
+            self._pixmaps = {}
             return  # Mode B: the game is on the TV; the translation goes to the web page
         dpr = self.devicePixelRatioF()
         roi = c.config.roi
-        cover = self._replace_area(frame, target) if cfg.position == "replace" else None
+        used: dict[tuple, QPixmap] = {}
+        main = items[-1] if items[-1].scale == 1.0 else None  # shown, or fading out
+        older = items[:-1] if main is not None else items
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        cover = None
+        if main is not None and cfg.position == "replace":
+            cover = self._replace_area(frame, target) if main.current else None
+            if cover is not None:
+                self._last_cover = cover
+            elif not main.current:
+                cover = self._last_cover  # fades out where it was, not at another place
         if cover is not None:
             area, color, lines = cover
             font_px = max(REPLACE_MIN_FONT_PX,
@@ -212,24 +291,45 @@ class VideoView(QWidget):
             bg = (*color, 255) if cfg.auto_bg else None
             style = Style.from_config(cfg, round(target.width()), round(target.height()), bg,
                                       font_px, max(1, round(area.width())))  # fmt: skip
-        else:
-            style = Style.from_config(cfg, round(target.width()), round(target.height()))
-        key = (view.line_id, view.text, style, dpr)
-        if key != self._subtitle_key:  # re-rendered only when text, style or size change
-            self._subtitle_key = key
-            self._subtitle_pixmap = render_subtitle(view, style, dpr, t("subtitle.fallback"))
-        pixmap = self._subtitle_pixmap
-        w, h = pixmap.width() / dpr, pixmap.height() / dpr
-        if cover is not None:
-            area, color, _ = cover
+            pixmap = self._line_pixmap(main.view, style, dpr, used)
+            w, h = pixmap.width() / dpr, pixmap.height() / dpr
+            painter.setOpacity(main.opacity)
             if cfg.auto_bg:
                 painter.fillRect(area, QColor(*color))  # hide the English text completely
-            box = QRectF(area.center().x() - w / 2, area.center().y() - h / 2, w, h)
+            painter.drawPixmap(QRectF(area.center().x() - w / 2, area.center().y() - h / 2,
+                                      w, h).topLeft(), pixmap)  # fmt: skip
         else:
+            style = Style.from_config(cfg, round(target.width()), round(target.height()))
             position = "bottom" if cfg.position == "replace" else cfg.position
-            top, bottom = self._anchor(frame, view.line_id, roi.rect[1], roi.rect[1] + roi.rect[3])
-            box = place(position, w, h, target, top, bottom, cfg.margin_pct)
-        painter.drawPixmap(box.topLeft(), pixmap)
+            top_edge: float | None = None
+            if main is not None:
+                pixmap = self._line_pixmap(main.view, style, dpr, used)
+                w, h = pixmap.width() / dpr, pixmap.height() / dpr
+                top, bottom = self._anchor(frame, main.view.line_id, roi.rect[1],
+                                           roi.rect[1] + roi.rect[3])  # fmt: skip
+                box = place(position, w, h, target, top, bottom, cfg.margin_pct)
+                if position != "top":  # the bottom edge glides; the box grows upward
+                    box.moveBottom(self._eased_bottom(box.bottom(), now, was_empty))
+                painter.setOpacity(main.opacity)
+                painter.drawPixmap(box.topLeft(), pixmap)
+                top_edge = box.top()
+            elif self._glide is not None:
+                top_edge = self._glide[0]  # only older lines are left: where the last one was
+            if position != "top" and top_edge is not None:
+                gap = style.font_px * STACK_GAP_EM
+                for item in reversed(older):  # the newest older line is nearest
+                    pixmap = self._line_pixmap(item.view, style, dpr, used)
+                    w = pixmap.width() / dpr * item.scale
+                    h = pixmap.height() / dpr * item.scale
+                    top_edge -= gap + h
+                    painter.setOpacity(item.opacity)
+                    painter.drawPixmap(
+                        QRectF(target.left() + (target.width() - w) / 2, top_edge, w, h),
+                        pixmap, QRectF(pixmap.rect()))  # fmt: skip
+        painter.restore()
+        self._pixmaps = used
+        if (self._stack.animating(now) or self._gliding) and not self._anim_timer.isActive():
+            self._anim_timer.start()
 
     def _source_bounds(self, frame: Frame) -> tuple[int, int, int, int] | None:
         """Frame pixels (x0, y0, x1, y1) around the English text of the last OCR result,

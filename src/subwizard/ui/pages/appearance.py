@@ -34,6 +34,8 @@ SIZE_RANGE = (20, 100)  # 2.0 % .. 10.0 % of the video height
 WIDTH_RANGE = (30, 100)
 OPACITY_RANGE = (0, 100)
 SWITCHES = ("bold", "outline", "auto_bg", "show_source")
+# Effect switches: row name -> (overlay option, value when on, value when off).
+EFFECTS = {"smooth": ("fade_ms", 150, 0), "previous_line": ("stack_lines", 2, 1)}
 COLORS = ("text_color", "background_color", "speaker_color")
 
 
@@ -173,6 +175,13 @@ class AppearancePage(BasePage):
             switch.checkedChanged.connect(lambda v, k=key: c.set_overlay_option(k, v))
             self._switches[key] = switch
             self._switch_rows[key] = SettingRow(FluentIcon.EDIT, switch)
+        self._effects: dict[str, SwitchButton] = {}
+        for name, (option, on, off) in EFFECTS.items():
+            switch = _switch()
+            switch.checkedChanged.connect(
+                lambda v, o=option, a=on, b=off: c.set_overlay_option(o, a if v else b))
+            self._effects[name] = switch
+            self._switch_rows[name] = SettingRow(FluentIcon.VIDEO, switch)
 
         for row in (self._presets_row, self._visible_row, self._position_row, self._font_row,
                     self._size_row, self._width_row, self._colors_row, self._opacity_row,
@@ -190,7 +199,7 @@ class AppearancePage(BasePage):
     def _load(self) -> None:
         cfg = self.controller.config.overlay
         widgets = [self._visible, self._position, self._font, *self._colors.values(),
-                   *self._switches.values()]  # fmt: skip
+                   *self._switches.values(), *self._effects.values()]  # fmt: skip
         for widget in widgets:
             widget.blockSignals(True)
         self._visible.setChecked(cfg.visible)
@@ -200,6 +209,8 @@ class AppearancePage(BasePage):
             button.setColor(QColor(getattr(cfg, key)))
         for key, switch in self._switches.items():
             switch.setChecked(getattr(cfg, key))
+        for name, switch in self._effects.items():
+            switch.setChecked(getattr(cfg, EFFECTS[name][0]) > EFFECTS[name][2])
         for widget in widgets:
             widget.blockSignals(False)
         self._size.set_value(round(cfg.font_size_pct * 10))

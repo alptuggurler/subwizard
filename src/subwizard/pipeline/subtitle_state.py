@@ -25,6 +25,62 @@ from subwizard.config import SubtitleConfig
 
 _SPACES = re.compile(r"\s+")
 _TRAILING = " .,…!?-–—"
+SENTENCE_END = ".!?…"
+CLOSERS = "\"”’')]"  # may follow the final punctuation
+
+
+def ends_sentence(text: str) -> bool:
+    """The line ends with a full stop, ! ? or … (closing quotes and brackets ignored)."""
+    text = text.rstrip().rstrip(CLOSERS).rstrip()
+    return bool(text) and text[-1] in SENTENCE_END
+
+
+# --- OCR noise -------------------------------------------------------------------------
+# On fading or stylised subtitles OCR turns a word into a mix of letters, digits and
+# symbols ("ou$3e", "waters2aljd"), and a HUD number next to the subtitle sticks to the
+# start of the line ("23m CESARE: Here!"). Neither is a word in any language, and the
+# translator carries them along. Ordinary mixes stay: PS5, R2, 2nd, 100m, 4K, 10:30pm.
+_NOISE_SYMBOLS = frozenset("$@#%^*_=|\\~<>{}")
+_ORDINARY_MIX = re.compile(
+    r"[A-Za-z]{1,4}\d{1,4}"  # PS5, R2, MK2
+    r"|\d+[A-Za-z]{1,3}"  # 2nd, 100m, 4K, 60fps, 1980s
+    r"|\d+[.,:]\d+[A-Za-z]{0,2}"  # 1.5x, 10:30pm
+)
+_HUD_NUMBER = re.compile(r"\d+(?:m|km|ft|yd)?[.?!:;]?")
+MIN_REAL_PREFIX = 3  # letters kept from a word with noise stuck to its end
+
+
+def _clean_word(word: str) -> str | None:
+    """The word without OCR noise; None when all of it is noise."""
+    start, end = 0, len(word)
+    while start < end and not word[start].isalnum():
+        start += 1
+    while end > start and not word[end - 1].isalnum():
+        end -= 1
+    core = word[start:end]
+    has_letter = any(c.isalpha() for c in core)
+    has_digit = any(c.isdigit() for c in core)
+    has_symbol = any(c in _NOISE_SYMBOLS for c in core)
+    if not has_letter or not (has_digit or has_symbol):
+        return word  # "24", "$500", "…", a plain word
+    if not has_symbol and all(not any(c.isdigit() for c in part) or _ORDINARY_MIX.fullmatch(part)
+                              for part in core.split("-")):  # fmt: skip
+        return word
+    prefix = re.match(r"[^\W\d_]+(?:['’-][^\W\d_]+)*", core)
+    if prefix and sum(c.isalpha() for c in prefix.group()) >= MIN_REAL_PREFIX:
+        return word[:start] + prefix.group() + word[end:]  # "waters2aljd," -> "waters,"
+    return None
+
+
+def strip_noise(text: str) -> str:
+    words: list[str] = []
+    for word in text.split():
+        cleaned = _clean_word(word)
+        if cleaned is not None:
+            words.append(cleaned)
+    if len(words) >= 3 and _HUD_NUMBER.fullmatch(words[0]) and words[1][:1].isupper():
+        words.pop(0)  # a counter or distance marker read with the line
+    return " ".join(words)
 
 
 class State(StrEnum):
@@ -110,6 +166,7 @@ class SubtitleStateMachine:
     _candidate: _Candidate | None = None
     _empty_ticks: int = 0
     _next_id: int = 1
+    _fast: bool = False  # the current line was promoted on its first sighting
     _ignore: list[re.Pattern[str]] = field(default_factory=list)
     _ignore_src: tuple[str, ...] = ()
 
@@ -136,6 +193,8 @@ class SubtitleStateMachine:
             if (self.target_language != self.source_language
                     and in_target_language(text, self.target_language)):  # fmt: skip
                 return ""
+        if self.config.clean_noise:
+            text = strip_noise(text)
         if len(text) < self.config.min_chars:
             return ""
         visible = [c for c in text if not c.isspace()]
@@ -166,6 +225,16 @@ class SubtitleStateMachine:
                 self.state = State.CANDIDATE
                 return self._maybe_promote()
             if similarity(cleaned, self.current.full_text) >= cfg.similarity:
+                fast, self._fast = self._fast, False
+                if fast and cleaned.casefold() != self.current.full_text.casefold():
+                    # The first, unconfirmed read was a little off: the confirmed one
+                    # takes its place (once), so a misread is not what stays translated.
+                    speaker, body = self.split_speaker(cleaned)
+                    line = SubtitleLine(self._next_id, body, speaker, self.current.seen_at,
+                                        self.current.id)  # fmt: skip
+                    self._next_id += 1
+                    self.current = line
+                    return [LineStable(line)]
                 return []  # the same line again: never reported twice
             self._candidate = _Candidate(cleaned, timestamp)
             self.state = State.CANDIDATE
@@ -198,8 +267,12 @@ class SubtitleStateMachine:
     def _maybe_promote(self) -> list[Event]:
         cand = self._candidate
         assert cand is not None
-        if cand.repeats < self.config.stable_repeats:
+        # A line that ends its sentence is complete: it goes on the first sighting
+        # instead of waiting one more OCR tick (~250 ms).
+        fast = self.config.fast_punctuation and ends_sentence(cand.text)
+        if cand.repeats < self.config.stable_repeats and not fast:
             return []
+        self._fast = cand.repeats < self.config.stable_repeats
         speaker, text = self.split_speaker(cand.text)
         line = SubtitleLine(self._next_id, text, speaker, cand.seen_at, cand.extends_id)
         self._next_id += 1

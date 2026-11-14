@@ -34,7 +34,9 @@ from subwizard.translator.test_run import run_test
 
 # --- state machine ----------------------------------------------------------------
 def machine(**overrides) -> SubtitleStateMachine:
-    return SubtitleStateMachine(SubtitleConfig(**overrides))
+    # The two-sighting rule on its own; the first-sighting path for finished sentences
+    # has its own tests (tests/test_subtitle_text.py).
+    return SubtitleStateMachine(SubtitleConfig(**{"fast_punctuation": False, **overrides}))
 
 
 def feed_all(sm, texts, start=0.0, step=0.25):

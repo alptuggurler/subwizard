@@ -491,5 +491,9 @@
   "translate.engine.test": "Test (sends nothing)",
   "translate.notice.test": "Test mode is on: nothing is translated, the English text that was read is shown in its place. Switch the engine back to Gemini when you are done.",
   "home.translator.test": "Test mode: no translation, the text that was read is shown",
-  "diag.game_fps": "Game FPS (changed frames, 2 s / 60 s)"
+  "diag.game_fps": "Game FPS (changed frames, 2 s / 60 s)",
+  "appearance.smooth": "Smooth transitions",
+  "appearance.smooth.desc": "Subtitles do not pop: they fade in and out and glide to a new height.",
+  "appearance.previous_line": "Keep the previous line",
+  "appearance.previous_line.desc": "In fast dialogue the previous translation stays above the new one for a moment, smaller and dimmed."
 }

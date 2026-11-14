@@ -71,9 +71,9 @@ def test_subtitle_pixmap_renders_turkish_text():
 
 def test_long_subtitle_wraps_onto_more_lines():
     short = render_subtitle(_view("Kısa.", speaker=None), STYLE, 1.0, "")
-    long = render_subtitle(_view("Bu çok uzun bir altyazı satırı " * 6, speaker=None),
+    long = render_subtitle(_view("Bu çok uzun bir altyazı satırı " * 9, speaker=None),
                            STYLE, 1.0, "")  # fmt: skip
-    line_h = 720 * 0.045
+    line_h = STYLE.font_px  # a line is at least as tall as the font
     assert long.height() >= short.height() + 2 * line_h  # at least three lines
 
 

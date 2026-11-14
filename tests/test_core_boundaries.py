@@ -31,6 +31,7 @@ QT_FREE_MODULES = [
     "subwizard.pipeline.translate_worker",
     "subwizard.core.secrets",
     "subwizard.pipeline.corpus",
+    "subwizard.pipeline.subtitle_stack",
     "subwizard.translator.cache",
     "subwizard.translator.deep",
     "subwizard.translator.echo",

@@ -33,8 +33,11 @@ class SubtitleView:
 
 
 class SubtitleBoard:
-    def __init__(self, min_display_ms: float) -> None:
+    def __init__(self, min_display_ms: float, ms_per_char: float = 0.0,
+                 max_display_ms: float = 0.0) -> None:  # fmt: skip
         self._min_display_s = min_display_ms / 1000.0
+        self._per_char_s = ms_per_char / 1000.0
+        self._max_display_s = max(max_display_ms, min_display_ms) / 1000.0
         self._lock = threading.Lock()
         self._current_id: int | None = None
         self._shown: SubtitleView | None = None
@@ -67,7 +70,10 @@ class SubtitleBoard:
                 self._current_id = None
             if self._shown is None or self._current_id is not None:
                 return False
-            self._clear_at = max(now, self._shown.shown_at + self._min_display_s)
+            # A long translation needs longer to read than a short one.
+            hold = min(self._max_display_s,
+                       self._min_display_s + len(self._shown.text) * self._per_char_s)  # fmt: skip
+            self._clear_at = max(now, self._shown.shown_at + hold)
             return self._expire(now)
 
     def tick(self, now: float) -> bool:

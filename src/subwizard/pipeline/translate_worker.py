@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from subwizard.config import AppConfig
 from subwizard.core.metrics import M, MetricsHub
-from subwizard.pipeline.subtitle_state import SubtitleLine
+from subwizard.pipeline.subtitle_state import SubtitleLine, ends_sentence
 from subwizard.translator.base import TranslationError, TranslationRequest, TranslationResult
 from subwizard.translator.service import TranslationService
 
@@ -27,8 +27,6 @@ IDLE_WAIT_S = 0.5  # wake-up period while idle, to notice stop()
 # cancer the world" / "has ever seen."). A piece alone cannot be translated into a
 # verb-final language ("has ever seen." -> "gördüğü"), so the unfinished sentence so far is
 # sent together with the new piece and the translation of the whole is shown.
-SENTENCE_END = ".!?…"
-CLOSERS = "\"”’')]"  # may follow the final punctuation
 CUT_OFF = ("--", "—", "–")  # an interrupted line is not continued by the next one
 CONTINUES_AFTER = ",;:"
 MERGE_MAX_FRAGMENTS = 4
@@ -38,8 +36,8 @@ MERGE_WINDOW_S = 8.0  # pieces further apart than this are separate sentences
 
 def sentence_open(text: str) -> bool:
     """True when the line stops in the middle of a sentence."""
-    text = text.rstrip().rstrip(CLOSERS).rstrip()
-    return bool(text) and text[-1] not in SENTENCE_END and not text.endswith(CUT_OFF)
+    text = text.strip()
+    return bool(text) and not ends_sentence(text) and not text.endswith(CUT_OFF)
 
 
 def continues(previous: str, text: str) -> bool:

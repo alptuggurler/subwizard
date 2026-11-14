@@ -181,6 +181,14 @@ class SubtitleConfig(_Section):
     # "LUCIA: ...", "Jason: ...": 1-3 capitalised words before a colon.
     speaker_pattern: str = r"^((?:[A-Z][\w'.-]*\s?){1,3}):\s+"
     min_display_ms: int = Field(1500, ge=0)  # a shown translation stays at least this long
+    # ...plus this much per character of the translation (a long line needs longer to
+    # read), up to max_display_ms. 0 = always min_display_ms.
+    ms_per_char: int = Field(50, ge=0)
+    max_display_ms: int = Field(7000, ge=0)
+    # A line ending with . ! ? … is sent on its first sighting (no second OCR tick).
+    fast_punctuation: bool = True
+    # Drop OCR garbage words ("ou$3e") and a HUD number stuck to the start of the line.
+    clean_noise: bool = True
     # Keep every translated line per game in <data>/subtitles.sqlite (pipeline/corpus.py).
     save_lines: bool = True
 
@@ -234,7 +242,7 @@ class OverlayConfig(_Section):
     visible: bool = True  # F10
     position: Literal["bottom", "top", "replace"] = "bottom"
     font_family: str = ""  # "" = Segoe UI Variable -> Segoe UI -> Arial
-    font_size_pct: float = Field(4.5, gt=0, le=20)  # of the video height
+    font_size_pct: float = Field(3.5, gt=0, le=20)  # of the video height
     bold: bool = True
     max_width_pct: float = Field(80.0, ge=10, le=100)  # word wrap width
     margin_pct: float = Field(1.5, ge=0, le=20)  # gap to the region / screen edge
@@ -246,6 +254,10 @@ class OverlayConfig(_Section):
     auto_bg: bool = True  # replace mode: cover the English text with its surroundings' color
     show_source: bool = False  # also show the English line, small
     history_lines: int = Field(10, ge=1, le=50)  # F12 panel
+    # How lines enter and leave (pipeline/subtitle_stack.py): the line before the current
+    # one stays above it, small and dimmed, for a moment; lines fade instead of popping.
+    stack_lines: int = Field(2, ge=1, le=3)  # 1 = only the current line
+    fade_ms: int = Field(150, ge=0, le=1000)  # 0 = no fades, no gliding
 
 
 def _default_hotkeys() -> dict[str, str]:

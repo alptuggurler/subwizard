@@ -118,6 +118,10 @@ subtitle:                   # altyazi durum makinesi
   skip_foreign: true        # hedef dildeki yazilari (konsol menusu) ve baska alfabeleri ele
   speaker_pattern: "^((?:[A-Z][\\w'.-]*\\s?){1,3}):\\s+"   # "LUCIA: ..." konusmaci adi
   min_display_ms: 1500      # ceviri ekranda en az bu kadar kalir
+  ms_per_char: 50           # ...arti cevirinin her karakteri icin bu kadar (0 = hep min_display_ms)
+  max_display_ms: 7000      # uzun satir en cok bu kadar kalir
+  fast_punctuation: true    # . ! ? ile biten satir ikinci okumayi beklemeden cevrilir
+  clean_noise: true         # OCR copu kelimeleri ("ou$3e") ve satir basina yapisan HUD sayisini at
   save_lines: true          # cevrilen satirlari oyuna (profile) gore subtitles.sqlite'a kaydet
 
 translator:
@@ -149,7 +153,7 @@ overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
   visible: true             # F10
   position: bottom          # bottom (orijinalin ustu) | top | replace (orijinalin yerine)
   font_family: ""           # bos = Segoe UI Variable -> Segoe UI -> Arial
-  font_size_pct: 4.5        # video yuksekliginin %'si
+  font_size_pct: 3.5        # video yuksekliginin %'si
   bold: true
   max_width_pct: 80.0       # satir bu genislikte kaydirilir
   margin_pct: 1.5
@@ -161,6 +165,8 @@ overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
   auto_bg: true             # replace modunda Ingilizce yazi cevre rengiyle kapatilir
   show_source: false        # Ingilizce satiri da kucuk goster
   history_lines: 10         # F12 paneli
+  stack_lines: 2            # 1-3: onceki satir ustte kucuk ve soluk kalir (1 = yalnizca guncel satir)
+  fade_ms: 150              # yumusak belirme / kaybolma suresi (0 = efekt yok)
 
 hotkeys:
   global_hotkeys: true      # oyun odaktayken de calisir (Windows, pynput)
