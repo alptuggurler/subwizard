@@ -152,7 +152,7 @@ translator:
 
 overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
   visible: true             # F10
-  position: bottom          # bottom (orijinalin ustu) | top | replace (orijinalin yerine)
+  position: replace         # replace (orijinalin yerine, ek yer kaplamaz) | bottom (orijinalin ustu) | top
   font_family: ""           # bos = Segoe UI Variable -> Segoe UI -> Arial
   font_size_pct: 3.5        # video yuksekliginin %'si
   bold: true

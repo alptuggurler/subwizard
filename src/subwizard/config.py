@@ -243,7 +243,8 @@ class OverlayConfig(_Section):
     """How the Turkish subtitle looks on the video (SPEC 3.7). Sizes are % of the video."""
 
     visible: bool = True  # F10
-    position: Literal["bottom", "top", "replace"] = "bottom"
+    # "replace" covers the English text with the translation: no extra room on screen.
+    position: Literal["bottom", "top", "replace"] = "replace"
     font_family: str = ""  # "" = Segoe UI Variable -> Segoe UI -> Arial
     font_size_pct: float = Field(3.5, gt=0, le=20)  # of the video height
     bold: bool = True
