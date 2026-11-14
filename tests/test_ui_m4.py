@@ -216,3 +216,25 @@ def test_translation_sits_next_to_the_english_text_not_the_whole_region():
     controller.last_ocr = SimpleNamespace(lines=())  # the English left first
     assert VideoView._anchor(view, frame, 7, 0.5, 0.95) == pytest.approx((0.8, 0.84))
     assert VideoView._anchor(view, frame, 8, 0.5, 0.95) == (0.5, 0.95)  # another line: region
+
+
+def test_replace_mode_never_makes_a_bigger_block_than_the_english_text():
+    """Found by the user: with "Orijinalin yerine" the translation was a tall box with a
+    name line and a marker, larger than the text it covered."""
+    from subwizard.ui.subtitle_paint import replace_layout
+
+    cfg = OverlayConfig(font_size_pct=4.5)
+    view = SubtitleView(1, "Para olmadan olmaz.", "Lucia", "Not without the money.",
+                        "mymemory", True, 0.0, 0.0)  # fmt: skip
+    layout = replace_layout(cfg, view, 1920, 1080, area_w=520, area_h=48, lines=1)
+    assert layout.view.text == "Lucia: Para olmadan olmaz."  # the name inline, no marker
+    assert layout.view.speaker is None and not layout.view.fallback
+    assert layout.style.font_px <= 48 * 0.8 and layout.box_h == 48
+    pixmap = render_subtitle(layout.view, layout.style, 1.0, "(yedek)")
+    assert pixmap.height() <= 48 * 1.6  # one line of text (plus transparent padding)
+    # A much longer translation gets a wider box first, then a smaller font: never taller.
+    long = SubtitleView(2, "Bu çeviri İngilizce satırdan çok daha uzun bir cümle oldu " * 2,
+                        None, "Short line.", "gemini", False, 0.0, 0.0)  # fmt: skip
+    fitted = replace_layout(cfg, long, 1920, 1080, area_w=300, area_h=48, lines=1)
+    assert fitted.box_w > 300 and fitted.box_h == 48
+    assert fitted.style.font_px < layout.style.font_px

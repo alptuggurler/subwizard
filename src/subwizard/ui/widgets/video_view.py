@@ -31,10 +31,11 @@ from subwizard.pipeline.subtitle_stack import SubtitleStack
 from subwizard.sources.base import Frame
 from subwizard.ui.metrics_view import DASH, GRADE_COLORS, metric_rows
 from subwizard.ui.subtitle_paint import (
-    REPLACE_MIN_FONT_PX,
     Style,
     place,
+    paint_replace,
     render_subtitle,
+    replace_layout,
     surrounding_color,
     text_bounds,
 )
@@ -50,7 +51,6 @@ OVERLAY_RADIUS = 8
 PLACEHOLDER_COLOR = QColor(150, 150, 150)
 REGION_COLOR = QColor(0, 200, 255)  # same colors as the region editor
 PADDING_COLOR = QColor(0, 200, 255, 160)
-REPLACE_FILL = 0.8  # replace mode: font height as a share of one English line's height
 REPLACE_PAD_PX = 4  # cover a little more than the OCR box (frame pixels)
 HISTORY_FONT_PX = 14
 HISTORY_WIDTH_RATIO = 0.45
@@ -89,6 +89,7 @@ class VideoView(QWidget):
         self._stack_view = None  # the controller's subtitle the stack was last told about
         self._glide: tuple[float, float] | None = None  # (bottom edge now, time)
         self._gliding = False
+        self._fit_cache: tuple | None = None  # replace mode: (key, ReplaceLayout)
         self._last_cover: tuple | None = None  # replace mode: where the line fades out
         self._anim_timer = QTimer(self)
         self._anim_timer.setInterval(ANIMATION_TICK_MS)
@@ -285,20 +286,7 @@ class VideoView(QWidget):
             elif not main.current:
                 cover = self._last_cover  # fades out where it was, not at another place
         if cover is not None:
-            area, color, lines = cover
-            font_px = max(REPLACE_MIN_FONT_PX,
-                          min(round(target.height() * cfg.font_size_pct / 100),
-                              round(area.height() / max(1, lines) * REPLACE_FILL)))  # fmt: skip
-            bg = (*color, 255) if cfg.auto_bg else None
-            style = Style.from_config(cfg, round(target.width()), round(target.height()), bg,
-                                      font_px, max(1, round(area.width())))  # fmt: skip
-            pixmap = self._line_pixmap(main.view, style, dpr, used)
-            w, h = pixmap.width() / dpr, pixmap.height() / dpr
-            painter.setOpacity(main.opacity)
-            if cfg.auto_bg:
-                painter.fillRect(area, QColor(*color))  # hide the English text completely
-            painter.drawPixmap(QRectF(area.center().x() - w / 2, area.center().y() - h / 2,
-                                      w, h).topLeft(), pixmap)  # fmt: skip
+            self._draw_replace(painter, target, cover, main, dpr, used)
         else:
             style = Style.from_config(cfg, round(target.width()), round(target.height()))
             position = "bottom" if cfg.position == "replace" else cfg.position
@@ -334,6 +322,21 @@ class VideoView(QWidget):
         self._pixmaps = used
         if (self._stack.animating(now) or self._gliding) and not self._anim_timer.isActive():
             self._anim_timer.start()
+
+    def _draw_replace(self, painter: QPainter, target: QRectF, cover: tuple, main,  # noqa: ANN001
+                      dpr: float, used: dict) -> None:  # fmt: skip
+        cfg = self._controller.config.overlay
+        area, color, lines = cover
+        view = main.view
+        key = (view, cfg.model_dump_json(), round(target.width()), round(target.height()),
+               round(area.width() / 4), round(area.height() / 4), lines)  # fmt: skip
+        if self._fit_cache is None or self._fit_cache[0] != key:  # not measured every frame
+            self._fit_cache = (key, replace_layout(cfg, view, target.width(), target.height(),
+                                                   area.width(), area.height(), lines))  # fmt: skip
+        layout = self._fit_cache[1]
+        pixmap = self._line_pixmap(layout.view, layout.style, dpr, used)
+        painter.setOpacity(main.opacity)
+        paint_replace(painter, cfg, area, color, layout, pixmap, dpr)
 
     def _source_bounds(self, frame: Frame) -> tuple[int, int, int, int] | None:
         """Frame pixels (x0, y0, x1, y1) around the English text of the last OCR result,

@@ -20,7 +20,14 @@ from subwizard.controller import OVERLAY_PRESETS, AppController
 from subwizard.i18n import t
 from subwizard.pipeline.board import SubtitleView
 from subwizard.ui.pages.base import BasePage, SettingRow
-from subwizard.ui.subtitle_paint import TURKISH_SAMPLE, Style, place, render_subtitle
+from subwizard.ui.subtitle_paint import (
+    TURKISH_SAMPLE,
+    Style,
+    paint_replace,
+    place,
+    render_subtitle,
+    replace_layout,
+)
 from subwizard.ui.widgets.value_slider import ValueSlider
 
 POSITIONS = ("bottom", "top", "replace")
@@ -77,28 +84,31 @@ class SubtitlePreview(QWidget):
         font = p.font()
         font.setPixelSize(max(8, round(english_h * 0.6)))
         p.setFont(font)
-        if cfg.position == "replace":
-            p.fillRect(english, PREVIEW_SCENE[1])  # what auto_bg would sample
-        else:
+        source = t("appearance.preview.source")
+        replacing = cfg.position == "replace"
+        if not (replacing and cfg.visible):
             p.setPen(PREVIEW_ENGLISH)
-            p.drawText(english, Qt.AlignmentFlag.AlignCenter, t("appearance.preview.source"))
+            p.drawText(english, Qt.AlignmentFlag.AlignCenter, source)
         if not cfg.visible:
+            p.end()
             return
         dpr = self.devicePixelRatioF()
-        if cfg.position == "replace":
-            bg = (PREVIEW_SCENE[1].red(), PREVIEW_SCENE[1].green(), PREVIEW_SCENE[1].blue(), 255)
-            style = Style.from_config(cfg, round(w), round(video.height()),
-                                      bg if cfg.auto_bg else None,
-                                      round(english_h * 0.8), round(w * 0.9))  # fmt: skip
+        if replacing:
+            # The same layout as on the video: one box where the English line is.
+            text_w = min(video.width(), p.fontMetrics().horizontalAdvance(source) + 8)
+            area = QRectF(english.center().x() - text_w / 2, english.top(), text_w, english_h)
+            layout = replace_layout(cfg, self.sample(), w, video.height(), area.width(),
+                                    area.height(), 1)  # fmt: skip
+            pixmap = render_subtitle(layout.view, layout.style, dpr, t("subtitle.fallback"))
+            scene = PREVIEW_SCENE[1]
+            paint_replace(p, cfg, area, (scene.red(), scene.green(), scene.blue()), layout,
+                          pixmap, dpr)  # fmt: skip
         else:
             style = Style.from_config(cfg, round(w), round(video.height()))
-        pixmap = render_subtitle(self.sample(), style, dpr, t("subtitle.fallback"))
-        bw, bh = pixmap.width() / dpr, pixmap.height() / dpr
-        if cfg.position == "replace":
-            box = QRectF(english.center().x() - bw / 2, english.center().y() - bh / 2, bw, bh)
-        else:
+            pixmap = render_subtitle(self.sample(), style, dpr, t("subtitle.fallback"))
+            bw, bh = pixmap.width() / dpr, pixmap.height() / dpr
             box = place(cfg.position, bw, bh, video, *PREVIEW_ROI, cfg.margin_pct)
-        p.drawPixmap(box.topLeft(), pixmap)
+            p.drawPixmap(box.topLeft(), pixmap)
         p.end()
 
 

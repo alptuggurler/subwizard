@@ -11,7 +11,7 @@ the OCR line boxes, on a background sampled from around it (`auto_bg`).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 from PySide6.QtCore import QRect, QRectF, Qt
@@ -84,6 +84,77 @@ def wrap_lines(text: str, fm: QFontMetrics, max_w: int) -> list[str]:
         else:
             lines.append(word)
     return lines
+
+
+def fit_replace(text: str, families: tuple[str, ...], bold: bool, start_px: int, min_px: int,
+                width: float, max_width: float, height: float) -> tuple[int, float, float]:  # fmt: skip
+    """Replace mode: (font px, text width, text height) so the translation fits where the
+    English text was. Tried in this order: the English size in the English width, the same
+    size in a wider box (Turkish is often longer), then smaller fonts. The translation
+    must never become a bigger block than the text it replaces."""
+    widths = (width, max_width) if max_width > width else (width,)
+    px = max(min_px, start_px)
+    while True:
+        fm = QFontMetrics(make_font(families, px, bold))
+        for w in widths:
+            lines = wrap_lines(text, fm, max(1, round(w)))
+            text_h = fm.height() * max(1, len(lines))
+            if text_h <= height or (px <= min_px and w == widths[-1]):
+                text_w = max((fm.horizontalAdvance(line) for line in lines), default=0)
+                return px, min(float(text_w), w) if text_h <= height else w, text_h
+        px -= 1
+
+
+REPLACE_FILL = 0.8  # font height as a share of one English line's height
+REPLACE_BOX_PAD_EM = 0.5  # side room around the translation inside the cover
+REPLACE_RADIUS_EM = 0.3
+
+
+@dataclass(frozen=True, slots=True)
+class ReplaceLayout:
+    """Replace mode: what is drawn where the English text was."""
+
+    view: SubtitleView  # the name inline, no marker line
+    style: Style
+    box_w: float
+    box_h: float
+
+
+def replace_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video_h: float,
+                   area_w: float, area_h: float, lines: int) -> ReplaceLayout:  # fmt: skip
+    """One box over the English text with the translation inside it at the English
+    text's size (smaller if it would not fit). The name goes inline, as the game writes
+    it: a name line and the fallback marker would make the box taller than the text it
+    covers."""
+    text = f"{view.speaker}: {view.text}" if view.speaker else view.text
+    flat = replace(view, text=text, speaker=None, fallback=False)
+    start_px = min(round(video_h * cfg.font_size_pct / 100),
+                   round(area_h / max(1, lines) * REPLACE_FILL))  # fmt: skip
+    max_width = max(area_w, video_w * cfg.max_width_pct / 100)
+    base = Style.from_config(cfg, round(video_w), round(video_h))
+    font_px, text_w, text_h = fit_replace(text, base.families, cfg.bold, start_px,
+                                          REPLACE_MIN_FONT_PX, area_w, max_width, area_h)  # fmt: skip
+    style = replace(base, font_px=font_px, background=(0, 0, 0, 0), show_source=False,
+                    max_width=round(text_w) + 2 * round(font_px * PADDING_EM) + 2)  # fmt: skip
+    return ReplaceLayout(flat, style, max(area_w, text_w + 2 * font_px * REPLACE_BOX_PAD_EM),
+                         max(area_h, text_h))  # fmt: skip
+
+
+def paint_replace(p: QPainter, cfg: OverlayConfig, area: QRectF, color: tuple[int, int, int],
+                  layout: ReplaceLayout, pixmap: QPixmap, dpr: float) -> None:  # fmt: skip
+    """`color` is the scene around the English text (auto_bg); the caller sets opacity."""
+    box = QRectF(area.center().x() - layout.box_w / 2, area.center().y() - layout.box_h / 2,
+                 layout.box_w, layout.box_h)  # fmt: skip
+    fill = QColor(*color) if cfg.auto_bg else QColor(cfg.background_color)
+    if not cfg.auto_bg:
+        fill.setAlphaF(cfg.background_opacity)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(fill)
+    radius = layout.style.font_px * REPLACE_RADIUS_EM
+    p.drawRoundedRect(box, radius, radius)  # hides the English text completely
+    w, h = pixmap.width() / dpr, pixmap.height() / dpr
+    p.drawPixmap(QRectF(box.center().x() - w / 2, box.center().y() - h / 2, w, h).topLeft(), pixmap)
 
 
 def render_subtitle(view: SubtitleView, style: Style, dpr: float, fallback_label: str) -> QPixmap:
