@@ -8,10 +8,11 @@ flight, only the newest waits; the skipped one has already left the screen. The 
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from subwizard.config import AppConfig
 from subwizard.core.metrics import M, MetricsHub
@@ -45,6 +46,44 @@ def continues(previous: str, text: str) -> bool:
     the previous piece ended with a comma."""
     first = next((c for c in text if c.isalpha()), "")
     return first.islower() or previous.rstrip().endswith(tuple(CONTINUES_AFTER))
+
+
+# Games stack two speakers' lines ("Dani: Good." over "Lita: The way out is up ahead.")
+# and OCR reads them as one text. A name label right after the end of a sentence starts
+# the next speaker's line; one request for both lost the second line (measured: "Good.
+# Lita: The way out is up ahead." -> "İyi.").
+INNER_SPEAKER = re.compile(r"(?<=[.!?…)\]\"'])\s+([A-Z][\w'.-]*(?:\s[A-Z][\w'.-]*){0,2}):\s+")
+
+
+def split_speakers(text: str) -> list[tuple[str | None, str]]:
+    """[(speaker, text)]: the first part keeps the line's own speaker (None here)."""
+    parts: list[tuple[str | None, str]] = []
+    speaker: str | None = None
+    start = 0
+    for match in INNER_SPEAKER.finditer(text):
+        body = text[start:match.start()].strip()
+        if body:
+            parts.append((speaker, body))
+        speaker, start = match.group(1), match.end()
+    rest = text[start:].strip()
+    if rest:
+        parts.append((speaker, rest))
+    return parts or [(None, text)]
+
+
+def combine(parts: list[tuple[str | None, TranslationResult]]) -> TranslationResult:
+    """One result for a block: one line per speaker, costs and times added up."""
+    lines = [f"{speaker}: {r.text}" if speaker else r.text for speaker, r in parts]
+    results = [r for _, r in parts]
+    return replace(
+        results[-1], text="\n".join(lines),
+        latency_ms=sum(r.latency_ms for r in results),
+        cached=all(r.cached for r in results),
+        input_tokens=sum(r.input_tokens for r in results),
+        output_tokens=sum(r.output_tokens for r in results),
+        fallback=any(r.fallback for r in results),
+        cost_usd=sum(r.cost_usd for r in results),
+    )  # fmt: skip
 
 
 class FragmentJoiner:
@@ -150,7 +189,45 @@ class TranslateWorker(threading.Thread):
             log.info("Çeviri oturum özeti: %s", self.service.summary())
             self.service.close()
 
+    def _request(self, text: str, speaker: str | None, force: bool) -> TranslationResult | None:
+        try:
+            return self.service.translate(TranslationRequest(text, self._context(), speaker),
+                                          force=force)  # fmt: skip
+        except TranslationError:
+            return None
+        except Exception:  # one bad line must not end translation for the session
+            log.exception("Çeviri sırasında beklenmeyen hata")
+            return None
+
+    def _translate_block(self, line: SubtitleLine, parts: list[tuple[str | None, str]],
+                         force: bool) -> None:  # fmt: skip
+        """Several speakers in one read: each part alone (a part seen before is a cache
+        hit), shown together. Parts are whole lines, so no fragment joining."""
+        log.debug("Birden çok konuşmacı: %r", parts)
+        self._sent = (line.id, line.text)
+        done: list[tuple[str | None, TranslationResult]] = []
+        for n, (speaker, text) in enumerate(parts):
+            result = self._request(text, speaker or (line.speaker if n == 0 else None), force)
+            if result is None:
+                break
+            done.append((speaker, result))
+            if not self._history or self._history[-1][0] != text:
+                self._history.append((text, result.text))
+        combined = combine(done) if len(done) == len(parts) else None
+        self._partial_in_history = False
+        self._track_connection(combined is not None)
+        if combined is not None:
+            self._metrics.set_gauge(M.TR_ENGINE, combined.engine + (" (önbellek)" if combined.cached else ""))
+            self._metrics.set_gauge(M.TR_TEXT, combined.text)
+        self._on_translated(Translated(line, combined, line.text))
+
     def _translate(self, line: SubtitleLine, force: bool = False) -> None:
+        if self._config.translator.split_speakers:
+            parts = split_speakers(line.text)
+            if len(parts) > 1:
+                self._joiner = FragmentJoiner()  # a new block starts a new sentence
+                self._translate_block(line, parts, force)
+                return
         text = line.text
         if force and self._sent is not None and self._sent[0] == line.id:
             text = self._sent[1]  # F7: the same (possibly joined) text again
@@ -162,14 +239,7 @@ class TranslateWorker(threading.Thread):
             if self._partial_in_history and self._history:
                 self._history.pop()  # the shorter version of this sentence is not context
         self._sent = (line.id, text)
-        request = TranslationRequest(text, self._context(), line.speaker)
-        try:
-            result: TranslationResult | None = self.service.translate(request, force=force)
-        except TranslationError:
-            result = None
-        except Exception:  # one bad line must not end translation for the session
-            log.exception("Çeviri sırasında beklenmeyen hata")
-            result = None
+        result = self._request(text, line.speaker, force)
         self._track_connection(result is not None)
         if result is not None:
             if self._history and self._history[-1][0] == text:

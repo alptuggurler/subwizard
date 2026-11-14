@@ -76,13 +76,16 @@ def make_font(families: tuple[str, ...], px: int, bold: bool) -> QFont:
 
 
 def wrap_lines(text: str, fm: QFontMetrics, max_w: int) -> list[str]:
-    """Greedy word wrap (QPainterPath has none); one word wider than max_w gets its own line."""
+    """Greedy word wrap (QPainterPath has none); one word wider than max_w gets its own line.
+    A newline (one speaker per line) always starts a new line."""
     lines: list[str] = []
-    for word in text.split():
-        if lines and fm.horizontalAdvance(f"{lines[-1]} {word}") <= max_w:
-            lines[-1] = f"{lines[-1]} {word}"
-        else:
-            lines.append(word)
+    for paragraph in text.split("\n"):
+        start = len(lines)
+        for word in paragraph.split():
+            if len(lines) > start and fm.horizontalAdvance(f"{lines[-1]} {word}") <= max_w:
+                lines[-1] = f"{lines[-1]} {word}"
+            else:
+                lines.append(word)
     return lines
 
 

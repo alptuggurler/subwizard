@@ -136,6 +136,7 @@ translator:
   target_language: tr
   context_lines: 5          # son kac satir baglam olarak gonderilir
   merge_fragments: true     # parca parca gosterilen cumleyi butun olarak cevir
+  split_speakers: true      # ayni anda okunan iki konusmaciyi ayri ayri cevir, alt alta goster
   timeout_s: 2.5            # Gemini istegi bu surede donmezse yedek cevirmen
   retries: 1                # sunucu/ag hatasinda tekrar deneme sayisi
   thinking_level: minimal   # minimal | low | medium | high (dusuk = hizli)

@@ -229,6 +229,9 @@ class TranslatorConfig(_Section):
     # A sentence shown in pieces is translated as a whole: the unfinished part so far is
     # sent with each new piece (pipeline/translate_worker.FragmentJoiner).
     merge_fragments: bool = True
+    # Two speakers read at once ("Good. Lita: The way out is up ahead.") are translated
+    # one by one and shown as one block, one line each.
+    split_speakers: bool = True
     timeout_s: float = Field(2.5, gt=0)  # per Gemini request; on timeout -> fallback
     retries: int = Field(1, ge=0)  # extra tries on server / network errors
     thinking_level: Literal["minimal", "low", "medium", "high"] = "minimal"

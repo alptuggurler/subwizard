@@ -8,6 +8,7 @@ the caller (seconds), so the views animate it and tests step it.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from subwizard.pipeline.board import SubtitleView
@@ -34,12 +35,32 @@ class StackItem:
 
 
 def _same_line(old: SubtitleView, new: SubtitleView) -> bool:
-    """The same line again (retranslated), or the line it grew from (typewriter, joined
-    sentence): it is replaced in place, not pushed up as an older line."""
+    """The same line again (retranslated), the line it grew from (typewriter, joined
+    sentence), or one contained in the other (a second speaker's line appeared above or
+    went away): it is replaced in place, not pushed up as an older line, so the same
+    words are never on screen twice."""
     if old.line_id == new.line_id:
         return True
     a, b = old.source.casefold().strip(), new.source.casefold().strip()
-    return bool(a) and b.startswith(a)
+    if a and b.startswith(a):
+        return True
+    wa, wb = _WORD.findall(a), _WORD.findall(b)
+    shorter = min(len(wa), len(wb))
+    if shorter and wa[:shorter] == wb[:shorter]:
+        return True  # the top speaker's line stayed, the one below came or went
+    return _contains(wb, wa) or _contains(wa, wb)
+
+
+_WORD = re.compile(r"\w+(?:'\w+)?")
+MIN_CONTAINED_WORDS = 2  # "No." inside "I know no one." is not the same line
+
+
+def _contains(words: list[str], part: list[str]) -> bool:
+    """`part` appears in `words` as whole words, in order."""
+    n = len(part)
+    if n < MIN_CONTAINED_WORDS or n >= len(words):
+        return False
+    return any(words[i:i + n] == part for i in range(len(words) - n + 1))
 
 
 class SubtitleStack:

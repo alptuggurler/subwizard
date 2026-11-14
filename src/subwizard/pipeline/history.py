@@ -82,6 +82,13 @@ class SubtitleHistory:
                 start, clock = old.start_s, old.clock
             else:
                 start, clock = self._offset(line.seen_at), time.strftime("%H:%M:%S")
+            # A new line took the shown one's place without an empty moment in between
+            # (no LineCleared): the shown one ends here, not when the session stops.
+            for open_id in [i for i, e in self._entries.items() if e.end_s is None]:
+                entry = replace(self._entries[open_id], end_s=max(start, self._entries[open_id].start_s))
+                self._entries[open_id] = entry
+                if entry.translation:
+                    self._write(entry)
             self._entries[line.id] = HistoryEntry(line.id, start, None, clock, line.full_text,
                                                   line.speaker)  # fmt: skip
             while len(self._entries) > MAX_ENTRIES:
