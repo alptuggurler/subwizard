@@ -23,7 +23,7 @@ from subwizard.translator.base import (
 )
 from subwizard.profiles import DEFAULT, GameProfile, glossary_violations, load_profile
 from subwizard.ocr.vision import HANDOFF
-from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key
+from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key, loose_key
 from subwizard.translator.prompt import system_prompt
 from subwizard.utils import timing
 from subwizard.utils.paths import user_data_dir
@@ -111,14 +111,20 @@ class TranslationService:
         scope = tr.target_language if self.profile.name == DEFAULT else (
             f"{tr.target_language}@{self.profile.name}")
         key = cache_key(request.text, scope)
+        loose = loose_key(request.text, scope) if tr.loose_cache else None
         handed = None if force else HANDOFF.take(request.text)
         if handed is not None:  # vision mode: read and translated in one call already
             handed = self._account(handed)
             m.observe(M.TR_MS, handed.latency_ms)
-            self.cache.put(key, CachedTranslation(handed.text, handed.engine))
+            self.cache.put(key, CachedTranslation(handed.text, handed.engine), loose)
             self._publish()
             return handed
         hit = None if force else self.cache.get(key)
+        if hit is None and not force:
+            # The same line as an earlier one, read a little differently by OCR.
+            hit = self.cache.get_loose(loose)
+            if hit is not None:
+                log.debug("Önbellek (yakın eşleşme): %r", request.text)
         # A fallback translation is cached too, but when Gemini is available it gets a
         # chance to do better next time instead of the weaker result living forever.
         if hit is not None and (hit.engine != "deep" or self.primary is None):
@@ -180,7 +186,7 @@ class TranslationService:
                                                      for t in missed),
                         request.text, result.text)  # fmt: skip
         m.observe(M.TR_MS, result.latency_ms)
-        self.cache.put(key, CachedTranslation(result.text, result.engine))
+        self.cache.put(key, CachedTranslation(result.text, result.engine), loose)
         self._publish()
         return result
 

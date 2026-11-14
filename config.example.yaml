@@ -144,6 +144,7 @@ translator:
   offline_after: 3          # art arda bu kadar satir cevrilemezse "baglanti yok" uyarisi
   cache_size: 2000          # bellekteki ceviri onbellegi
   disk_cache: true          # cache/translations.sqlite (oturumlar arasi)
+  loose_cache: true         # OCR'in farkli okudugu ayni satir (I/l/1, O/0, bosluk) onbellekten gelir
   prices:                   # USD / 1M token (ucretli katman, 2026-11-12)
     gemini-3.5-flash-lite: {input: 0.30, output: 2.50}
     gemini-3.1-flash-lite: {input: 0.25, output: 1.50}

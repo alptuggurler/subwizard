@@ -7,6 +7,7 @@ and the paint path does no OCR, I/O or locking beyond reading the latest-only sl
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 from PySide6.QtCore import QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
@@ -58,7 +59,7 @@ HISTORY_SOURCE = QColor(170, 170, 170)
 ANIMATION_TICK_MS = 16  # repaint period while a subtitle fades or glides
 GLIDE_TAU_S = 0.06  # the subtitle box eases to a new height instead of jumping
 GLIDE_DONE_PX = 0.5
-STACK_GAP_EM = 0.25  # gap between the current line and the older one above it
+STACK_GAP_EM = 0.12  # gap between the current line and the older one above it
 TOAST_MS = 1800  # "Çeviri açık / kapalı" after the pause key
 TOAST_FONT_PX = 22
 TOAST_PADDING = 14
@@ -146,7 +147,7 @@ class VideoView(QWidget):
             self._stack.show(view, now)
 
     def _line_pixmap(self, view, style: Style, dpr: float, used: dict) -> QPixmap:  # noqa: ANN001
-        key = (view.line_id, view.text, style, dpr)
+        key = (view.line_id, view.text, view.speaker, view.fallback, view.source, style, dpr)
         pixmap = self._pixmaps.get(key)
         if pixmap is None:  # rendered only when text, style or size change
             pixmap = render_subtitle(view, style, dpr, t("subtitle.fallback"))
@@ -318,7 +319,10 @@ class VideoView(QWidget):
             if position != "top" and top_edge is not None:
                 gap = style.font_px * STACK_GAP_EM
                 for item in reversed(older):  # the newest older line is nearest
-                    pixmap = self._line_pixmap(item.view, style, dpr, used)
+                    # Text only: an older line must not take the room of a full box.
+                    compact = replace(item.view, speaker=None, fallback=False)
+                    pixmap = self._line_pixmap(compact, replace(style, show_source=False),
+                                               dpr, used)  # fmt: skip
                     w = pixmap.width() / dpr * item.scale
                     h = pixmap.height() / dpr * item.scale
                     top_edge -= gap + h

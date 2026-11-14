@@ -228,9 +228,9 @@ def test_runner_delivers_frames_and_measures_them():
     assert frames == list(range(7))
     assert snap.counter(M.SOURCE_DROPPED) == 3
     assert snap.counter(M.SOURCE_REPEATED) == 1
-    # The repeated frame is not one of the game's own frames: 6 of the 7 count.
-    game, source = snap.rate(M.SOURCE_GAME_FPS).long, snap.rate(M.SOURCE_FPS).long
-    assert 0 < game < source
+    # Changed frames are counted as the game's own frames. (Rates of a run that lasts
+    # microseconds cannot be compared with each other; the count is checked below.)
+    assert snap.rate(M.SOURCE_GAME_FPS).long > 0
     assert snap.gauge(M.SOURCE_REQUESTED) == WANT
     assert [s for s, _ in states] == [
         SourceState.CONNECTING, SourceState.RUNNING, SourceState.ENDED
@@ -289,3 +289,18 @@ def test_latest_slot_keeps_only_the_newest():
     threading.Thread(target=lambda: (slot.put(_frame(9, 9.0)), done.set())).start()
     done.wait(1)
     assert slot.get().index == 9
+
+
+def test_only_changed_frames_count_as_game_frames():
+    """A 30 FPS game arrives as 60 Hz with every frame doubled."""
+    step = 1 / 60
+    script = [_frame(i, i * step, value=i // 2) for i in range(8)]  # each picture twice
+    metrics, slot = MetricsHub(), LatestSlot()
+    runner = SourceRunner(ScriptedSource([script]), slot, metrics, on_frame=lambda: None,
+                          on_state=lambda state, key: None, reconnect_initial_s=0.01,
+                          reconnect_max_s=0.04, max_read_failures=2)  # fmt: skip
+    runner.start()
+    runner.join(5)
+    assert len(metrics._events[M.SOURCE_FPS]) == 8
+    assert len(metrics._events[M.SOURCE_GAME_FPS]) == 4
+    assert metrics.snapshot().counter(M.SOURCE_REPEATED) == 4

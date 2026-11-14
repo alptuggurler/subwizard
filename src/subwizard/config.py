@@ -233,6 +233,9 @@ class TranslatorConfig(_Section):
     offline_after: int = Field(3, ge=1)  # this many failed lines in a row = "no connection" notice
     cache_size: int = Field(2000, ge=0)  # in-memory LRU entries
     disk_cache: bool = True  # cache/translations.sqlite, kept across sessions
+    # A line that differs from a cached one only by what OCR mixes up (I/l/1, O/0,
+    # spacing, punctuation) uses the cached translation instead of a new request.
+    loose_cache: bool = True
     prices: dict[str, ModelPrice] = Field(default_factory=_default_prices)
 
 

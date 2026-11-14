@@ -182,3 +182,10 @@ metinleri) ve satırları sunucuya gönderen "ortak havuz" alınmaz.
 | 5 | Google Cloud yedeği (3) + yerel model (5g) | Yedek zinciri güvenilir olur |
 | 6 | 5f ekranı çevir, terim önerileri (2) | Yeni özellikler; veri biriktikçe |
 | — | Typewriter debounce | Yapılmayacak; ölçüm aksini gösterirse yeniden bakılır |
+
+## Durum (2026-11-15)
+
+Bitti (yalnızca Mac'te test edildi): 5a altyazı yığını + yumuşak geçiş, 5b ekranda kalma süresi,
+5c noktalamada beklemeden gönderme, 5d OCR çöp temizliği, 1 yakın eşleşmeli önbellek (rapidfuzz'sız).
+Kalan: web sayfasında yığın/geçiş, 5e çok konuşmacılı blok, Google Cloud yedeği + yerel model,
+5f ekranı çevir, terim önerileri, adım 0 ölçümü (ücretli oturumdan sonra).

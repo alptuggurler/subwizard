@@ -98,3 +98,55 @@ def test_long_translation_stays_on_screen_longer():
     fixed = SubtitleBoard(1500)  # ms_per_char 0: the old fixed time
     _shown(fixed, "x" * 400)
     assert fixed.tick(11.6)
+
+
+# --- the same line, read a little differently, comes from the cache -------------------
+def test_loose_key_folds_ocr_mixups_but_not_meaning():
+    from subwizard.translator.cache import loose_key
+
+    same = ["I'll kill him, Lucia.", "l'll kill him, Lucia", "I'II kiII him,Lucia.", "1'll kill him , Lucia."]
+    assert len({loose_key(text, "tr") for text in same}) == 1
+    different = [
+        ("I can go there now.", "I can't go there now."),  # a missing letter is another word
+        ("You have 5 minutes left.", "You have 6 minutes left."),
+        ("You did it all alone.", "You did it all alone?"),
+        ("We need to leave now.", "We need to live now."),
+    ]
+    for a, b in different:
+        assert loose_key(a, "tr") != loose_key(b, "tr"), (a, b)
+    assert loose_key("I'll kill him, Lucia.", "tr") != loose_key("I'll kill him, Lucia.", "tr@gta6")
+    assert loose_key("I'll.", "tr") is None  # too short to match loosely
+
+
+def test_a_reread_line_is_not_sent_again(tmp_path):
+    from subwizard.config import load_config
+    from subwizard.core.metrics import M, MetricsHub
+    from subwizard.translator.base import TranslationRequest
+    from subwizard.translator.cache import TranslationCache
+    from subwizard.translator.service import TranslationService
+    from tests.test_translation_core import FakeEngine
+
+    def service(loose=True):
+        config = load_config(None, {"translator": {"loose_cache": loose}})
+        engine, metrics = FakeEngine(), MetricsHub()
+        cache = TranslationCache(100, tmp_path / "cache.sqlite")
+        return TranslationService(config, metrics, engine, None, cache), engine, metrics
+
+    svc, engine, _ = service()
+    first = svc.translate(TranslationRequest("I'll kill him, Lucia."))
+    svc.close()
+    svc, engine, metrics = service()  # another session: the alias is on disk
+    again = svc.translate(TranslationRequest("l'll kiII him, Lucia"))
+    assert (again.text, again.cached) == (first.text, True) and engine.calls == []
+    assert metrics.snapshot().counter(M.TR_CACHE_HITS) == 1
+    other = svc.translate(TranslationRequest("I can't kill him, Lucia."))
+    assert not other.cached and len(engine.calls) == 1
+    forced = svc.translate(TranslationRequest("l'll kiII him, Lucia"), force=True)  # F7
+    assert not forced.cached
+    svc.cache.clear()
+    assert not svc.translate(TranslationRequest("l'll kiII him, Lucia")).cached
+    svc.close()
+    svc, engine, _ = service(loose=False)
+    svc.translate(TranslationRequest("Where did you park the car?"))
+    assert not svc.translate(TranslationRequest("Where did you park the car")).cached
+    svc.close()
