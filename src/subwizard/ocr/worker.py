@@ -84,7 +84,9 @@ class OCRWorker(threading.Thread):
         self._detector = ChangeDetector(
             ocr.change_threshold, ocr.change_thumb_width,
             ocr.change_bright_min if ocr.change_mode == "bright" else None,
+            ocr.change_cell_threshold or None,
         )  # fmt: skip
+        self._skip_run = 0  # skipped ticks in a row (max_skips)
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -138,12 +140,16 @@ class OCRWorker(threading.Thread):
         forced = self._force.is_set()
         self._force.clear()
         self._ticks += 1
-        if not forced and not self._detector.changed(region):
+        changed = self._detector.changed(region)  # always: keeps its thumbnail current
+        max_skips = cfg.ocr.max_skips
+        if not forced and not changed and not (max_skips and self._skip_run >= max_skips):
+            self._skip_run += 1
             self._skips += 1
             m.incr(M.OCR_SKIPPED)
             self._summarise()
             self._emit(frame, region, None, skipped=True, ms=0.0)
             return
+        self._skip_run = 0
 
         with timing.Stopwatch() as sw:
             prep_cfg = cfg.ocr.preprocess.get(engine.name) or next(iter(cfg.ocr.preprocess.values()))

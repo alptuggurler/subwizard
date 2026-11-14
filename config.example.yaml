@@ -78,6 +78,8 @@ ocr:
   min_confidence: 0.6       # bu guvenin altindaki satirlar atilir
   change_threshold: 2.0     # alan bundan az degistiyse OCR atlanir (0-255 ortalama fark)
   change_thumb_width: 160
+  change_cell_threshold: 6.0  # alanin kucuk bir parcasi bu kadar degisirse de okunur (kisa satirlar; 0 = kapali)
+  max_skips: 8              # art arda bu kadar atlanan adimdan sonra yine de okunur (0 = hic)
   change_mode: bright       # bright: yalnizca parlak (yazi) pikselleri karsilastir; gray: tum alan
   change_bright_min: 180    # "bright" modunda yazi sayilan en dusuk parlaklik (0-255)
   det_max_side: 960         # metin bulma girdisi bu boyuta kucultulur (hiz icin)

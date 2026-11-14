@@ -132,6 +132,12 @@ class OCRConfig(_Section):
     min_confidence: float = Field(0.6, ge=0, le=1)  # lines below this are dropped
     change_threshold: float = Field(2.0, ge=0)  # mean abs diff (0-255) below which OCR is skipped
     change_thumb_width: int = Field(160, ge=16)
+    # A small part of the region (one cell of the thumbnail) changing this much is a
+    # change too: a short line in a wide region hardly moves the whole-region mean. 0 = off.
+    change_cell_threshold: float = Field(6.0, ge=0)
+    # After this many skipped ticks in a row OCR runs anyway (a change too small to
+    # notice, e.g. one letter). 0 = never forced.
+    max_skips: int = Field(8, ge=0)
     # "gray": compare the whole region (SPEC 3.3). "bright": compare only pixels at least
     # `change_bright_min` bright, i.e. where subtitle letters are; a moving game scene
     # behind the subtitle then no longer counts as a change (measured in M2).

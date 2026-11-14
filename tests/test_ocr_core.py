@@ -126,6 +126,44 @@ def test_bright_mode_ignores_a_moving_scene_behind_the_subtitle():
     assert bright.changed(_scene(90, None))  # subtitle disappeared
 
 
+def _wide(text_cols: tuple[int, int] | None) -> np.ndarray:
+    """A wide, dark 1920x540 region with an optional short white "subtitle"."""
+    image = np.full((540, 1920, 3), 70, np.uint8)
+    if text_cols is not None:
+        image[400:430, text_cols[0]:text_cols[1]] = 245
+    return image
+
+
+def test_a_short_line_in_a_wide_region_is_a_change():
+    # Measured miss: "Get down!" in a 1920x540 region moved the whole-region mean ~0.6.
+    whole = ChangeDetector(2.0, 160, bright_min=180)
+    cells = ChangeDetector(2.0, 160, bright_min=180, cell_threshold=6.0)
+    for det in (whole, cells):
+        det.changed(_wide(None))
+    assert not whole.changed(_wide((880, 1040)))
+    assert cells.changed(_wide((880, 1040)))  # appeared
+    assert cells.changed(_wide((900, 1020)))  # another short line
+    assert not cells.changed(_wide((900, 1020)))  # unchanged
+    assert cells.changed(_wide(None))  # gone
+
+
+def test_a_moving_dark_scene_still_skips_with_cells():
+    det = ChangeDetector(2.0, 64, bright_min=180, cell_threshold=6.0)
+    det.changed(_scene(0, (40, 200)))
+    assert not det.changed(_scene(30, (40, 200)))
+
+
+def test_worker_reads_anyway_after_max_skips():
+    engine, feed, ticks = FakeEngine(), FrameFeed(), []
+    worker, metrics, _ = _worker(engine, feed, ticks, [], max_skips=3)
+    for _ in range(9):
+        feed.show(_frame())  # never changes
+        worker._tick(engine)
+    # read, 3 skipped, read, 3 skipped, read
+    assert [t.skipped for t in ticks] == [False, True, True, True, False, True, True, True, False]
+    assert engine.calls == 3
+
+
 def test_change_mode_reaches_the_worker():
     cfg = load_config(None, {"ocr": {"change_mode": "gray"}})
     worker = OCRWorker(cfg, MetricsHub(), lambda: None, engine_factory=lambda c: None,
