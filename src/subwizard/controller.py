@@ -532,6 +532,12 @@ class AppController(QObject):
         self.config.translator.context_lines = lines
         self._save(debounce=True)  # read per request: no restart needed
 
+    def set_daily_limit(self, usd: float) -> None:
+        """0 = no limit. Read on every request: applies at once, no restart."""
+        self.config.translator.daily_limit_usd = max(0.0, usd)
+        self._save()
+        self.settingsChanged.emit()
+
     def set_fallback_enabled(self, enabled: bool) -> None:
         self.config.translator.fallback = enabled
         self._translation_changed()

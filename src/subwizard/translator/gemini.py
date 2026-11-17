@@ -220,9 +220,10 @@ class GeminiTranslator(BaseTranslator):
         output_tokens = (getattr(usage, "candidates_token_count", None) or 0) + (
             getattr(usage, "thoughts_token_count", None) or 0
         )
+        cached_tokens = getattr(usage, "cached_content_token_count", None) or 0
         return TranslationResult(
             clean_reply(text), self.name, latency_ms,
-            input_tokens=input_tokens, output_tokens=output_tokens,
+            input_tokens=input_tokens, output_tokens=output_tokens, cached_tokens=cached_tokens,
         )  # fmt: skip
 
 

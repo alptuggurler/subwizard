@@ -6,7 +6,8 @@ several (comma separated) and rotate on quota errors.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QLocale, Qt, QUrl
+from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
@@ -41,6 +42,22 @@ COMBO_WIDTH = 260
 KEY_FIELD_WIDTH = 240
 CONTEXT_RANGE = (0, 10)
 API_KEY_URL = "https://aistudio.google.com/apikey"
+
+
+LIMIT_FIELD_WIDTH = 120
+
+
+def money(usd: float) -> str:
+    """Small amounts keep four decimals ($0.0012), larger ones two ($1.25)."""
+    return f"{usd:.4f}" if usd < 1 else f"{usd:.2f}"
+
+
+def spend_text(snap: Snapshot, limit: float) -> str:
+    """Today / all time / this session, from the ledger's live gauges."""
+    limit_part = t("translate.spend.limit_part", limit=f"{limit:.2f}") if limit > 0 else ""
+    return t("translate.spend.value", today=money(snap.gauge(M.TR_COST_TODAY) or 0.0),
+             limit=limit_part, total=money(snap.gauge(M.TR_COST_TOTAL) or 0.0),
+             session=money(snap.gauge(M.TR_COST) or 0.0))  # fmt: skip
 
 
 class TranslatePage(BasePage):
@@ -159,9 +176,24 @@ class TranslatePage(BasePage):
         self._clear_cache.clicked.connect(self._on_clear_cache)
         self._cache_row = SettingRow(FluentIcon.SAVE, self._clear_cache)
         self._usage_row = SettingRow(FluentIcon.SPEED_HIGH, self._cache_label)
-        self.body.addWidget(self._cache_row)
-        self.body.addWidget(self._usage_row)
-        self.advanced_section = [self.key_list, self._mode_row, self._tts_row, self._context_row, self._cache_row, self._usage_row]
+
+        # --- spending: live numbers and the daily limit (applies on Enter / leaving)
+        self._spend_label = BodyLabel()
+        self._spend_row = SettingRow(FluentIcon.SHOPPING_CART, self._spend_label)
+        self._limit = LineEdit()
+        self._limit.setFixedWidth(LIMIT_FIELD_WIDTH)
+        validator = QDoubleValidator(0.0, 1000.0, 2, self._limit)
+        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        validator.setLocale(QLocale.c())  # "0.50" on every system (a Turkish one would want "0,50")
+        self._limit.setValidator(validator)
+        self._limit.editingFinished.connect(self._on_limit)
+        self._limit_row = SettingRow(FluentIcon.STOP_WATCH, self._limit)
+
+        for row in (self._spend_row, self._limit_row, self._cache_row, self._usage_row):
+            self.body.addWidget(row)
+        self.advanced_section = [self.key_list, self._mode_row, self._tts_row, self._context_row,
+                                 self._spend_row, self._limit_row, self._cache_row,
+                                 self._usage_row]  # fmt: skip
 
         controller.settingsChanged.connect(self._load)
         controller.translationTested.connect(self._on_tested)
@@ -233,6 +265,15 @@ class TranslatePage(BasePage):
     def _on_clear_cache(self) -> None:
         self.controller.clear_translation_cache()
 
+    def _on_limit(self) -> None:
+        text = self._limit.text().strip().replace(",", ".")
+        try:
+            usd = float(text) if text else 0.0
+        except ValueError:
+            return
+        if usd != self.controller.config.translator.daily_limit_usd:
+            self.controller.set_daily_limit(usd)
+
     def _on_metrics(self, snap: Snapshot) -> None:
         if not self.isVisible():
             return
@@ -240,6 +281,7 @@ class TranslatePage(BasePage):
         self._cache_label.setText(t(
             "translate.usage.value", requests=snap.counter(M.TR_REQUESTS),
             hits=snap.counter(M.TR_CACHE_HITS), cost=f"{cost:.4f}"))  # fmt: skip
+        self._spend_label.setText(spend_text(snap, self.controller.config.translator.daily_limit_usd))
         self.refresh_key_list()  # a key may have started or finished resting
 
     def _load(self) -> None:
@@ -273,6 +315,10 @@ class TranslatePage(BasePage):
         self._fallback.blockSignals(True)
         self._fallback.setChecked(tr.fallback)
         self._fallback.blockSignals(False)
+        if not self._limit.hasFocus():  # never overwrite what is being typed
+            self._limit.setText(f"{tr.daily_limit_usd:.2f}" if tr.daily_limit_usd else "")
+        self._limit_row.setEnabled(gemini)
+        self._spend_label.setText(spend_text(self.controller.snapshot(), tr.daily_limit_usd))
         self._refresh_texts()
 
     def _refresh_texts(self) -> None:
@@ -331,6 +377,9 @@ class TranslatePage(BasePage):
         self._test_button.setText(t("translate.test.button"))
         self._clear_cache.setText(t("translate.cache.clear"))
         self._usage_row.set_texts(t("translate.usage"), t("translate.usage.desc"))
+        self._spend_row.set_texts(t("translate.spend"), t("translate.spend.desc"))
+        self._limit_row.set_texts(t("translate.limit"), t("translate.limit.desc"))
+        self._limit.setPlaceholderText(t("translate.limit.placeholder"))
         if not self._cache_label.text():
             self._cache_label.setText(t("translate.usage.value", requests=0, hits=0, cost="0.0000"))
         self._refresh_texts()

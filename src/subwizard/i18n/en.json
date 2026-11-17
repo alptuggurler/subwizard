@@ -495,5 +495,14 @@
   "appearance.smooth": "Smooth transitions",
   "appearance.smooth.desc": "Subtitles do not pop: they fade in and out and glide to a new height.",
   "appearance.previous_line": "Keep the previous line",
-  "appearance.previous_line.desc": "In fast dialogue the previous translation stays above the new one for a moment, smaller and dimmed."
+  "appearance.previous_line.desc": "In fast dialogue the previous translation stays above the new one for a moment, smaller and dimmed.",
+  "translate.limit": "Daily spending limit",
+  "translate.limit.desc": "Once today's Gemini cost reaches this amount (USD), lines are translated by the fallback; it resets at midnight. 0 = no limit. Applies as soon as you press Enter.",
+  "translate.limit.placeholder": "0 = no limit",
+  "translate.spend": "Gemini spending",
+  "translate.spend.desc": "Tokens Gemini reports with each answer × the list price; updated after every translation and kept across sessions. Google's bill can differ slightly (tax, rounding).",
+  "translate.spend.value": "Today ${today}{limit} · All time ${total} · This session ${session}",
+  "translate.spend.limit_part": " / ${limit}",
+  "home.translator.limit": "The daily spending limit (${limit}) is reached; lines are translated by the fallback today. You can change the limit on the Translation page.",
+  "diag.tr_spend": "Spent today / all time"
 }

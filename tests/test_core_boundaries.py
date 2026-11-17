@@ -33,6 +33,7 @@ QT_FREE_MODULES = [
     "subwizard.pipeline.corpus",
     "subwizard.pipeline.subtitle_stack",
     "subwizard.translator.cache",
+    "subwizard.translator.spend",
     "subwizard.translator.deep",
     "subwizard.translator.echo",
     "subwizard.translator.gemini",

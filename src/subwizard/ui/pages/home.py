@@ -42,6 +42,8 @@ def translator_state(c: AppController) -> tuple[str, Grade | None]:
     """One line for the Home card: which engine will translate, and is it set up."""
     tr = c.config.translator
     snapshot = c.snapshot()
+    if snapshot.gauge(M.TR_LIMIT) and tr.daily_limit_usd > 0:  # the user's own choice
+        return t("home.translator.limit", limit=f"{tr.daily_limit_usd:.2f}"), "warn"
     if snapshot.gauge(M.TR_QUOTA):  # checked first: it is the more specific reason
         if snapshot.gauge(M.TR_OFFLINE):
             return t("home.translator.quota_stopped"), "bad"

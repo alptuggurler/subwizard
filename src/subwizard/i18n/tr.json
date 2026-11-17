@@ -495,5 +495,14 @@
   "appearance.smooth": "Yumuşak geçiş",
   "appearance.smooth.desc": "Altyazı birden çıkıp kaybolmaz: yumuşakça belirir, kaybolur ve yeni yüksekliğine kayarak oturur.",
   "appearance.previous_line": "Önceki satırı göster",
-  "appearance.previous_line.desc": "Hızlı konuşmalarda bir önceki çeviri, yenisinin üstünde küçük ve soluk olarak kısa süre kalır."
+  "appearance.previous_line.desc": "Hızlı konuşmalarda bir önceki çeviri, yenisinin üstünde küçük ve soluk olarak kısa süre kalır.",
+  "translate.limit": "Günlük harcama sınırı",
+  "translate.limit.desc": "Bugünkü Gemini harcaması bu tutara (USD) ulaşınca satırlar yedek çevirmenle çevrilir; gece yarısı sıfırlanır. 0 = sınırsız. Enter'a basınca hemen uygulanır.",
+  "translate.limit.placeholder": "0 = sınırsız",
+  "translate.spend": "Gemini harcaması",
+  "translate.spend.desc": "Gemini'nin her yanıtta bildirdiği token sayısı × liste fiyatı; her çeviriden sonra güncellenir, oturumlar arasında saklanır. Google'ın faturası vergi ve yuvarlama yüzünden biraz farklı olabilir.",
+  "translate.spend.value": "Bugün ${today}{limit} · Toplam ${total} · Bu oturum ${session}",
+  "translate.spend.limit_part": " / ${limit}",
+  "home.translator.limit": "Günlük harcama sınırına ulaşıldı (${limit}); bugün satırlar yedek çevirmenle çevriliyor. Sınırı Çeviri sayfasından değiştirebilirsin.",
+  "diag.tr_spend": "Bugün / toplam harcama"
 }

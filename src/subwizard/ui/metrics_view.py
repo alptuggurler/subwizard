@@ -189,6 +189,10 @@ def _translation_rows(snap: Snapshot, config: AppConfig) -> list[Row]:
     rows.append(Row(sec, "diag.tr_cost",
                     f"${cost:.4f}  (~${per_hour or 0:.3f}/h)" if cost is not None else DASH,
                     compact=True))  # fmt: skip
+    today, total = snap.gauge(M.TR_COST_TODAY), snap.gauge(M.TR_COST_TOTAL)
+    rows.append(Row(sec, "diag.tr_spend",
+                    f"${today:.4f} / ${total or 0:.4f}" if today is not None else DASH,
+                    "warn" if snap.gauge(M.TR_LIMIT) else None, compact=True))  # fmt: skip
     text = snap.gauge(M.TR_TEXT)
     if text and len(text) > OCR_TEXT_MAX_CHARS:
         text = text[: OCR_TEXT_MAX_CHARS - 1] + "…"

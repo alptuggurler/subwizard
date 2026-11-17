@@ -25,6 +25,7 @@ from subwizard.profiles import DEFAULT, GameProfile, glossary_violations, load_p
 from subwizard.ocr.vision import HANDOFF
 from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key, loose_key
 from subwizard.translator.prompt import system_prompt
+from subwizard.translator.spend import SpendLedger
 from subwizard.utils import timing
 from subwizard.utils.paths import user_data_dir
 
@@ -63,6 +64,7 @@ class TranslationService:
         cache: TranslationCache,
         clock=timing.now,  # noqa: ANN001
         profile: GameProfile | None = None,
+        ledger: SpendLedger | None = None,
     ) -> None:
         self._config = config
         self.profile = profile or GameProfile()
@@ -75,6 +77,24 @@ class TranslationService:
         self._lock = threading.Lock()  # usage is read by the UI thread
         self.usage = Usage()
         self._quota = False  # Gemini is refusing for quota right now
+        self.ledger = ledger or SpendLedger(None)
+        self._limited = False  # today's cost reached translator.daily_limit_usd
+        self._publish()  # today's / all-time numbers are known before the first request
+
+    def at_limit(self) -> bool:
+        """Today's cost reached the daily limit (read live: the limit can change any time,
+        and a new day starts at zero)."""
+        limit = self._config.translator.daily_limit_usd
+        reached = limit > 0 and self.ledger.today().cost_usd >= limit
+        if reached != self._limited:
+            self._limited = reached
+            self._metrics.set_gauge(M.TR_LIMIT, reached)
+            if reached:
+                log.warning("Günlük harcama sınırına ulaşıldı ($%.4f / $%.2f); Gemini bugün "
+                            "kullanılmıyor.", self.ledger.today().cost_usd, limit)  # fmt: skip
+            else:
+                log.info("Günlük harcama sınırının altında; Gemini yeniden kullanılıyor.")
+        return reached
 
     def _set_quota(self, on: bool) -> None:
         if on != self._quota:
@@ -87,12 +107,15 @@ class TranslationService:
         price = self._config.translator.prices.get(self._config.translator.model)
         if price is None:
             return 0.0
-        return (result.input_tokens * price.input
+        cached = min(result.cached_tokens, result.input_tokens)
+        return ((result.input_tokens - cached) * price.input + cached * price.cached()
                 + result.output_tokens * price.output) / TOKENS_PER_PRICE_UNIT  # fmt: skip
 
     def _account(self, result: TranslationResult) -> TranslationResult:
-        """Tokens and cost of one Gemini answer into the session usage and metrics."""
+        """Tokens and cost of one Gemini answer into the session usage, the day's
+        ledger and metrics."""
         cost = self._price(result)
+        self.ledger.add(cost, result.input_tokens, result.output_tokens, result.cached_tokens)
         with self._lock:
             self.usage.input_tokens += result.input_tokens
             self.usage.output_tokens += result.output_tokens
@@ -136,7 +159,11 @@ class TranslationService:
 
         result: TranslationResult | None = None
         reasons: list[str] = []  # why each engine failed, for the "Test" button
-        if self.primary is not None:
+        primary = self.primary
+        if primary is not None and primary.name == "gemini" and self.at_limit():
+            primary = None
+            reasons.append("gemini: daily_limit")
+        if primary is not None:
             with self._lock:
                 self.usage.requests += 1
             m.incr(M.TR_REQUESTS)
@@ -195,6 +222,8 @@ class TranslationService:
             cost = self.usage.cost_usd
         elapsed = self._clock() - self._started
         self._metrics.set_gauge(M.TR_COST, cost)
+        self._metrics.set_gauge(M.TR_COST_TODAY, self.ledger.today().cost_usd)
+        self._metrics.set_gauge(M.TR_COST_TOTAL, self.ledger.total().cost_usd)
         if elapsed > 0:
             self._metrics.set_gauge(M.TR_COST_PER_HOUR, cost / elapsed * SECONDS_PER_HOUR)
 
@@ -207,6 +236,7 @@ class TranslationService:
             if engine is not None:
                 engine.close()
         self.cache.close()
+        self.ledger.close()
 
 
 def cache_path() -> str:
@@ -260,4 +290,11 @@ def build_service(config: AppConfig, metrics: MetricsHub) -> TranslationService:
     primary, fallback, _note = build_engines(config, profile)
     # Test mode keeps its echoes out of the real cache (and real translations out of it).
     cache = TranslationCache(0) if config.translator.engine == "test" else open_cache(config)
-    return TranslationService(config, metrics, primary, fallback, cache, profile=profile)
+    return TranslationService(config, metrics, primary, fallback, cache, profile=profile,
+                              ledger=SpendLedger(spend_path()))  # fmt: skip
+
+
+def spend_path():  # noqa: ANN201
+    from pathlib import Path
+
+    return Path(user_data_dir() / "usage.sqlite")

@@ -63,6 +63,9 @@ class M:
     TR_TOKENS_OUT = "tr.tokens_out"
     TR_COST = "tr.cost_usd"  # gauge: session total
     TR_COST_PER_HOUR = "tr.cost_per_hour"  # gauge
+    TR_COST_TODAY = "tr.cost_today"  # gauge: today's Gemini cost, all sessions (SpendLedger)
+    TR_COST_TOTAL = "tr.cost_total"  # gauge: all-time Gemini cost
+    TR_LIMIT = "tr.limit"  # gauge: True while today's cost is at the daily limit
     TR_ENGINE = "tr.engine"  # gauge: engine of the last translation
     TR_TEXT = "tr.text"  # gauge: last translation
     TR_OFFLINE = "tr.offline"  # gauge: True after translator.offline_after failures in a row

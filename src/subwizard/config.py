@@ -202,12 +202,18 @@ class SubtitleConfig(_Section):
 class ModelPrice(_Section):
     input: float = Field(ge=0)  # USD per 1M tokens
     output: float = Field(ge=0)  # USD per 1M tokens, thinking tokens included
+    # Input tokens Google serves from its implicit cache (the repeated system prompt).
+    # None = a tenth of `input`, Google's usual cache discount.
+    cached_input: float | None = Field(None, ge=0)
+
+    def cached(self) -> float:
+        return self.input / 10 if self.cached_input is None else self.cached_input
 
 
 def _default_prices() -> dict[str, ModelPrice]:
     # Paid tier, standard, checked against ai.google.dev pricing on 2026-11-12.
     return {
-        "gemini-3.5-flash-lite": ModelPrice(input=0.30, output=2.50),
+        "gemini-3.5-flash-lite": ModelPrice(input=0.30, output=2.50, cached_input=0.03),
         "gemini-3.1-flash-lite": ModelPrice(input=0.25, output=1.50),
         "gemini-3.6-flash": ModelPrice(input=0.75, output=3.75),
     }
@@ -246,6 +252,9 @@ class TranslatorConfig(_Section):
     # spacing, punctuation) uses the cached translation instead of a new request.
     loose_cache: bool = True
     prices: dict[str, ModelPrice] = Field(default_factory=_default_prices)
+    # Gemini stops for the day once today's cost reaches this (USD; the fallback
+    # translates instead). 0 = no limit.
+    daily_limit_usd: float = Field(0.0, ge=0)
 
 
 class OverlayConfig(_Section):
