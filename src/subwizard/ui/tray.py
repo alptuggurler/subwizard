@@ -25,7 +25,7 @@ STATUS_MAX_CHARS = 60  # long notices (quota, offline) are cut in the menu
 
 SOURCE_KINDS = ("capture", "screen", "file")
 DISPLAY_MODES = ("window", "web", "both")
-ENGINES = ("gemini", "deep", "test")
+ENGINES = ("gemini", "deep", "ollama", "test")
 READ_MODES = ("ocr", "vision")
 POSITIONS = ("above", "replace", "bottom", "top")
 TTS_MODES = ("off", "translation", "source")

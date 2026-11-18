@@ -554,6 +554,19 @@ class AppController(QObject):
         self.config.translator.fallback = enabled
         self._translation_changed()
 
+    def set_local_fallback(self, enabled: bool) -> None:
+        if enabled == self.config.translator.local_fallback:
+            return
+        self.config.translator.local_fallback = enabled
+        self._translation_changed()
+
+    def set_ollama_model(self, model: str) -> None:
+        model = model.strip()
+        if not model or model == self.config.translator.ollama_model:
+            return
+        self.config.translator.ollama_model = model
+        self._translation_changed()
+
     def api_key_status(self) -> tuple[int, str]:
         """(number of keys, where from: "env" | "keyring" | ""). Cached: the credential
         store is slow to ask and pages ask on every refresh."""

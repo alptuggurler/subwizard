@@ -8,6 +8,8 @@ ilerler (SPEC 6); her biri bitince kabul maddeleri doğrulanır ve commit atıl�
 - Windows'ta PS5 + capture card + Gemini ile gerçek oturumlar yapıldı. Yeni özellikler çoğunlukla yalnızca
   macOS'ta test edilir; Windows'ta denenmeyeni commit mesajında ve raporda açıkça belirt.
 - Sürüm etiketi (v0.1.0) Windows testleri bitince atılır.
+- Yerel model: `translator/ollama.py` (`translator.engine: ollama` ya da Gemini'nin ilk yedeği
+  `translator.local_fallback`). Gerçek Ollama ile hiç denenmedi (testler sahte HTTP ile).
 
 ## Komutlar
 ```

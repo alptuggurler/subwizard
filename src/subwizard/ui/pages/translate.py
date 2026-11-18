@@ -33,10 +33,11 @@ from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.widgets.notice import Notice
 from subwizard.ui.widgets.value_slider import ValueSlider
 
-ENGINES = ("gemini", "deep", "test")
+ENGINES = ("gemini", "deep", "ollama", "test")
 MODES = ("ocr", "vision")
 TTS_MODES = ("off", "translation", "source")
 TTS_ENGINES = ("auto", "edge")
+LOCAL_MODEL_WIDTH = 200
 TTS_COMBO_WIDTH = 220  # system voice (SAPI / say) or Edge online neural voices
 COMBO_WIDTH = 260
 KEY_FIELD_WIDTH = 240
@@ -137,8 +138,24 @@ class TranslatePage(BasePage):
         self._fallback.checkedChanged.connect(controller.set_fallback_enabled)
         self._fallback_row = SettingRow(FluentIcon.SYNC, self._fallback)
 
+        # Local model (Ollama): its name, and whether it is Gemini's first fallback.
+        self._local_model = LineEdit()
+        self._local_model.setFixedWidth(LOCAL_MODEL_WIDTH)
+        self._local_model.editingFinished.connect(
+            lambda: controller.set_ollama_model(self._local_model.text()))
+        self._local_fallback = SwitchButton()
+        self._local_fallback.setOnText("")
+        self._local_fallback.setOffText("")
+        self._local_fallback.checkedChanged.connect(controller.set_local_fallback)
+        local_control = QWidget()
+        local_layout = QHBoxLayout(local_control)
+        local_layout.setContentsMargins(0, 0, 0, 0)
+        local_layout.addWidget(self._local_model)
+        local_layout.addWidget(self._local_fallback)
+        self._local_row = SettingRow(FluentIcon.IOT, local_control)
+
         for row in (self._engine_row, self._model_row, self._key_row, self.key_list,
-                    self._context_row, self._fallback_row, self._mode_row,
+                    self._context_row, self._fallback_row, self._local_row, self._mode_row,
                     self._tts_row):  # fmt: skip
             self.body.addWidget(row)
 
@@ -192,6 +209,7 @@ class TranslatePage(BasePage):
         for row in (self._spend_row, self._limit_row, self._cache_row, self._usage_row):
             self.body.addWidget(row)
         self.advanced_section = [self.key_list, self._mode_row, self._tts_row, self._context_row,
+                                 self._local_row,
                                  self._spend_row, self._limit_row, self._cache_row,
                                  self._usage_row]  # fmt: skip
 
@@ -305,6 +323,14 @@ class TranslatePage(BasePage):
         self._mode.setCurrentIndex(MODES.index(tr.mode))
         self._mode.blockSignals(False)
         self._mode_row.setEnabled(gemini)
+        self._local_model.blockSignals(True)
+        self._local_model.setText(tr.ollama_model)
+        self._local_model.blockSignals(False)
+        self._local_fallback.blockSignals(True)
+        self._local_fallback.setChecked(tr.local_fallback)
+        self._local_fallback.blockSignals(False)
+        self._local_fallback.setEnabled(gemini)  # as the engine it is not a fallback
+        self._local_row.setEnabled(gemini or tr.engine == "ollama")
         self._tts.blockSignals(True)
         self._tts.setCurrentIndex(TTS_MODES.index(self.controller.config.tts.mode))
         self._tts.blockSignals(False)
@@ -373,6 +399,9 @@ class TranslatePage(BasePage):
         self._key_link.setText(t("translate.keys.how"))
         self._context_row.set_texts(t("translate.context"), t("translate.context.desc"))
         self._fallback_row.set_texts(t("translate.fallback"), t("translate.fallback.desc"))
+        self._local_row.set_texts(t("translate.local"), t("translate.local.desc"))
+        self._local_model.setPlaceholderText("translategemma:4b")
+        self._local_fallback.setToolTip(t("translate.local.fallback"))
         self._test_title.setText(t("translate.test"))
         self._test_button.setText(t("translate.test.button"))
         self._clear_cache.setText(t("translate.cache.clear"))

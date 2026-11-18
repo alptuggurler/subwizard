@@ -54,6 +54,8 @@ def translator_state(c: AppController) -> tuple[str, Grade | None]:
         return t("home.translator.test"), "warn"
     if tr.engine == "deep":
         return t("home.translator.deep"), "ok"
+    if tr.engine == "ollama":
+        return t("home.translator.ollama", model=tr.ollama_model), "ok"
     keys, _source = c.api_key_status()
     if keys:
         return t("home.translator.gemini", model=tr.model, keys=keys), "ok"

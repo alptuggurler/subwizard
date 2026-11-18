@@ -222,7 +222,8 @@ def _default_prices() -> dict[str, ModelPrice]:
 
 class TranslatorConfig(_Section):
     # "test": nothing is sent; the text that was read is shown as the translation.
-    engine: Literal["gemini", "deep", "test"] = "gemini"
+    # "ollama": a local model on this PC (translator/ollama.py), free and offline.
+    engine: Literal["gemini", "deep", "ollama", "test"] = "gemini"
     # "vision" (experimental, M7): the region image goes to Gemini, which reads and
     # translates it in one call (ocr/vision.py); needs a key, else local OCR is used.
     mode: Literal["ocr", "vision"] = "ocr"
@@ -246,6 +247,12 @@ class TranslatorConfig(_Section):
     system_prompt: str = ""  # empty = built-in prompt (translator/prompt.py)
     fallback: bool = True  # use deep-translator when Gemini fails or has no key
     fallback_timeout_s: float = Field(4.0, gt=0)
+    # Local model through Ollama: as the engine, or tried first when Gemini fails
+    # (before Google / MyMemory) with local_fallback.
+    local_fallback: bool = False
+    ollama_model: str = "translategemma:4b"
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_timeout_s: float = Field(4.0, gt=0)  # per line, once the model is loaded
     offline_after: int = Field(3, ge=1)  # this many failed lines in a row = "no connection" notice
     cache_size: int = Field(2000, ge=0)  # in-memory LRU entries
     disk_cache: bool = True  # cache/translations.sqlite, kept across sessions

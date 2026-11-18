@@ -128,7 +128,7 @@ subtitle:                   # altyazi durum makinesi
   save_lines: true          # cevrilen satirlari oyuna (profile) gore subtitles.sqlite'a kaydet
 
 translator:
-  engine: gemini            # gemini | deep (anahtarsiz, ucretsiz) | test (istek atmaz, okunani gosterir)
+  engine: gemini            # gemini | deep (anahtarsiz, ucretsiz) | ollama (yerel model) | test (istek atmaz, okunani gosterir)
   mode: ocr                 # ocr | vision (deneysel: resmi Gemini okur ve cevirir; anahtar ister)
   vision_media_resolution: medium   # low | medium | high (vision: resim basina token)
   model: gemini-3.5-flash-lite
@@ -145,6 +145,10 @@ translator:
   system_prompt: ""         # bos = yerlesik prompt
   fallback: true            # Gemini olmazsa deep-translator kullan
   fallback_timeout_s: 4.0
+  local_fallback: false     # Gemini cevap vermezse once yerel model (Ollama), sonra Google / MyMemory
+  ollama_model: translategemma:4b  # "ollama pull <model>" ile indirilen yerel model
+  ollama_url: http://127.0.0.1:11434
+  ollama_timeout_s: 4.0     # satir basina (model yuklendikten sonra)
   offline_after: 3          # art arda bu kadar satir cevrilemezse "baglanti yok" uyarisi
   cache_size: 2000          # bellekteki ceviri onbellegi
   disk_cache: true          # cache/translations.sqlite (oturumlar arasi)

@@ -25,6 +25,7 @@ from subwizard.profiles import DEFAULT, GameProfile, glossary_violations, load_p
 from subwizard.ocr.vision import HANDOFF
 from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key, loose_key
 from subwizard.translator.prompt import system_prompt
+from subwizard.translator.ollama import FallbackChain
 from subwizard.translator.spend import SpendLedger
 from subwizard.utils import timing
 from subwizard.utils.paths import user_data_dir
@@ -32,6 +33,7 @@ from subwizard.utils.paths import user_data_dir
 log = logging.getLogger(__name__)
 
 TOKENS_PER_PRICE_UNIT = 1_000_000
+FALLBACK_ENGINES = ("deep", "ollama")  # weaker than Gemini: retried when Gemini is back
 SECONDS_PER_HOUR = 3600.0
 
 
@@ -148,14 +150,17 @@ class TranslationService:
             hit = self.cache.get_loose(loose)
             if hit is not None:
                 log.debug("Önbellek (yakın eşleşme): %r", request.text)
-        # A fallback translation is cached too, but when Gemini is available it gets a
-        # chance to do better next time instead of the weaker result living forever.
-        if hit is not None and (hit.engine != "deep" or self.primary is None):
+        # A fallback translation is cached too, but when the main engine is available it
+        # gets a chance to do better next time instead of the weaker result living forever.
+        weaker = (hit is not None and hit.engine in FALLBACK_ENGINES
+                  and self.primary is not None and hit.engine != self.primary.name)  # fmt: skip
+        if hit is not None and not weaker:
             with self._lock:
                 self.usage.cache_hits += 1
             m.incr(M.TR_CACHE_HITS)
             return TranslationResult(hit.text, hit.engine, 0.0, cached=True,
-                                     fallback=hit.engine == "deep" and tr.engine != "deep")  # fmt: skip
+                                     fallback=hit.engine in FALLBACK_ENGINES
+                                     and hit.engine != tr.engine)  # fmt: skip
 
         result: TranslationResult | None = None
         reasons: list[str] = []  # why each engine failed, for the "Test" button
@@ -178,7 +183,8 @@ class TranslationService:
                 reasons.append(f"{self.primary.name}: {exc}")
             else:
                 self._set_quota(False)
-                result = self._account(result)
+                if primary.name == "gemini":  # priced; the local model and test mode are free
+                    result = self._account(result)
                 cost = result.cost_usd
                 log.info("Çeviri (%s, %.0f ms, %d+%d token, $%.5f): %r -> %r",
                          result.engine, result.latency_ms, result.input_tokens,
@@ -186,8 +192,9 @@ class TranslationService:
 
         if result is None and self.fallback is not None:
             try:
-                result = replace(self.fallback.translate(request),
-                                 fallback=self.primary is not None or tr.engine != "deep")  # fmt: skip
+                result = self.fallback.translate(request)
+                result = replace(result, fallback=self.primary is not None
+                                 or result.engine != tr.engine)  # fmt: skip
             except TranslationError as exc:
                 log.warning("Yedek çevirmen de çeviremedi (%s): %r", exc, request.text)
                 reasons.append(f"{self.fallback.name}: {exc}")
@@ -264,10 +271,21 @@ def build_engines(
                                   profile=profile)  # fmt: skip
     if tr.engine == "deep":
         return None, deep, ""
+    if tr.engine == "ollama":
+        local = make_ollama(config, profile)
+        log.info("Yerel model çeviriyor (Ollama: %s).", tr.ollama_model)
+        return local, deep if tr.fallback else None, ""
+    # Gemini's fallback: the local model first (if asked for), then Google / MyMemory.
+    chain: list[BaseTranslator] = []
+    if tr.local_fallback:
+        chain.append(make_ollama(config, profile))
+    if tr.fallback:
+        chain.append(deep)
+    fallback = None if not chain else chain[0] if len(chain) == 1 else FallbackChain(chain)
     keys, _source = load_api_keys()
     if not keys:
-        log.warning("Gemini API anahtarı yok; yedek çevirmen (deep-translator) kullanılacak.")
-        return None, deep if tr.fallback else None, "no_api_key"
+        log.warning("Gemini API anahtarı yok; yedek çevirmen kullanılacak.")
+        return None, fallback, "no_api_key"
     from subwizard.translator.gemini import GeminiTranslator
 
     gemini = GeminiTranslator(
@@ -275,7 +293,17 @@ def build_engines(
         thinking_level=tr.thinking_level, prompt=tr.system_prompt, profile=profile,
         quota_cooldown_s=tr.quota_cooldown_s,
     )  # fmt: skip
-    return gemini, deep if tr.fallback else None, ""
+    return gemini, fallback, ""
+
+
+def make_ollama(config: AppConfig, profile: GameProfile) -> BaseTranslator:
+    from subwizard.translator.ollama import OllamaTranslator
+
+    tr = config.translator
+    local = OllamaTranslator(tr.ollama_model, tr.ollama_url, tr.ollama_timeout_s,
+                             tr.source_language, tr.target_language, profile)  # fmt: skip
+    local.warm()
+    return local
 
 
 def open_cache(config: AppConfig) -> TranslationCache:

@@ -517,5 +517,10 @@
   "tray.dock": "Show in Dock",
   "settings.dock": "Show in Dock",
   "settings.dock.desc": "Off: SubWizard lives only in the menu bar (no Dock icon, no app menu). Everything stays reachable from the menu bar icon.",
-  "appearance.preset.game_box": "Game subtitle box"
+  "appearance.preset.game_box": "Game subtitle box",
+  "translate.engine.ollama": "Local model (Ollama, free)",
+  "home.translator.ollama": "Local model · {model}",
+  "translate.local": "Local model (Ollama)",
+  "translate.local.desc": "A model on this PC through Ollama: free, no quota, works offline. Install Ollama and run \"ollama pull <model>\" first. The switch makes it Gemini's first fallback, before Google Translate.",
+  "translate.local.fallback": "Use as Gemini's first fallback"
 }

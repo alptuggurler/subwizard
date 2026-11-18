@@ -517,5 +517,10 @@
   "tray.dock": "Dock'ta göster",
   "settings.dock": "Dock'ta göster",
   "settings.dock.desc": "Kapalı: SubWizard yalnızca üst barda durur (Dock simgesi ve uygulama menüsü yok). Her şeye üst bardaki simgeden ulaşılır.",
-  "appearance.preset.game_box": "Oyun altyazı kutusu"
+  "appearance.preset.game_box": "Oyun altyazı kutusu",
+  "translate.engine.ollama": "Yerel model (Ollama, ücretsiz)",
+  "home.translator.ollama": "Yerel model · {model}",
+  "translate.local": "Yerel model (Ollama)",
+  "translate.local.desc": "Bu bilgisayardaki bir model, Ollama ile: ücretsiz, kotasız, internetsiz çalışır. Önce Ollama'yı kurup \"ollama pull <model>\" çalıştırın. Anahtar açıkken Gemini çeviremezse Google Çeviri'den önce bu model dener.",
+  "translate.local.fallback": "Gemini'nin ilk yedeği olarak kullan"
 }
