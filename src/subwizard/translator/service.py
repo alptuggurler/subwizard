@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 
 from subwizard.config import AppConfig
 from subwizard.core.metrics import M, MetricsHub
-from subwizard.core.secrets import load_api_keys
+from subwizard.core.secrets import OPENROUTER, load_api_keys
 from subwizard.translator.base import (
     BaseTranslator,
     TranslationError,
@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 
 TOKENS_PER_PRICE_UNIT = 1_000_000
 FALLBACK_ENGINES = ("deep", "ollama")  # weaker than Gemini: retried when Gemini is back
+PRICED_ENGINES = ("gemini", "openrouter")  # cost counted, daily limit applies
 SECONDS_PER_HOUR = 3600.0
 
 
@@ -92,10 +93,10 @@ class TranslationService:
             self._limited = reached
             self._metrics.set_gauge(M.TR_LIMIT, reached)
             if reached:
-                log.warning("Günlük harcama sınırına ulaşıldı ($%.4f / $%.2f); Gemini bugün "
-                            "kullanılmıyor.", self.ledger.today().cost_usd, limit)  # fmt: skip
+                log.warning("Günlük harcama sınırına ulaşıldı ($%.4f / $%.2f); ücretli motor "
+                            "bugün kullanılmıyor.", self.ledger.today().cost_usd, limit)  # fmt: skip
             else:
-                log.info("Günlük harcama sınırının altında; Gemini yeniden kullanılıyor.")
+                log.info("Günlük harcama sınırının altında; ücretli motor yeniden kullanılıyor.")
         return reached
 
     def _set_quota(self, on: bool) -> None:
@@ -114,9 +115,9 @@ class TranslationService:
                 + result.output_tokens * price.output) / TOKENS_PER_PRICE_UNIT  # fmt: skip
 
     def _account(self, result: TranslationResult) -> TranslationResult:
-        """Tokens and cost of one Gemini answer into the session usage, the day's
-        ledger and metrics."""
-        cost = self._price(result)
+        """Tokens and cost of one paid answer into the session usage, the day's ledger
+        and metrics. OpenRouter reports what it charged; Gemini is priced locally."""
+        cost = result.cost_usd if result.cost_usd > 0 else self._price(result)
         self.ledger.add(cost, result.input_tokens, result.output_tokens, result.cached_tokens)
         with self._lock:
             self.usage.input_tokens += result.input_tokens
@@ -165,9 +166,9 @@ class TranslationService:
         result: TranslationResult | None = None
         reasons: list[str] = []  # why each engine failed, for the "Test" button
         primary = self.primary
-        if primary is not None and primary.name == "gemini" and self.at_limit():
+        if primary is not None and primary.name in PRICED_ENGINES and self.at_limit():
+            reasons.append(f"{primary.name}: daily_limit")
             primary = None
-            reasons.append("gemini: daily_limit")
         if primary is not None:
             with self._lock:
                 self.usage.requests += 1
@@ -183,7 +184,7 @@ class TranslationService:
                 reasons.append(f"{self.primary.name}: {exc}")
             else:
                 self._set_quota(False)
-                if primary.name == "gemini":  # priced; the local model and test mode are free
+                if primary.name in PRICED_ENGINES:  # the local model and test mode are free
                     result = self._account(result)
                 cost = result.cost_usd
                 log.info("Çeviri (%s, %.0f ms, %d+%d token, $%.5f): %r -> %r",
@@ -275,13 +276,25 @@ def build_engines(
         local = make_ollama(config, profile)
         log.info("Yerel model çeviriyor (Ollama: %s).", tr.ollama_model)
         return local, deep if tr.fallback else None, ""
-    # Gemini's fallback: the local model first (if asked for), then Google / MyMemory.
+    # Gemini's / OpenRouter's fallback: the local model first (if asked for), then Google / MyMemory.
     chain: list[BaseTranslator] = []
     if tr.local_fallback:
         chain.append(make_ollama(config, profile))
     if tr.fallback:
         chain.append(deep)
     fallback = None if not chain else chain[0] if len(chain) == 1 else FallbackChain(chain)
+    if tr.engine == "openrouter":
+        keys, _source = load_api_keys(OPENROUTER)
+        if not keys:
+            log.warning("OpenRouter API anahtarı yok; yedek çevirmen kullanılacak.")
+            return None, fallback, "no_api_key"
+        from subwizard.translator.openrouter import OpenRouterTranslator
+
+        log.info("OpenRouter çeviriyor (%s).", tr.openrouter_model)
+        return OpenRouterTranslator(
+            keys, model=tr.openrouter_model, timeout_s=tr.timeout_s, retries=tr.retries,
+            prompt=tr.system_prompt, profile=profile,
+        ), fallback, ""  # fmt: skip
     keys, _source = load_api_keys()
     if not keys:
         log.warning("Gemini API anahtarı yok; yedek çevirmen kullanılacak.")

@@ -37,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--path", type=Path, help="video file for --source file")
     p.add_argument("--audio-device", help="capture card audio input name")
     p.add_argument("--calibrate", action="store_true", help="open ROI calibration")
-    p.add_argument("--translator", choices=["gemini", "deep", "ollama"], help="translation engine")
+    p.add_argument("--translator", choices=["gemini", "openrouter", "deep", "ollama"], help="translation engine")
     p.add_argument("--profile", help="game profile name (profiles/<name>.yaml)")
     p.add_argument("--display", choices=["window", "web", "both"], help="Mode A / Mode B / both")
     p.add_argument("--debug", action="store_true", help="verbose logging + debug overlay")

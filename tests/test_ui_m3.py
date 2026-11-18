@@ -46,10 +46,14 @@ def test_home_card_warns_without_a_key(window):
 
 def test_engine_combo_and_model_list(window):
     page = _page(window, "translate")
-    page._engine.setCurrentIndex(1)
+    models = lambda: [page._model.itemText(i) for i in range(page._model.count())]  # noqa: E731
+    assert "gemini-3.5-flash-lite" in models()
+    page._engine.setCurrentIndex(1)  # OpenRouter: its own models, keys editable
+    assert window.controller.config.translator.engine == "openrouter"
+    assert page._key_row.isEnabled() and "google/gemini-2.5-flash-lite" in models()
+    page._engine.setCurrentIndex(2)
     assert window.controller.config.translator.engine == "deep"
     assert not page._key_row.isEnabled()
-    assert "gemini-3.5-flash-lite" in [page._model.itemText(i) for i in range(page._model.count())]
 
 
 def test_test_button_shows_result_and_latency(window):

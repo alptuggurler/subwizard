@@ -128,7 +128,7 @@ subtitle:                   # altyazi durum makinesi
   save_lines: true          # cevrilen satirlari oyuna (profile) gore subtitles.sqlite'a kaydet
 
 translator:
-  engine: gemini            # gemini | deep (anahtarsiz, ucretsiz) | ollama (yerel model) | test (istek atmaz, okunani gosterir)
+  engine: gemini            # gemini | openrouter (on odemeli, Gemini dahil bircok model) | deep (anahtarsiz, ucretsiz) | ollama (yerel model) | test (istek atmaz, okunani gosterir)
   mode: ocr                 # ocr | vision (deneysel: resmi Gemini okur ve cevirir; anahtar ister)
   vision_media_resolution: medium   # low | medium | high (vision: resim basina token)
   model: gemini-3.5-flash-lite
@@ -149,6 +149,7 @@ translator:
   ollama_model: translategemma:4b  # "ollama pull <model>" ile indirilen yerel model
   ollama_url: http://127.0.0.1:11434
   ollama_timeout_s: 4.0     # satir basina (model yuklendikten sonra)
+  openrouter_model: google/gemini-2.5-flash-lite  # engine: openrouter iken (openrouter.ai/models'taki ad)
   offline_after: 3          # art arda bu kadar satir cevrilemezse "baglanti yok" uyarisi
   cache_size: 2000          # bellekteki ceviri onbellegi
   disk_cache: true          # cache/translations.sqlite (oturumlar arasi)
@@ -157,7 +158,7 @@ translator:
     gemini-3.5-flash-lite: {input: 0.30, output: 2.50, cached_input: 0.03}
     gemini-3.1-flash-lite: {input: 0.25, output: 1.50, cached_input: null}  # null = girisin 1/10u
     gemini-3.6-flash: {input: 0.75, output: 3.75, cached_input: null}
-  daily_limit_usd: 0.0      # bugunku Gemini harcamasi buna ulasinca yedege gecilir (0 = sinirsiz)
+  daily_limit_usd: 0.0      # bugunku Gemini / OpenRouter harcamasi buna ulasinca yedege gecilir (0 = sinirsiz)
 
 overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
   visible: true             # F10

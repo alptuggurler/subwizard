@@ -33,7 +33,8 @@ from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.widgets.notice import Notice
 from subwizard.ui.widgets.value_slider import ValueSlider
 
-ENGINES = ("gemini", "deep", "ollama", "test")
+ENGINES = ("gemini", "openrouter", "deep", "ollama", "test")
+PAID_ENGINES = ("gemini", "openrouter")  # model, keys, context, spending
 MODES = ("ocr", "vision")
 TTS_MODES = ("off", "translation", "source")
 TTS_ENGINES = ("auto", "edge")
@@ -42,7 +43,12 @@ TTS_COMBO_WIDTH = 220  # system voice (SAPI / say) or Edge online neural voices
 COMBO_WIDTH = 260
 KEY_FIELD_WIDTH = 240
 CONTEXT_RANGE = (0, 10)
-API_KEY_URL = "https://aistudio.google.com/apikey"
+API_KEY_URLS = {
+    "gemini": "https://aistudio.google.com/apikey",
+    "openrouter": "https://openrouter.ai/settings/keys",
+}
+# Offered in the model list; any other openrouter.ai/models name can go in config.yaml.
+OPENROUTER_MODELS = ("google/gemini-2.5-flash-lite", "google/gemini-2.5-flash")
 
 
 LIMIT_FIELD_WIDTH = 120
@@ -111,7 +117,6 @@ class TranslatePage(BasePage):
         self._save = PrimaryPushButton()
         self._save.clicked.connect(self._save_keys)
         self._key_link = HyperlinkButton()
-        self._key_link.setUrl(QUrl(API_KEY_URL))
         key_control = QWidget()
         key_layout = QHBoxLayout(key_control)
         key_layout.setContentsMargins(0, 0, 0, 0)
@@ -221,7 +226,9 @@ class TranslatePage(BasePage):
 
     # --- reactions -----------------------------------------------------------------------
     def _on_model(self, model: str) -> None:
-        if model and model != self.controller.config.translator.model:
+        tr = self.controller.config.translator
+        current = tr.openrouter_model if tr.engine == "openrouter" else tr.model
+        if model and model != current:
             self.controller.set_translator_model(model)
 
     def _save_keys(self) -> None:
@@ -307,30 +314,34 @@ class TranslatePage(BasePage):
         self._engine.blockSignals(True)
         self._engine.setCurrentIndex(ENGINES.index(tr.engine))
         self._engine.blockSignals(False)
-        models = list(tr.prices)
-        if tr.model not in models:
-            models.append(tr.model)  # a model set in config.yaml without a known price
+        openrouter = tr.engine == "openrouter"
+        current = tr.openrouter_model if openrouter else tr.model
+        models = list(OPENROUTER_MODELS if openrouter else tr.prices)
+        if current not in models:
+            models.append(current)  # a model set in config.yaml without a known price
         self._model.blockSignals(True)
         self._model.clear()
         self._model.addItems(models)
-        self._model.setCurrentText(tr.model)
+        self._model.setCurrentText(current)
         self._model.blockSignals(False)
         gemini = tr.engine == "gemini"
+        paid = tr.engine in PAID_ENGINES
+        self._key_link.setUrl(QUrl(API_KEY_URLS["openrouter" if openrouter else "gemini"]))
         for row in (self._model_row, self._key_row, self._context_row, self._fallback_row):
-            row.setEnabled(gemini)
+            row.setEnabled(paid)
         self._context.set_value(tr.context_lines)
         self._mode.blockSignals(True)
         self._mode.setCurrentIndex(MODES.index(tr.mode))
         self._mode.blockSignals(False)
-        self._mode_row.setEnabled(gemini)
+        self._mode_row.setEnabled(gemini)  # vision mode is Gemini only
         self._local_model.blockSignals(True)
         self._local_model.setText(tr.ollama_model)
         self._local_model.blockSignals(False)
         self._local_fallback.blockSignals(True)
         self._local_fallback.setChecked(tr.local_fallback)
         self._local_fallback.blockSignals(False)
-        self._local_fallback.setEnabled(gemini)  # as the engine it is not a fallback
-        self._local_row.setEnabled(gemini or tr.engine == "ollama")
+        self._local_fallback.setEnabled(paid)  # as the engine it is not a fallback
+        self._local_row.setEnabled(paid or tr.engine == "ollama")
         self._tts.blockSignals(True)
         self._tts.setCurrentIndex(TTS_MODES.index(self.controller.config.tts.mode))
         self._tts.blockSignals(False)
@@ -343,7 +354,7 @@ class TranslatePage(BasePage):
         self._fallback.blockSignals(False)
         if not self._limit.hasFocus():  # never overwrite what is being typed
             self._limit.setText(f"{tr.daily_limit_usd:.2f}" if tr.daily_limit_usd else "")
-        self._limit_row.setEnabled(gemini)
+        self._limit_row.setEnabled(paid)
         self._spend_label.setText(spend_text(self.controller.snapshot(), tr.daily_limit_usd))
         self._refresh_texts()
 
@@ -357,14 +368,15 @@ class TranslatePage(BasePage):
             status = t("translate.keys.saved", n=count)
         else:
             status = t("translate.keys.none")
-        self._key_row.set_texts(t("translate.keys"), f"{t('translate.keys.desc')} {status}")
+        desc = t("translate.keys.openrouter.desc" if tr.engine == "openrouter" else "translate.keys.desc")
+        self._key_row.set_texts(t("translate.keys"), f"{desc} {status}")
         if tr.engine == "test":
             self._notice.show_message(t("translate.notice.test"), "warn")
-        elif tr.engine == "gemini" and not count:
+        elif tr.engine in PAID_ENGINES and not count:
             grade = "warn" if tr.fallback else "bad"
-            self._notice.show_message(
-                t("translate.notice.no_key_fallback" if tr.fallback else "translate.notice.no_key"),
-                grade)  # fmt: skip
+            prefix = "translate.notice.no_openrouter_key" if tr.engine == "openrouter" else (
+                "translate.notice.no_key")
+            self._notice.show_message(t(f"{prefix}_fallback" if tr.fallback else prefix), grade)
         else:
             self._notice.show_message("")
         self._shown_keys = None

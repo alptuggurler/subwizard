@@ -124,4 +124,4 @@ def test_spend_line_reads_the_ledger_when_stopped(setup):
     ledger.close()
     win.controller.config.translator.daily_limit_usd = 1.0
     tray.rebuild()
-    assert _find(tray, "Gemini today: $0.0123 / $1.00") is not None
+    assert _find(tray, "Spent today: $0.0123 / $1.00") is not None

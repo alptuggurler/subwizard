@@ -360,7 +360,10 @@ class SetupWizard(QWidget):
         c = self.controller
         cfg = c.config
         count, _ = c.api_key_status()
-        engine = (t("wizard.summary.gemini", n=count) if cfg.translator.engine == "gemini" and count
+        tr = cfg.translator
+        engine = (t("wizard.summary.gemini", n=count) if tr.engine == "gemini" and count
+                  else t("wizard.summary.openrouter", model=tr.openrouter_model)
+                  if tr.engine == "openrouter" and count
                   else t("wizard.summary.free"))  # fmt: skip
         source = (str(cfg.source.path) if cfg.source.kind == "file"
                   else t("device.monitor.item_unknown", number=cfg.source.monitor) if self.pc_game

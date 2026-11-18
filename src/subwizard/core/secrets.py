@@ -1,10 +1,11 @@
-"""Gemini API keys (SPEC 3.6, 3.12). Qt-free.
+"""API keys for the paid engines: Gemini and OpenRouter (SPEC 3.6, 3.12). Qt-free.
 
-Read in this order, first non-empty wins:
-1. environment `GEMINI_API_KEYS` (comma separated) or `GEMINI_API_KEY`,
+Read in this order, first non-empty wins (per provider):
+1. environment, e.g. `GEMINI_API_KEYS` (comma separated) or `GEMINI_API_KEY`
+   (`OPENROUTER_API_KEY` for OpenRouter),
 2. a `.env` file in the working directory or the user data directory (same names),
 3. the OS credential store via `keyring` (Windows Credential Manager, macOS Keychain),
-   which is where the UI saves them.
+   which is where the UI saves them; each provider has its own entry.
 """
 
 from __future__ import annotations
@@ -19,8 +20,19 @@ from subwizard.utils.paths import user_data_dir
 log = logging.getLogger(__name__)
 
 KEYRING_SERVICE = APP_NAME
-KEYRING_USER = "gemini_api_keys"
-ENV_NAMES = ("GEMINI_API_KEYS", "GEMINI_API_KEY")
+GEMINI = "gemini"
+OPENROUTER = "openrouter"
+# provider -> (credential store entry, environment variable names)
+PROVIDERS: dict[str, tuple[str, tuple[str, ...]]] = {
+    GEMINI: ("gemini_api_keys", ("GEMINI_API_KEYS", "GEMINI_API_KEY")),
+    OPENROUTER: ("openrouter_api_keys", ("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY")),
+}
+KEYRING_USER, ENV_NAMES = PROVIDERS[GEMINI]
+
+
+def provider_for(engine: str) -> str:
+    """Whose keys an engine uses (only OpenRouter has its own; the rest is Gemini's)."""
+    return OPENROUTER if engine == OPENROUTER else GEMINI
 
 
 def split_keys(value: str) -> list[str]:
@@ -51,47 +63,49 @@ def env_file_paths() -> list[Path]:
     return [Path.cwd() / ".env", user_data_dir() / ".env"]
 
 
-def keys_from_environment() -> list[str]:
-    for name in ENV_NAMES:
+def keys_from_environment(provider: str = GEMINI) -> list[str]:
+    names = PROVIDERS[provider][1]
+    for name in names:
         if os.environ.get(name):
             return split_keys(os.environ[name])
     for path in env_file_paths():
         values = _read_env_file(path)
-        for name in ENV_NAMES:
+        for name in names:
             if values.get(name):
                 return split_keys(values[name])
     return []
 
 
-def keys_from_keyring() -> list[str]:
+def keys_from_keyring(provider: str = GEMINI) -> list[str]:
     try:
         import keyring
 
-        return split_keys(keyring.get_password(KEYRING_SERVICE, KEYRING_USER) or "")
+        return split_keys(keyring.get_password(KEYRING_SERVICE, PROVIDERS[provider][0]) or "")
     except Exception:  # no backend, locked store: treat as "no keys saved"
         log.warning("Kimlik deposundan API anahtarı okunamadı", exc_info=True)
         return []
 
 
-def load_api_keys() -> tuple[list[str], str]:
+def load_api_keys(provider: str = GEMINI) -> tuple[list[str], str]:
     """(keys, where they came from: "env" | "keyring" | "")."""
-    keys = keys_from_environment()
+    keys = keys_from_environment(provider)
     if keys:
         return keys, "env"
-    keys = keys_from_keyring()
+    keys = keys_from_keyring(provider)
     return (keys, "keyring") if keys else ([], "")
 
 
-def save_api_keys(keys: list[str]) -> None:
+def save_api_keys(keys: list[str], provider: str = GEMINI) -> None:
     """Store in the OS credential store; an empty list deletes the entry."""
     import keyring
     from keyring.errors import PasswordDeleteError
 
+    user = PROVIDERS[provider][0]
     if keys:
-        keyring.set_password(KEYRING_SERVICE, KEYRING_USER, ",".join(keys))
+        keyring.set_password(KEYRING_SERVICE, user, ",".join(keys))
         return
     try:
-        keyring.delete_password(KEYRING_SERVICE, KEYRING_USER)
+        keyring.delete_password(KEYRING_SERVICE, user)
     except PasswordDeleteError:
         pass
 

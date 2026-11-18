@@ -510,6 +510,7 @@ class AppController(QObject):
 
     def set_translator_engine(self, engine: str) -> None:
         self.config.translator.engine = engine
+        self._key_status = None  # OpenRouter has its own keys
         self._translation_changed()
 
     def set_translator_mode(self, mode: str) -> None:
@@ -537,7 +538,12 @@ class AppController(QObject):
             self._session.restart_tts()
 
     def set_translator_model(self, model: str) -> None:
-        self.config.translator.model = model
+        """The model of the current paid engine (Gemini's or OpenRouter's)."""
+        tr = self.config.translator
+        if tr.engine == "openrouter":
+            tr.openrouter_model = model.strip() or tr.openrouter_model
+        else:
+            tr.model = model
         self._translation_changed()
 
     def set_context_lines(self, lines: int) -> None:
@@ -567,11 +573,17 @@ class AppController(QObject):
         self.config.translator.ollama_model = model
         self._translation_changed()
 
+    @property
+    def key_provider(self) -> str:
+        """Whose keys the Translation page shows and edits: OpenRouter's while it is the
+        engine, Gemini's otherwise."""
+        return secrets.provider_for(self.config.translator.engine)
+
     def api_key_status(self) -> tuple[int, str]:
         """(number of keys, where from: "env" | "keyring" | ""). Cached: the credential
         store is slow to ask and pages ask on every refresh."""
         if self._key_status is None:
-            keys, source = secrets.load_api_keys()
+            keys, source = secrets.load_api_keys(self.key_provider)
             self._key_status = (len(keys), source)
             self._masked_keys = [secrets.mask(k) for k in keys]
         return self._key_status
@@ -579,7 +591,7 @@ class AppController(QObject):
     def set_api_keys(self, text: str) -> None:
         """Comma or newline separated; empty removes the saved keys."""
         keys = secrets.split_keys(text)
-        secrets.save_api_keys(keys)
+        secrets.save_api_keys(keys, self.key_provider)
         self._key_status = None
         log.info("API anahtarları kaydedildi: %d anahtar (%s)", len(keys),
                  ", ".join(secrets.mask(k) for k in keys) or "yok")  # fmt: skip
@@ -601,14 +613,14 @@ class AppController(QObject):
     def add_api_keys(self, text: str) -> int:
         """Append keys (comma / newline separated) to the saved ones; returns how many
         were new. Keys from the environment cannot be edited here."""
-        saved = secrets.keys_from_keyring()
+        saved = secrets.keys_from_keyring(self.key_provider)
         new = [k for k in secrets.split_keys(text) if k not in saved]
         if new:
             self.set_api_keys(",".join([*saved, *new]))
         return len(new)
 
     def remove_api_key(self, index: int) -> None:
-        saved = secrets.keys_from_keyring()
+        saved = secrets.keys_from_keyring(self.key_provider)
         if 0 <= index < len(saved):
             self.set_api_keys(",".join(saved[:index] + saved[index + 1:]))
 
