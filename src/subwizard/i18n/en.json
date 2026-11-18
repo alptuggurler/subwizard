@@ -554,5 +554,6 @@
   "translate.notice.no_anthropic_key": "No Claude API key and the fallback is off: subtitles will not be translated. Add a key or turn the fallback on.",
   "home.translator.anthropic": "Claude · {model}",
   "home.translator.quota_anthropic": "The Claude API credit is used up or rate-limited; lines are translated by the fallback. Buy credits at platform.claude.com → Billing; Claude is used again by itself once it answers.",
-  "wizard.summary.anthropic": "Claude ({model})"
+  "wizard.summary.anthropic": "Claude ({model})",
+  "error.screen_permission": "No macOS Screen Recording permission: without it only the desktop wallpaper comes through, not the game or the browser. In System Settings → Privacy & Security → Screen & System Audio Recording, allow the app you start SubWizard from (e.g. Terminal), then quit and reopen that app and start SubWizard again."
 }

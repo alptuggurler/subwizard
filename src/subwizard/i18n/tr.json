@@ -554,5 +554,6 @@
   "translate.notice.no_anthropic_key": "Claude API anahtarı yok ve yedek kapalı: altyazılar çevrilmeyecek. Anahtar ekleyin ya da yedeği açın.",
   "home.translator.anthropic": "Claude · {model}",
   "home.translator.quota_anthropic": "Claude API kredisi bitti ya da istek sınırına takıldı; satırlar yedek çevirmenle çevriliyor. Kredi yüklemek için: platform.claude.com → Billing. Claude cevap verince kendiliğinden yeniden kullanılır.",
-  "wizard.summary.anthropic": "Claude ({model})"
+  "wizard.summary.anthropic": "Claude ({model})",
+  "error.screen_permission": "macOS ekran kaydı izni yok: izin olmadan yalnızca masaüstü arka planı görünür, oyun ya da tarayıcı okunamaz. Sistem Ayarları → Gizlilik ve Güvenlik → Ekran ve Sistem Sesi Kaydı'nda SubWizard'ı başlattığınız uygulamaya (örn. Terminal) izin verin, sonra o uygulamayı kapatıp açın ve SubWizard'ı yeniden başlatın."
 }

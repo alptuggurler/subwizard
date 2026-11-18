@@ -83,8 +83,14 @@ def isolated_user_state(tmp_path, monkeypatch, request):
     data = tmp_path / "userdata"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(data))
     monkeypatch.setenv("APPDATA", str(data))
-    for name in ("GEMINI_API_KEY", "GEMINI_API_KEYS"):
-        monkeypatch.delenv(name, raising=False)
+    from subwizard import platform
+    from subwizard.core.secrets import PROVIDERS
+
+    for _entry, names in PROVIDERS.values():
+        for name in names:
+            monkeypatch.delenv(name, raising=False)
+    # The real macOS check would show a system prompt; tests that need "denied" patch it.
+    monkeypatch.setattr(platform, "screen_capture_allowed", lambda: True)
     monkeypatch.chdir(tmp_path)  # a developer's ./.env must not leak into tests
     memory = MemoryKeyring()
     for name in ("get_password", "set_password", "delete_password"):

@@ -84,3 +84,29 @@ def test_session_builds_a_screen_source_from_config():
     config.source.monitor = 2
     source = build_source(config)
     assert isinstance(source, ScreenSource) and source._monitor_no == 2
+
+
+def test_missing_macos_permission_is_said_plainly(monkeypatch):
+    from subwizard import platform
+
+    monkeypatch.setattr(platform, "screen_capture_allowed", lambda: False)
+    opened = []
+    with pytest.raises(SourceError) as raised:
+        ScreenSource(factory=lambda: opened.append(1) or FakeMSS()).open()
+    assert raised.value.key == "error.screen_permission" and not opened  # never grabbed
+
+
+def test_permission_check_asks_only_when_denied(monkeypatch):
+    import sys
+
+    from subwizard import platform
+    from subwizard.platform.macos import screen_access
+
+    monkeypatch.undo()  # the real wrapper, with the CoreGraphics calls faked
+    monkeypatch.setattr(sys, "platform", "darwin")
+    asked = []
+    monkeypatch.setattr(screen_access, "request", lambda: asked.append(1))
+    for state, expected in ((True, True), (None, True), (False, False)):
+        monkeypatch.setattr(screen_access, "allowed", lambda s=state: s)
+        assert platform.screen_capture_allowed() is expected
+    assert asked == [1]

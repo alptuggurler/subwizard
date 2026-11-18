@@ -38,6 +38,7 @@ QT_FREE_MODULES = [
     "subwizard.translator.openrouter",
     "subwizard.translator.anthropic_api",
     "subwizard.platform.macos.dock",
+    "subwizard.platform.macos.screen_access",
     "subwizard.translator.deep",
     "subwizard.translator.echo",
     "subwizard.translator.gemini",

@@ -75,3 +75,17 @@ def activate_app() -> None:
         from subwizard.platform.macos import dock
 
         dock.activate()
+
+
+def screen_capture_allowed() -> bool:
+    """macOS: may this app see other apps' windows in screen grabs (Screen Recording
+    permission)? Asks for it (system prompt, once) when not. True elsewhere, and when
+    macOS cannot tell."""
+    if sys.platform != "darwin":
+        return True
+    from subwizard.platform.macos import screen_access
+
+    if screen_access.allowed() is not False:
+        return True
+    screen_access.request()
+    return False

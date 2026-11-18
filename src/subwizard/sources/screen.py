@@ -53,6 +53,11 @@ class ScreenSource(BaseSource):
         self._index = 0
 
     def open(self) -> None:
+        from subwizard import platform
+
+        if not platform.screen_capture_allowed():
+            # Grabs would show only the wallpaper and our own window: say so plainly.
+            raise SourceError("error.screen_permission")
         # mss keeps per-thread handles: opened (and read) on the source thread.
         try:
             grabber = self._factory()
