@@ -364,6 +364,8 @@ class SetupWizard(QWidget):
         engine = (t("wizard.summary.gemini", n=count) if tr.engine == "gemini" and count
                   else t("wizard.summary.openrouter", model=tr.openrouter_model)
                   if tr.engine == "openrouter" and count
+                  else t("wizard.summary.anthropic", model=tr.anthropic_model)
+                  if tr.engine == "anthropic" and count
                   else t("wizard.summary.free"))  # fmt: skip
         source = (str(cfg.source.path) if cfg.source.kind == "file"
                   else t("device.monitor.item_unknown", number=cfg.source.monitor) if self.pc_game

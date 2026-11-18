@@ -540,10 +540,12 @@ class AppController(QObject):
             self._session.restart_tts()
 
     def set_translator_model(self, model: str) -> None:
-        """The model of the current paid engine (Gemini's or OpenRouter's)."""
+        """The model of the current paid engine (Gemini's, OpenRouter's or Claude's)."""
         tr = self.config.translator
         if tr.engine == "openrouter":
             tr.openrouter_model = model.strip() or tr.openrouter_model
+        elif tr.engine == "anthropic":
+            tr.anthropic_model = model.strip() or tr.anthropic_model
         else:
             tr.model = model
         self._translation_changed()

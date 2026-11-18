@@ -47,11 +47,15 @@ def test_home_card_warns_without_a_key(window):
 def test_engine_combo_and_model_list(window):
     page = _page(window, "translate")
     models = lambda: [page._model.itemText(i) for i in range(page._model.count())]  # noqa: E731
-    assert "gemini-3.5-flash-lite" in models()
+    assert "gemini-3.5-flash-lite" in models() and "claude-haiku-5-5" not in models()
     page._engine.setCurrentIndex(1)  # OpenRouter: its own models, keys editable
     assert window.controller.config.translator.engine == "openrouter"
     assert page._key_row.isEnabled() and "google/gemini-2.5-flash-lite" in models()
-    page._engine.setCurrentIndex(2)
+    page._engine.setCurrentIndex(2)  # Claude: its own model list
+    assert window.controller.config.translator.engine == "anthropic"
+    assert models() == ["claude-haiku-5-5"] and page._key_row.isEnabled()
+    assert not page.account_card.isVisibleTo(page)  # that card is OpenRouter's
+    page._engine.setCurrentIndex(3)
     assert window.controller.config.translator.engine == "deep"
     assert not page._key_row.isEnabled()
 

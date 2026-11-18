@@ -36,6 +36,7 @@ QT_FREE_MODULES = [
     "subwizard.translator.spend",
     "subwizard.translator.ollama",
     "subwizard.translator.openrouter",
+    "subwizard.translator.anthropic_api",
     "subwizard.platform.macos.dock",
     "subwizard.translator.deep",
     "subwizard.translator.echo",

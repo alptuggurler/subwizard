@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 
 from subwizard.config import AppConfig
 from subwizard.core.metrics import M, MetricsHub
-from subwizard.core.secrets import OPENROUTER, load_api_keys
+from subwizard.core.secrets import ANTHROPIC, OPENROUTER, load_api_keys
 from subwizard.translator.base import (
     BaseTranslator,
     TranslationError,
@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 TOKENS_PER_PRICE_UNIT = 1_000_000
 FALLBACK_ENGINES = ("deep", "ollama")  # weaker than Gemini: retried when Gemini is back
-PRICED_ENGINES = ("gemini", "openrouter")  # cost counted, daily limit applies
+PRICED_ENGINES = ("gemini", "openrouter", "anthropic")  # cost counted, daily limit applies
 SECONDS_PER_HOUR = 3600.0
 
 
@@ -107,7 +107,9 @@ class TranslationService:
                 log.info("Gemini kotası yeniden kullanılabilir.")
 
     def _price(self, result: TranslationResult) -> float:
-        price = self._config.translator.prices.get(self._config.translator.model)
+        tr = self._config.translator
+        model = tr.anthropic_model if result.engine == "anthropic" else tr.model
+        price = tr.prices.get(model)
         if price is None:
             return 0.0
         cached = min(result.cached_tokens, result.input_tokens)
@@ -293,6 +295,18 @@ def build_engines(
         log.info("OpenRouter çeviriyor (%s).", tr.openrouter_model)
         return OpenRouterTranslator(
             keys, model=tr.openrouter_model, timeout_s=tr.timeout_s, retries=tr.retries,
+            prompt=tr.system_prompt, profile=profile,
+        ), fallback, ""  # fmt: skip
+    if tr.engine == "anthropic":
+        keys, _source = load_api_keys(ANTHROPIC)
+        if not keys:
+            log.warning("Claude API anahtarı yok; yedek çevirmen kullanılacak.")
+            return None, fallback, "no_api_key"
+        from subwizard.translator.anthropic_api import AnthropicTranslator
+
+        log.info("Claude API çeviriyor (%s).", tr.anthropic_model)
+        return AnthropicTranslator(
+            keys, model=tr.anthropic_model, timeout_s=tr.timeout_s, retries=tr.retries,
             prompt=tr.system_prompt, profile=profile,
         ), fallback, ""  # fmt: skip
     keys, _source = load_api_keys()

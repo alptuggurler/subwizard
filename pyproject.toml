@@ -38,6 +38,7 @@ dependencies = [
     "edge-tts>=7.0",
     "miniaudio>=1.59",
     "mss>=9.0",
+    "anthropic>=2.10",
 ]
 
 [project.urls]

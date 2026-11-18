@@ -25,7 +25,7 @@ STATUS_MAX_CHARS = 60  # long notices (quota, offline) are cut in the menu
 
 SOURCE_KINDS = ("capture", "screen", "file")
 DISPLAY_MODES = ("window", "web", "both")
-ENGINES = ("gemini", "openrouter", "deep", "ollama", "test")
+ENGINES = ("gemini", "openrouter", "anthropic", "deep", "ollama", "test")
 READ_MODES = ("ocr", "vision")
 POSITIONS = ("above", "replace", "bottom", "top")
 TTS_MODES = ("off", "translation", "source")
@@ -105,7 +105,7 @@ class TrayIcon(QSystemTrayIcon):
 
         self._action(m, short(translator_state(c)[0]), enabled=False)
         today = self._today_spend()
-        if today or cfg.translator.engine in ("gemini", "openrouter"):
+        if today or cfg.translator.engine in ("gemini", "openrouter", "anthropic"):
             limit = cfg.translator.daily_limit_usd
             limit_part = f" / ${limit:.2f}" if limit > 0 else ""
             self._action(m, t("tray.spend", today=money(today), limit=limit_part), enabled=False)

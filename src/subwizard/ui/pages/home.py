@@ -44,8 +44,8 @@ def translator_state(c: AppController) -> tuple[str, Grade | None]:
     snapshot = c.snapshot()
     if snapshot.gauge(M.TR_LIMIT) and tr.daily_limit_usd > 0:  # the user's own choice
         return t("home.translator.limit", limit=f"{tr.daily_limit_usd:.2f}"), "warn"
-    if snapshot.gauge(M.TR_QUOTA) and tr.engine == "openrouter":  # out of credit / rate
-        return t("home.translator.quota_openrouter"), "warn"
+    if snapshot.gauge(M.TR_QUOTA) and tr.engine in ("openrouter", "anthropic"):  # credit / rate
+        return t(f"home.translator.quota_{tr.engine}"), "warn"
     if snapshot.gauge(M.TR_QUOTA):  # checked first: it is the more specific reason
         if snapshot.gauge(M.TR_OFFLINE):
             return t("home.translator.quota_stopped"), "bad"
@@ -61,6 +61,8 @@ def translator_state(c: AppController) -> tuple[str, Grade | None]:
     keys, _source = c.api_key_status()
     if keys and tr.engine == "openrouter":
         return t("home.translator.openrouter", model=tr.openrouter_model), "ok"
+    if keys and tr.engine == "anthropic":
+        return t("home.translator.anthropic", model=tr.anthropic_model), "ok"
     if keys:
         return t("home.translator.gemini", model=tr.model, keys=keys), "ok"
     if tr.fallback:

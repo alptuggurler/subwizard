@@ -217,6 +217,8 @@ def _default_prices() -> dict[str, ModelPrice]:
         "gemini-3.5-flash-lite": ModelPrice(input=0.30, output=2.50, cached_input=0.03),
         "gemini-3.1-flash-lite": ModelPrice(input=0.25, output=1.50),
         "gemini-3.6-flash": ModelPrice(input=0.75, output=3.75),
+        # Claude API, prompts under 100K tokens (platform.claude.com pricing, 2026-11-18).
+        "claude-haiku-5-5": ModelPrice(input=0.10, output=0.50, cached_input=0.01),
     }
 
 
@@ -224,7 +226,8 @@ class TranslatorConfig(_Section):
     # "test": nothing is sent; the text that was read is shown as the translation.
     # "ollama": a local model on this PC (translator/ollama.py), free and offline.
     # "openrouter": the same prompts through openrouter.ai (prepaid, no Google billing).
-    engine: Literal["gemini", "openrouter", "deep", "ollama", "test"] = "gemini"
+    # "anthropic": Claude through the Claude API (prepaid credits, translator/anthropic_api.py).
+    engine: Literal["gemini", "openrouter", "anthropic", "deep", "ollama", "test"] = "gemini"
     # "vision" (experimental, M7): the region image goes to Gemini, which reads and
     # translates it in one call (ocr/vision.py); needs a key, else local OCR is used.
     mode: Literal["ocr", "vision"] = "ocr"
@@ -257,6 +260,8 @@ class TranslatorConfig(_Section):
     # engine "openrouter": prepaid USD balance, many models (translator/openrouter.py).
     # Uses timeout_s, retries, system_prompt, context and the daily limit like Gemini.
     openrouter_model: str = "google/gemini-2.5-flash-lite"
+    # engine "anthropic": same shared settings; priced from `prices`.
+    anthropic_model: str = "claude-haiku-5-5"
     offline_after: int = Field(3, ge=1)  # this many failed lines in a row = "no connection" notice
     cache_size: int = Field(2000, ge=0)  # in-memory LRU entries
     disk_cache: bool = True  # cache/translations.sqlite, kept across sessions
@@ -264,7 +269,7 @@ class TranslatorConfig(_Section):
     # spacing, punctuation) uses the cached translation instead of a new request.
     loose_cache: bool = True
     prices: dict[str, ModelPrice] = Field(default_factory=_default_prices)
-    # Gemini / OpenRouter stop for the day once today's cost reaches this (USD; the
+    # Gemini / OpenRouter / Claude stop for the day once today's cost reaches this (USD; the
     # fallback translates instead). 0 = no limit.
     daily_limit_usd: float = Field(0.0, ge=0)
 

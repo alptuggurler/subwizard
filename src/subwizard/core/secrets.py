@@ -1,8 +1,8 @@
-"""API keys for the paid engines: Gemini and OpenRouter (SPEC 3.6, 3.12). Qt-free.
+"""API keys for the paid engines: Gemini, OpenRouter, Claude (SPEC 3.6, 3.12). Qt-free.
 
 Read in this order, first non-empty wins (per provider):
 1. environment, e.g. `GEMINI_API_KEYS` (comma separated) or `GEMINI_API_KEY`
-   (`OPENROUTER_API_KEY` for OpenRouter),
+   (`OPENROUTER_API_KEY` for OpenRouter, `ANTHROPIC_API_KEY` for Claude),
 2. a `.env` file in the working directory or the user data directory (same names),
 3. the OS credential store via `keyring` (Windows Credential Manager, macOS Keychain),
    which is where the UI saves them; each provider has its own entry.
@@ -22,17 +22,20 @@ log = logging.getLogger(__name__)
 KEYRING_SERVICE = APP_NAME
 GEMINI = "gemini"
 OPENROUTER = "openrouter"
+ANTHROPIC = "anthropic"
 # provider -> (credential store entry, environment variable names)
 PROVIDERS: dict[str, tuple[str, tuple[str, ...]]] = {
     GEMINI: ("gemini_api_keys", ("GEMINI_API_KEYS", "GEMINI_API_KEY")),
     OPENROUTER: ("openrouter_api_keys", ("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY")),
+    ANTHROPIC: ("anthropic_api_keys", ("ANTHROPIC_API_KEY",)),
 }
 KEYRING_USER, ENV_NAMES = PROVIDERS[GEMINI]
 
 
 def provider_for(engine: str) -> str:
-    """Whose keys an engine uses (only OpenRouter has its own; the rest is Gemini's)."""
-    return OPENROUTER if engine == OPENROUTER else GEMINI
+    """Whose keys an engine uses (OpenRouter and Claude have their own; the rest uses
+    Gemini's)."""
+    return engine if engine in (OPENROUTER, ANTHROPIC) else GEMINI
 
 
 def split_keys(value: str) -> list[str]:

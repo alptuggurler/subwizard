@@ -34,8 +34,8 @@ from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.widgets.notice import Notice
 from subwizard.ui.widgets.value_slider import ValueSlider
 
-ENGINES = ("gemini", "openrouter", "deep", "ollama", "test")
-PAID_ENGINES = ("gemini", "openrouter")  # model, keys, context, spending
+ENGINES = ("gemini", "openrouter", "anthropic", "deep", "ollama", "test")
+PAID_ENGINES = ("gemini", "openrouter", "anthropic")  # model, keys, context, spending
 MODES = ("ocr", "vision")
 TTS_MODES = ("off", "translation", "source")
 TTS_ENGINES = ("auto", "edge")
@@ -47,13 +47,21 @@ CONTEXT_RANGE = (0, 10)
 API_KEY_URLS = {
     "gemini": "https://aistudio.google.com/apikey",
     "openrouter": "https://openrouter.ai/settings/keys",
+    "anthropic": "https://platform.claude.com/settings/keys",
 }
+ANTHROPIC_MODELS = ("claude-haiku-5-5",)
 OPENROUTER_CREDITS_URL = "https://openrouter.ai/settings/credits"
 # Offered in the model list; any other openrouter.ai/models name can go in config.yaml.
 OPENROUTER_MODELS = ("google/gemini-2.5-flash-lite", "google/gemini-2.5-flash")
 
 
 LIMIT_FIELD_WIDTH = 120
+
+
+def engine_model(tr) -> str:  # noqa: ANN001 - TranslatorConfig
+    """The model setting of the selected paid engine."""
+    return {"openrouter": tr.openrouter_model, "anthropic": tr.anthropic_model}.get(
+        tr.engine, tr.model)
 
 
 def hours_text(hours: float) -> str:
@@ -261,8 +269,7 @@ class TranslatePage(BasePage):
     # --- reactions -----------------------------------------------------------------------
     def _on_model(self, model: str) -> None:
         tr = self.controller.config.translator
-        current = tr.openrouter_model if tr.engine == "openrouter" else tr.model
-        if model and model != current:
+        if model and model != engine_model(tr):
             self.controller.set_translator_model(model)
 
     def _save_keys(self) -> None:
@@ -404,8 +411,10 @@ class TranslatePage(BasePage):
         self._engine.setCurrentIndex(ENGINES.index(tr.engine))
         self._engine.blockSignals(False)
         openrouter = tr.engine == "openrouter"
-        current = tr.openrouter_model if openrouter else tr.model
-        models = list(OPENROUTER_MODELS if openrouter else tr.prices)
+        current = engine_model(tr)
+        models = list(OPENROUTER_MODELS if openrouter else ANTHROPIC_MODELS
+                      if tr.engine == "anthropic" else
+                      [m for m in tr.prices if m.startswith("gemini")])  # fmt: skip
         if current not in models:
             models.append(current)  # a model set in config.yaml without a known price
         self._model.blockSignals(True)
@@ -415,7 +424,7 @@ class TranslatePage(BasePage):
         self._model.blockSignals(False)
         gemini = tr.engine == "gemini"
         paid = tr.engine in PAID_ENGINES
-        self._key_link.setUrl(QUrl(API_KEY_URLS["openrouter" if openrouter else "gemini"]))
+        self._key_link.setUrl(QUrl(API_KEY_URLS.get(tr.engine, API_KEY_URLS["gemini"])))
         for row in (self._model_row, self._key_row, self._context_row, self._fallback_row):
             row.setEnabled(paid)
         self._context.set_value(tr.context_lines)
@@ -463,15 +472,15 @@ class TranslatePage(BasePage):
             status = t("translate.keys.saved", n=count)
         else:
             status = t("translate.keys.none")
-        keys = "translate.keys.openrouter" if tr.engine == "openrouter" else "translate.keys"
+        own = tr.engine in ("openrouter", "anthropic")  # engines with their own key
+        keys = f"translate.keys.{tr.engine}" if own else "translate.keys"
         self._key_row.set_texts(t(keys), f"{t(keys + '.desc')} {status}")
         self._keys.setPlaceholderText(t(keys + ".placeholder"))
         if tr.engine == "test":
             self._notice.show_message(t("translate.notice.test"), "warn")
         elif tr.engine in PAID_ENGINES and not count:
             grade = "warn" if tr.fallback else "bad"
-            prefix = "translate.notice.no_openrouter_key" if tr.engine == "openrouter" else (
-                "translate.notice.no_key")
+            prefix = f"translate.notice.no_{tr.engine}_key" if own else "translate.notice.no_key"
             self._notice.show_message(t(f"{prefix}_fallback" if tr.fallback else prefix), grade)
         else:
             self._notice.show_message("")

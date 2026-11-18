@@ -190,8 +190,9 @@ class OCRWorker(threading.Thread):
 
 def build_ocr(config: AppConfig) -> BaseOCR:
     ocr = config.ocr
-    # Vision mode is Gemini only: with OpenRouter (no Gemini key, likely) local OCR reads.
-    if config.translator.mode == "vision" and config.translator.engine not in ("test", "openrouter"):
+    # Vision mode is Gemini only: with OpenRouter / Claude local OCR reads.
+    if config.translator.mode == "vision" and config.translator.engine not in ("test", "openrouter",
+                                                                                 "anthropic"):
         vision = _build_vision(config)
         if vision is not None:
             return vision

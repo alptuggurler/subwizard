@@ -13,6 +13,9 @@ ilerler (SPEC 6); her biri bitince kabul maddeleri doğrulanır ve commit atıl�
   (~1 sn/satır) ama Türkçe kalitesi Google Çeviri'nin altında (argo, deyim, anlam hataları).
 - OpenRouter: `translator/openrouter.py` (`engine: openrouter`, ön ödemeli, kendi anahtarı). Gerçek
   anahtarla henüz denenmedi (testler sahte HTTP ile).
+- Claude API: `translator/anthropic_api.py` (`engine: anthropic`, resmi `anthropic` SDK, varsayılan
+  `claude-haiku-5-5`, düşünme kapalı, sistem prompt'u önbellekli, kendi anahtarı). Gerçek anahtarla
+  henüz denenmedi (testler sahte SDK istemcisiyle).
 
 ## Komutlar
 ```
