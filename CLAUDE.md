@@ -9,7 +9,10 @@ ilerler (SPEC 6); her biri bitince kabul maddeleri doğrulanır ve commit atıl�
   macOS'ta test edilir; Windows'ta denenmeyeni commit mesajında ve raporda açıkça belirt.
 - Sürüm etiketi (v0.1.0) Windows testleri bitince atılır.
 - Yerel model: `translator/ollama.py` (`translator.engine: ollama` ya da Gemini'nin ilk yedeği
-  `translator.local_fallback`). Gerçek Ollama ile hiç denenmedi (testler sahte HTTP ile).
+  `translator.local_fallback`). macOS'ta gerçek Ollama 0.40.16 + translategemma:4b ile çalıştı
+  (~1 sn/satır) ama Türkçe kalitesi Google Çeviri'nin altında (argo, deyim, anlam hataları).
+- OpenRouter: `translator/openrouter.py` (`engine: openrouter`, ön ödemeli, kendi anahtarı). Gerçek
+  anahtarla henüz denenmedi (testler sahte HTTP ile).
 
 ## Komutlar
 ```
