@@ -49,7 +49,7 @@
   "settings.close_to_tray": "Kapatınca tepsiye küçült",
   "settings.close_to_tray.desc": "Pencereyi kapatmak SubWizard'ı durdurmaz; tepsi ikonundan çıkılır.",
   "about.version": "Sürüm {version}",
-  "about.license": "Lisans: GPL-3.0",
+  "about.license": "© 2026 Alptuğ Gürler · Lisans: GPL-3.0-or-later",
   "tray.show": "SubWizard'ı aç",
   "tray.start": "Başlat",
   "tray.stop": "Durdur",

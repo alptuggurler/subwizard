@@ -49,7 +49,7 @@
   "settings.close_to_tray": "Minimize to tray on close",
   "settings.close_to_tray.desc": "Closing the window does not stop SubWizard; quit from the tray icon.",
   "about.version": "Version {version}",
-  "about.license": "License: GPL-3.0",
+  "about.license": "© 2026 Alptuğ Gürler · License: GPL-3.0-or-later",
   "tray.show": "Open SubWizard",
   "tray.start": "Start",
   "tray.stop": "Stop",

@@ -156,4 +156,16 @@ Bu projeler SubWizard'ın bazı özelliklerine ilham verdi. Yalnızca fikir alı
 
 ## Lisans
 
-GPL-3.0-or-later.
+Copyright © 2026 [Alptuğ Gürler](https://github.com/alptuggurler)
+
+SubWizard, GNU Genel Kamu Lisansı sürüm 3 veya sonrası ile dağıtılan özgür bir yazılımdır
+([LICENSE](LICENSE)). Kullanabilir, inceleyebilir, değiştirebilir ve değiştirilmiş hali dahil
+paylaşabilirsiniz; yeter ki paylaştığınız şey aynı lisansla, kaynak koduyla birlikte ve bu
+telif notu korunarak dağıtılsın.
+
+### Ad ve logo
+
+"SubWizard" adı ve logosu bu projeyi tanımlar. GPLv3'ün 7(e) maddesinin izin verdiği üzere
+lisans bunlar üzerinde hak tanımaz: dağıttığınız değiştirilmiş bir sürüm farklı bir ad ve
+logo kullanmalı, kendini resmi SubWizard olarak tanıtmamalıdır. Kendi adıyla yapılan
+fork'lar memnuniyetle karşılanır.

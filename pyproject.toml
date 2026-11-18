@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Live game subtitle translator: capture card -> OCR -> LLM -> overlay"
 readme = "README.md"
 license = "GPL-3.0-or-later"
+authors = [{ name = "Alptuğ Gürler" }]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # UI (SPEC 1): Qt 6 + Windows 11 Fluent look
@@ -38,6 +39,10 @@ dependencies = [
     "miniaudio>=1.59",
     "mss>=9.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/alptuggurler/subwizard"
+Issues = "https://github.com/alptuggurler/subwizard/issues"
 
 [project.scripts]
 subwizard = "subwizard.cli:main"

@@ -160,4 +160,16 @@ These projects inspired some of SubWizard's features. Only ideas were taken; no 
 
 ## License
 
-GPL-3.0-or-later.
+Copyright © 2026 [Alptuğ Gürler](https://github.com/alptuggurler)
+
+SubWizard is free software under the GNU General Public License, version 3 or later
+([LICENSE](LICENSE)). You may use, study, change and share it, modified versions included,
+as long as what you share stays under the same license with its source code and keeps
+this copyright notice.
+
+### Name and logo
+
+"SubWizard" and its logo identify this project. As GPLv3 section 7(e) allows, the license
+grants no rights to them: a modified version you distribute must use a different name and
+logo and must not present itself as the official SubWizard. Forks are welcome under their
+own name.
