@@ -53,7 +53,6 @@
   "tray.show": "SubWizard'ı aç",
   "tray.start": "Başlat",
   "tray.stop": "Durdur",
-  "tray.toggle_overlay": "Altyazıyı gizle/göster",
   "tray.quit": "Çıkış",
   "error.file_not_found": "Video dosyası bulunamadı: {path}. Dosyanın taşınmadığından veya silinmediğinden emin ol.",
   "error.file_unreadable": "Video dosyası açılamadı: {path}. Dosya bozuk olabilir ya da desteklenmeyen bir biçimde; .mp4 (H.264) dene.",
@@ -505,5 +504,17 @@
   "translate.spend.value": "Bugün ${today}{limit} · Toplam ${total} · Bu oturum ${session}",
   "translate.spend.limit_part": " / ${limit}",
   "home.translator.limit": "Günlük harcama sınırına ulaşıldı (${limit}); bugün satırlar yedek çevirmenle çevriliyor. Sınırı Çeviri sayfasından değiştirebilirsin.",
-  "diag.tr_spend": "Bugün / toplam harcama"
+  "diag.tr_spend": "Bugün / toplam harcama",
+  "tray.spend": "Gemini bugün: ${today}{limit}",
+  "tray.translation_on": "Çeviri açık",
+  "tray.subtitles_on": "Altyazıyı göster",
+  "tray.mute": "Sesi kapat",
+  "tray.source": "Kaynak",
+  "tray.position": "Altyazı konumu",
+  "tray.web_open": "Web sayfasını aç",
+  "tray.web_copy": "Web sayfası linkini kopyala",
+  "tray.pages": "Sayfaya git",
+  "tray.dock": "Dock'ta göster",
+  "settings.dock": "Dock'ta göster",
+  "settings.dock.desc": "Kapalı: SubWizard yalnızca üst barda durur (Dock simgesi ve uygulama menüsü yok). Her şeye üst bardaki simgeden ulaşılır."
 }

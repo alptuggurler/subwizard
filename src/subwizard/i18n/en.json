@@ -53,7 +53,6 @@
   "tray.show": "Open SubWizard",
   "tray.start": "Start",
   "tray.stop": "Stop",
-  "tray.toggle_overlay": "Hide/show subtitles",
   "tray.quit": "Quit",
   "error.file_not_found": "Video file not found: {path}. Make sure it has not been moved or deleted.",
   "error.file_unreadable": "Could not open the video file: {path}. It may be damaged or in an unsupported format; try .mp4 (H.264).",
@@ -505,5 +504,17 @@
   "translate.spend.value": "Today ${today}{limit} · All time ${total} · This session ${session}",
   "translate.spend.limit_part": " / ${limit}",
   "home.translator.limit": "The daily spending limit (${limit}) is reached; lines are translated by the fallback today. You can change the limit on the Translation page.",
-  "diag.tr_spend": "Spent today / all time"
+  "diag.tr_spend": "Spent today / all time",
+  "tray.spend": "Gemini today: ${today}{limit}",
+  "tray.translation_on": "Translation on",
+  "tray.subtitles_on": "Show subtitles",
+  "tray.mute": "Mute audio",
+  "tray.source": "Source",
+  "tray.position": "Subtitle position",
+  "tray.web_open": "Open web page",
+  "tray.web_copy": "Copy web page link",
+  "tray.pages": "Go to page",
+  "tray.dock": "Show in Dock",
+  "settings.dock": "Show in Dock",
+  "settings.dock.desc": "Off: SubWizard lives only in the menu bar (no Dock icon, no app menu). Everything stays reachable from the menu bar icon."
 }

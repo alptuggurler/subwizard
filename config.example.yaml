@@ -6,6 +6,7 @@ ui:
   language: en          # en | tr | auto (sistem dili)
   theme: dark           # auto | dark | light
   close_to_tray: true   # kapatma butonu tepsiye kucultur
+  show_in_dock: true    # macOS: false = yalnizca ust bar (Dock simgesi yok)
   perf_overlay: 'off'   # off | compact | detailed (F9 sirayla gecer)
   cursor_hide_ms: 2000  # tam ekranda imlec bu kadar hareketsiz kalinca gizlenir
   wizard_done: false    # kurulum sihirbazi bitince true; Ayarlar'dan yeniden acilir

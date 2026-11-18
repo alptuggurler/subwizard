@@ -47,3 +47,35 @@ def make_app_icon() -> QIcon:
     for size in ICON_SIZES:
         icon.addPixmap(_draw(size))
     return icon
+
+
+MENU_BAR_SIZES = (16, 18, 32, 36)  # 1x and 2x of the 16-18 pt macOS menu bar
+
+
+def _draw_mask(size: int) -> QPixmap:
+    """Black glyph on transparent: the "S" with its subtitle bar, no background."""
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    font = QFont()
+    font.setBold(True)
+    font.setPixelSize(int(size * 0.78))
+    p.setFont(font)
+    p.setPen(QColor("black"))
+    p.drawText(QRectF(0, -size * 0.06, size, size * 0.84), Qt.AlignmentFlag.AlignCenter, "S")
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor("black"))
+    bar_h = max(1.5, size * 0.11)
+    p.drawRoundedRect(QRectF(size * 0.14, size * 0.84, size * 0.72, bar_h), bar_h / 2, bar_h / 2)
+    p.end()
+    return pixmap
+
+
+def make_menu_bar_icon() -> QIcon:
+    """macOS template icon: the system tints it for light and dark menu bars."""
+    icon = QIcon()
+    for size in MENU_BAR_SIZES:
+        icon.addPixmap(_draw_mask(size))
+    icon.setIsMask(True)
+    return icon

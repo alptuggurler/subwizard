@@ -58,3 +58,20 @@ def exclude_from_capture(window_id: int) -> bool:
 
         return window.exclude_from_capture(window_id)
     return False
+
+
+def set_dock_visible(visible: bool) -> bool:
+    """macOS: show or hide the Dock icon (the menu bar item stays). False elsewhere."""
+    if sys.platform == "darwin":
+        from subwizard.platform.macos import dock
+
+        return dock.set_dock_visible(visible)
+    return False
+
+
+def activate_app() -> None:
+    """macOS: bring the app to the front (needed when it has no Dock icon)."""
+    if sys.platform == "darwin":
+        from subwizard.platform.macos import dock
+
+        dock.activate()

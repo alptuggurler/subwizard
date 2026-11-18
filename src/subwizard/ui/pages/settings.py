@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import ComboBox, FluentIcon, PushButton, SwitchButton
 
@@ -32,17 +34,26 @@ class SettingsPage(BasePage):
         self._language_row = SettingRow(FluentIcon.LANGUAGE, self._language)
         self._theme_row = SettingRow(FluentIcon.PALETTE, self._theme)
         self._tray_row = SettingRow(FluentIcon.MINIMIZE, self._tray)
+        self._dock = SwitchButton()
+        self._dock.setOnText("")
+        self._dock.setOffText("")
+        self._dock.setChecked(controller.config.ui.show_in_dock)
+        self._dock_row = SettingRow(FluentIcon.APPLICATION, self._dock)
+        self._dock_row.setVisible(sys.platform == "darwin")  # menu-bar-only is a macOS idea
         self._wizard = PushButton()
         self._wizard.setIcon(FluentIcon.ROBOT)
         self._wizard.clicked.connect(controller.request_wizard)
         self._wizard_row = SettingRow(FluentIcon.ROBOT, self._wizard)
-        for row in (self._language_row, self._theme_row, self._tray_row, self._wizard_row):
+        rows = (self._language_row, self._theme_row, self._tray_row, self._dock_row, self._wizard_row)
+        for row in rows:
             self.body.addWidget(row)
 
         self.retranslate()
         self._language.currentIndexChanged.connect(self._on_language)
         self._theme.currentIndexChanged.connect(self._on_theme)
         self._tray.checkedChanged.connect(controller.set_close_to_tray)
+        self._dock.checkedChanged.connect(controller.set_show_in_dock)
+        controller.dockChanged.connect(self._on_dock_changed)
 
     def _fill(self, combo: ComboBox, labels: list[str], index: int) -> None:
         """Replace a combo's items without firing change handlers."""
@@ -69,6 +80,7 @@ class SettingsPage(BasePage):
         self._language_row.set_texts(t("settings.language"), t("settings.language.desc"))
         self._theme_row.set_texts(t("settings.theme"), t("settings.theme.desc"))
         self._tray_row.set_texts(t("settings.close_to_tray"), t("settings.close_to_tray.desc"))
+        self._dock_row.set_texts(t("settings.dock"), t("settings.dock.desc"))
         self._wizard_row.set_texts(t("settings.wizard"), t("settings.wizard.desc"))
         self._wizard.setText(t("settings.wizard.open"))
 
@@ -77,3 +89,9 @@ class SettingsPage(BasePage):
 
     def _on_theme(self, index: int) -> None:
         self.controller.set_theme(THEME_MODES[index])
+
+    def _on_dock_changed(self, visible: bool) -> None:
+        """The menu bar item changed it: keep the switch in step without re-firing."""
+        self._dock.blockSignals(True)
+        self._dock.setChecked(visible)
+        self._dock.blockSignals(False)

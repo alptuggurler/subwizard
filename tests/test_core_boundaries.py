@@ -34,6 +34,7 @@ QT_FREE_MODULES = [
     "subwizard.pipeline.subtitle_stack",
     "subwizard.translator.cache",
     "subwizard.translator.spend",
+    "subwizard.platform.macos.dock",
     "subwizard.translator.deep",
     "subwizard.translator.echo",
     "subwizard.translator.gemini",

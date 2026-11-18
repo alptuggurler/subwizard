@@ -52,3 +52,6 @@ uv run python scripts/benchmark.py --translator none           # M7: ocr+text vs
 - Yer tutucu sayfalar `ui/pages/__init__.py` içinde tanımlı; içerik kazanan sayfa kendi modülüne taşınır.
 - macOS'ta UI testleri "offscreen" Qt eklentisiyle çöker (qframelesswindow); `tests/conftest.py`
   bunu ele alır, testlerde pencere `show()` edilmez.
+- Tepsi / macOS üst bar menüsü `ui/tray.py`: her açılışta yeniden kurulur (durum, harcama, ayar alt
+  menüleri); yeni günlük ayar eklenirse oraya da eklenebilir. Dock gizleme (`ui.show_in_dock`)
+  `platform/macos/dock.py` (ctypes ile AppKit, PyObjC yok).

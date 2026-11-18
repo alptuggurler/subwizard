@@ -36,6 +36,7 @@ class UIConfig(_Section):
     language: Language = "en"  # auto = the system language
     theme: ThemeMode = "dark"
     close_to_tray: bool = True
+    show_in_dock: bool = True  # macOS: False = menu bar only (no Dock icon, no app menu)
     perf_overlay: PerfOverlay = "off"  # F9 cycles off -> compact -> detailed
     cursor_hide_ms: int = Field(2000, ge=0)  # fullscreen: hide idle cursor after this
     wizard_done: bool = False  # the setup wizard opens on start until finished or closed

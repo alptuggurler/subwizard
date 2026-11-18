@@ -80,6 +80,7 @@ class AppController(QObject):
     profileChanged = Signal()  # game profile selected, saved or deleted
     soundTested = Signal(bool, str)  # test_sound(): ok, device name or error
     avSyncMeasured = Signal(int, int, float)  # new delay_ms (-1: failed), events, offset ms
+    dockChanged = Signal(bool)  # macOS: Dock icon shown / menu bar only
     wizardRequested = Signal()  # Ayarlar -> "Kurulum sihirbazını aç"  # web overlay started / stopped / reconfigured  # a history entry changed outside the session (retranslate, mark)
 
     # Worker threads emit these; the slots then run on the Qt thread.
@@ -231,6 +232,13 @@ class AppController(QObject):
             return
         self.config.ui.close_to_tray = enabled
         self._save()
+
+    def set_show_in_dock(self, visible: bool) -> None:
+        if visible == self.config.ui.show_in_dock:
+            return
+        self.config.ui.show_in_dock = visible
+        self._save()
+        self.dockChanged.emit(visible)
 
     def cycle_perf_overlay(self) -> None:
         """F9: off -> compact -> detailed -> off."""
