@@ -174,3 +174,33 @@ def test_charged_cost_is_counted_and_the_daily_limit_applies(tmp_path):
     third = svc.translate(TranslationRequest("Three."))  # over $0.05: the fallback today
     assert third.engine == "deep" and third.fallback and paid.calls == 2
     svc.close()
+
+
+KEY_INFO = {"data": {"label": "subwizard", "limit": 5.0, "limit_remaining": 4.9, "limit_reset": None,
+                     "usage": 0.1, "usage_daily": 0.02, "is_free_tier": False,
+                     "free_model_daily_requests": {"used": 3, "limit": 50, "remaining": 47}}}  # fmt: skip
+
+
+def test_key_info_and_top_up_estimates(monkeypatch):
+    sent = []
+
+    def urlopen(request, timeout):
+        sent.append(request)
+        return FakeResponse(json.dumps(KEY_INFO).encode())
+
+    monkeypatch.setattr(openrouter.urllib.request, "urlopen", urlopen)
+    info = openrouter.fetch_key_info(KEY)
+    assert sent[0].full_url == "https://openrouter.ai/api/v1/key"
+    assert sent[0].get_header("Authorization") == f"Bearer {KEY}"
+    assert (info.limit, info.remaining, info.usage_daily) == (5.0, 4.9, 0.02)
+    assert (info.free_used, info.free_limit) == (3, 50)
+
+    # 600 in + 30 out tokens a line at $0.10 / $0.40 per 1M, 300 lines an hour.
+    per_hour = openrouter.cost_per_hour("google/gemini-2.5-flash-lite")
+    assert per_hour == pytest.approx(0.0216)
+    assert openrouter.hours_for(5, per_hour) == pytest.approx(231.5, abs=0.1)
+    assert openrouter.cost_per_hour("someone/unknown") is None
+
+    monkeypatch.setattr(openrouter.urllib.request, "urlopen", fake_urlopen(http_error(401, "bad")))
+    with pytest.raises(TranslationError, match="bad_key"):
+        openrouter.fetch_key_info(KEY)

@@ -23,6 +23,7 @@ import json
 import logging
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from typing import Any
 
 from subwizard import APP_NAME
@@ -131,6 +132,74 @@ class OpenRouterTranslator(BaseTranslator):
             cached_tokens=cached,
             cost_usd=float(usage.get("cost") or 0.0),
         )  # fmt: skip
+
+
+# --- account: what the key may still spend, and what a top-up buys --------------------
+# GET /api/v1/key works with a normal key (the account balance, /credits, needs a
+# management key). Free-model limits from openrouter.ai/docs/api-reference/limits.
+KEY_URL = "https://openrouter.ai/api/v1/key"
+FREE_THRESHOLD_USD = 10.0  # all-time purchases that raise the free-model daily cap
+FREE_DAILY_LOW, FREE_DAILY_HIGH = 50, 1000
+# Rough planning numbers: a busy dialogue scene sends this many new lines an hour (cache
+# hits are free), each with the system prompt and context lines.
+LINES_PER_HOUR = 300
+TYPICAL_LINE_TOKENS = (600, 30)  # input, output
+# USD per 1M tokens (input, output) from openrouter.ai/models, 2026-11-18; only for
+# the estimate (the real charge comes with each reply).
+PRICES = {
+    "google/gemini-2.5-flash-lite": (0.10, 0.40),
+    "google/gemini-2.5-flash": (0.30, 2.50),
+}
+TOP_UPS_USD = (5, 10, 20)
+
+
+@dataclass(frozen=True)
+class KeyInfo:
+    limit: float | None  # the key's own spending limit (USD), None = no limit
+    remaining: float | None
+    reset: str | None  # "daily" / "weekly" / "monthly" / None
+    usage: float  # spent with this key, all time
+    usage_daily: float  # spent today (UTC)
+    free_used: int  # ":free" model requests today
+    free_limit: int
+
+
+def fetch_key_info(key: str, timeout_s: float = 5.0, url: str = KEY_URL) -> KeyInfo:
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:  # noqa: S310 - fixed https URL
+            data = json.loads(response.read().decode("utf-8")).get("data") or {}
+    except urllib.error.HTTPError as exc:
+        raise _api_error(exc.code, _error_body(exc)) from exc
+    except (OSError, ValueError) as exc:  # offline, timeout, bad JSON
+        raise TranslationError(f"network ({brief(exc)})") from exc
+    free = data.get("free_model_daily_requests") or {}
+
+    def number(name: str) -> float | None:
+        value = data.get(name)
+        return None if value is None else float(value)
+
+    return KeyInfo(
+        limit=number("limit"), remaining=number("limit_remaining"),
+        reset=data.get("limit_reset"), usage=number("usage") or 0.0,
+        usage_daily=number("usage_daily") or 0.0,
+        free_used=int(free.get("used") or 0), free_limit=int(free.get("limit") or 0),
+    )  # fmt: skip
+
+
+def cost_per_hour(model: str, line_tokens: tuple[float, float] = TYPICAL_LINE_TOKENS,
+                  lines_per_hour: int = LINES_PER_HOUR) -> float | None:  # fmt: skip
+    """Estimated USD an hour of busy dialogue costs with `model`; None if its price is
+    unknown. `line_tokens` can be the average measured so far (the spend ledger)."""
+    price = PRICES.get(model)
+    if price is None:
+        return None
+    per_line = (line_tokens[0] * price[0] + line_tokens[1] * price[1]) / 1_000_000
+    return per_line * lines_per_hour
+
+
+def hours_for(usd: float, per_hour: float | None) -> float | None:
+    return None if not per_hour else usd / per_hour
 
 
 def _error_body(exc: urllib.error.HTTPError) -> dict[str, Any]:

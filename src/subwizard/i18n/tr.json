@@ -529,5 +529,21 @@
   "translate.notice.no_openrouter_key": "OpenRouter anahtarı yok ve yedek kapalı: altyazılar çevrilmeyecek. Anahtar ekleyin ya da yedeği açın.",
   "home.translator.openrouter": "OpenRouter · {model}",
   "home.translator.quota_openrouter": "OpenRouter bakiyesi bitti ya da istek sınırına takıldı; satırlar yedek çevirmenle çevriliyor. Bakiye yüklemek için: openrouter.ai/credits. Bakiye gelince OpenRouter kendiliğinden yeniden kullanılır.",
-  "wizard.summary.openrouter": "OpenRouter ({model})"
+  "wizard.summary.openrouter": "OpenRouter ({model})",
+  "translate.or.title": "OpenRouter hesabı",
+  "translate.or.refresh": "Yenile",
+  "translate.or.credits": "Bakiye yükle",
+  "translate.or.loading": "Hesap bilgisi alınıyor…",
+  "translate.or.no_key": "Yukarıya OpenRouter anahtarınızı ekleyince anahtarın sınırı, kalan tutarı ve bugünkü ücretsiz istekleri burada görünür.",
+  "translate.or.error": "Hesap bilgisi alınamadı: {reason}",
+  "translate.or.limit": "Anahtar sınırı ${limit} · kalan ${remaining} · bugün harcanan ${today}",
+  "translate.or.no_limit": "Bu anahtarla harcanan ${usage} (bugün ${today}). Anahtara kredi sınırı koymadığınız için kalan bakiye burada görünmez: \"Bakiye yükle\" sayfasına bakın ya da openrouter.ai'de anahtara sınır koyun.",
+  "translate.or.hours": "Kalan tutar {model} ile {hours} saat oyun eder.",
+  "translate.or.free": "Ücretsiz modeller (adı :free ile biten) bugün: {used} / {limit} istek; UTC gece yarısı (03:00) sıfırlanır.",
+  "translate.or.plan": "Yüklersen ({model}, saatte ~{lines} yeni satırlık yoğun diyalog varsayımıyla ~${per_hour}/saat): {top_ups}.",
+  "translate.or.top_up": "${usd} → {hours} saat",
+  "translate.or.free_rule": "Ücretli modellerde günlük istek sınırı yok; yalnızca bakiye biter. Ücretsiz modellerde günde {low} istek, hesaba toplamda ${threshold} ve üzeri yüklendiyse günde {high} istek (dakikada 20).",
+  "translate.or.unknown_price": "{model} için fiyat bilinmiyor, saat tahmini yapılamıyor.",
+  "translate.keys.openrouter": "OpenRouter API anahtarı",
+  "translate.keys.openrouter.placeholder": "sk-or-v1-… (yapıştır ve Ekle)"
 }

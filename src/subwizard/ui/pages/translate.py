@@ -28,6 +28,7 @@ from qfluentwidgets import (
 from subwizard.controller import AppController
 from subwizard.core.metrics import M, Snapshot
 from subwizard.i18n import t
+from subwizard.translator import openrouter as orouter
 from subwizard.translator.test_run import SAMPLE_TEXT, TestOutcome
 from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.widgets.notice import Notice
@@ -47,11 +48,17 @@ API_KEY_URLS = {
     "gemini": "https://aistudio.google.com/apikey",
     "openrouter": "https://openrouter.ai/settings/keys",
 }
+OPENROUTER_CREDITS_URL = "https://openrouter.ai/settings/credits"
 # Offered in the model list; any other openrouter.ai/models name can go in config.yaml.
 OPENROUTER_MODELS = ("google/gemini-2.5-flash-lite", "google/gemini-2.5-flash")
 
 
 LIMIT_FIELD_WIDTH = 120
+
+
+def hours_text(hours: float) -> str:
+    """"~230", or one decimal under 10 hours ("~2.5")."""
+    return f"~{hours:.0f}" if hours >= 10 else f"~{hours:.1f}"
 
 
 def money(usd: float) -> str:
@@ -159,7 +166,34 @@ class TranslatePage(BasePage):
         local_layout.addWidget(self._local_fallback)
         self._local_row = SettingRow(FluentIcon.IOT, local_control)
 
+        # OpenRouter account: what the key may still spend, free requests today, and what
+        # a top-up buys with the chosen model (shown only for that engine).
+        self.account_card = CardWidget()
+        account_layout = QVBoxLayout(self.account_card)
+        account_layout.setContentsMargins(20, 14, 20, 14)
+        account_layout.setSpacing(6)
+        account_head = QHBoxLayout()
+        self._account_title = StrongBodyLabel()
+        self._account_refresh = PushButton()
+        self._account_refresh.setIcon(FluentIcon.SYNC)
+        self._account_refresh.clicked.connect(self.refresh_account)
+        self._account_link = HyperlinkButton()
+        self._account_link.setUrl(QUrl(OPENROUTER_CREDITS_URL))
+        account_head.addWidget(self._account_title, 1)
+        account_head.addWidget(self._account_link)
+        account_head.addWidget(self._account_refresh)
+        account_layout.addLayout(account_head)
+        self._account_status = BodyLabel()
+        self._account_status.setWordWrap(True)
+        self._account_plan = CaptionLabel()
+        self._account_plan.setWordWrap(True)
+        account_layout.addWidget(self._account_status)
+        account_layout.addWidget(self._account_plan)
+        self._account: tuple[object, str] | None = None  # last answer, kept for retranslate
+        controller.openrouterAccount.connect(self._on_account)
+
         for row in (self._engine_row, self._model_row, self._key_row, self.key_list,
+                    self.account_card,
                     self._context_row, self._fallback_row, self._local_row, self._mode_row,
                     self._tts_row):  # fmt: skip
             self.body.addWidget(row)
@@ -267,6 +301,61 @@ class TranslatePage(BasePage):
         if source == "env":
             self._key_list_layout.addWidget(CaptionLabel(t("translate.key.env_note")))
 
+    # --- OpenRouter account ---------------------------------------------------------------
+    def refresh_account(self) -> None:
+        self._account_refresh.setEnabled(False)
+        self._account_status.setText(t("translate.or.loading"))
+        self.controller.refresh_openrouter_account()
+
+    def _on_account(self, info: object, error: str) -> None:
+        self._account = (info, error)
+        self._account_refresh.setEnabled(True)
+        self._show_account()
+
+    def _show_account(self) -> None:
+        tr = self.controller.config.translator
+        info, error = self._account or (None, "")
+        if error == "no_key":
+            self._account_status.setText(t("translate.or.no_key"))
+        elif error:
+            self._account_status.setText(t("translate.or.error", reason=error))
+        elif isinstance(info, orouter.KeyInfo):
+            lines = []
+            if info.remaining is not None and info.limit is not None:
+                lines.append(t("translate.or.limit", limit=f"{info.limit:.2f}",
+                               remaining=f"{info.remaining:.2f}", today=money(info.usage_daily)))  # fmt: skip
+            else:
+                lines.append(t("translate.or.no_limit", usage=money(info.usage),
+                               today=money(info.usage_daily)))  # fmt: skip
+            per_hour = orouter.cost_per_hour(tr.openrouter_model, self._line_tokens())
+            hours = orouter.hours_for(info.remaining or 0.0, per_hour)
+            if hours is not None and info.remaining:
+                lines.append(t("translate.or.hours", model=tr.openrouter_model,
+                               hours=hours_text(hours)))  # fmt: skip
+            if info.free_limit:
+                lines.append(t("translate.or.free", used=info.free_used, limit=info.free_limit))
+            self._account_status.setText("\n".join(lines))
+        else:
+            self._account_status.setText("")
+        self._account_plan.setText(self._plan_text())
+
+    def _line_tokens(self) -> tuple[float, float]:
+        return self.controller.average_line_tokens() or orouter.TYPICAL_LINE_TOKENS
+
+    def _plan_text(self) -> str:
+        """What a top-up buys with the chosen model, and the free-model daily caps."""
+        model = self.controller.config.translator.openrouter_model
+        per_hour = orouter.cost_per_hour(model, self._line_tokens())
+        free = t("translate.or.free_rule", low=orouter.FREE_DAILY_LOW,
+                 high=orouter.FREE_DAILY_HIGH, threshold=f"{orouter.FREE_THRESHOLD_USD:.0f}")  # fmt: skip
+        if per_hour is None:
+            return t("translate.or.unknown_price", model=model) + " " + free
+        top_ups = " · ".join(
+            t("translate.or.top_up", usd=usd, hours=hours_text(usd / per_hour))
+            for usd in orouter.TOP_UPS_USD)  # fmt: skip
+        return t("translate.or.plan", model=model, lines=orouter.LINES_PER_HOUR,
+                 per_hour=money(per_hour), top_ups=top_ups) + " " + free  # fmt: skip
+
     def _run_test(self) -> None:
         self._test_button.setEnabled(False)
         self._test_result.setText(t("translate.test.running"))
@@ -355,6 +444,12 @@ class TranslatePage(BasePage):
         if not self._limit.hasFocus():  # never overwrite what is being typed
             self._limit.setText(f"{tr.daily_limit_usd:.2f}" if tr.daily_limit_usd else "")
         self._limit_row.setEnabled(paid)
+        was_visible = self.account_card.isVisibleTo(self)
+        self.account_card.setVisible(openrouter)
+        if openrouter and (not was_visible or self._account is None):
+            self.refresh_account()  # engine just chosen, or first look
+        elif openrouter:
+            self._show_account()  # the model may have changed: new estimates
         self._spend_label.setText(spend_text(self.controller.snapshot(), tr.daily_limit_usd))
         self._refresh_texts()
 
@@ -368,8 +463,9 @@ class TranslatePage(BasePage):
             status = t("translate.keys.saved", n=count)
         else:
             status = t("translate.keys.none")
-        desc = t("translate.keys.openrouter.desc" if tr.engine == "openrouter" else "translate.keys.desc")
-        self._key_row.set_texts(t("translate.keys"), f"{desc} {status}")
+        keys = "translate.keys.openrouter" if tr.engine == "openrouter" else "translate.keys"
+        self._key_row.set_texts(t(keys), f"{t(keys + '.desc')} {status}")
+        self._keys.setPlaceholderText(t(keys + ".placeholder"))
         if tr.engine == "test":
             self._notice.show_message(t("translate.notice.test"), "warn")
         elif tr.engine in PAID_ENGINES and not count:
@@ -406,7 +502,6 @@ class TranslatePage(BasePage):
         for i, engine in enumerate(TTS_ENGINES):
             self._tts_engine.setItemText(i, t(f"translate.tts.engine.{engine}"))
         self._tts_engine.blockSignals(False)
-        self._keys.setPlaceholderText(t("translate.keys.placeholder"))
         self._save.setText(t("translate.keys.save"))
         self._key_link.setText(t("translate.keys.how"))
         self._context_row.set_texts(t("translate.context"), t("translate.context.desc"))
@@ -421,6 +516,11 @@ class TranslatePage(BasePage):
         self._spend_row.set_texts(t("translate.spend"), t("translate.spend.desc"))
         self._limit_row.set_texts(t("translate.limit"), t("translate.limit.desc"))
         self._limit.setPlaceholderText(t("translate.limit.placeholder"))
+        self._account_title.setText(t("translate.or.title"))
+        self._account_refresh.setText(t("translate.or.refresh"))
+        self._account_link.setText(t("translate.or.credits"))
+        if self.controller.config.translator.engine == "openrouter":
+            self._show_account()
         if not self._cache_label.text():
             self._cache_label.setText(t("translate.usage.value", requests=0, hits=0, cost="0.0000"))
         self._refresh_texts()

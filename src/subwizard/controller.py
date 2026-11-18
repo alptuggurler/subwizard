@@ -76,6 +76,8 @@ class AppController(QObject):
     subtitleChanged = Signal(object)  # SubtitleView | None: the translation on screen
     translated = Signal(object)  # Translated: every finished line (history, M4)
     translationTested = Signal(object)  # TestOutcome from test_translation()
+    # refresh_openrouter_account(): (KeyInfo | None, error reason or "no_key" / "")
+    openrouterAccount = Signal(object, str)
     pauseChanged = Signal(bool)  # F8: translation paused
     overlayChanged = Signal()  # an overlay.* setting changed (video + preview repaint)
     hotkeysChanged = Signal()
@@ -597,6 +599,8 @@ class AppController(QObject):
                  ", ".join(secrets.mask(k) for k in keys) or "yok")  # fmt: skip
         self._session.restart_translation()
         self.settingsChanged.emit()
+        if self.key_provider == secrets.OPENROUTER:
+            self.refresh_openrouter_account()  # a new key: show its limit and free requests
 
     def api_keys(self) -> list[tuple[str, str, float]]:
         """The keys for the UI: (masked key, state, seconds left to rest). The state is
@@ -623,6 +627,44 @@ class AppController(QObject):
         saved = secrets.keys_from_keyring(self.key_provider)
         if 0 <= index < len(saved):
             self.set_api_keys(",".join(saved[:index] + saved[index + 1:]))
+
+    def refresh_openrouter_account(self) -> None:
+        """What the OpenRouter key may still spend and today's free-model requests, fetched
+        on a helper thread; the answer arrives through `openrouterAccount`."""
+        import threading
+
+        from subwizard.translator.base import TranslationError
+        from subwizard.translator.openrouter import fetch_key_info
+
+        keys, _source = secrets.load_api_keys(secrets.OPENROUTER)
+        if not keys:
+            self.openrouterAccount.emit(None, "no_key")
+            return
+
+        def run() -> None:
+            try:
+                info = fetch_key_info(keys[0])
+            except TranslationError as exc:
+                log.warning("OpenRouter hesap bilgisi alınamadı: %s", exc)
+                self.openrouterAccount.emit(None, str(exc))
+            else:
+                self.openrouterAccount.emit(info, "")
+
+        threading.Thread(target=run, name="openrouter-account", daemon=True).start()
+
+    def average_line_tokens(self) -> tuple[float, float] | None:
+        """Input / output tokens per paid line so far (the spend ledger), for estimates."""
+        from subwizard.translator.service import spend_path
+        from subwizard.translator.spend import SpendLedger
+
+        ledger = SpendLedger(spend_path())
+        try:
+            total = ledger.total()
+        finally:
+            ledger.close()
+        if total.requests < 20:  # too few lines to say much
+            return None
+        return total.input_tokens / total.requests, total.output_tokens / total.requests
 
     def test_translation(self, text: str) -> None:
         """Translate `text` once with the current settings on a helper thread; the

@@ -101,3 +101,23 @@ def test_subtitle_signal_reaches_the_view(window):
 def test_translation_rows_exist_in_metrics(window):
     labels = {r.label for r in metric_rows(window.controller.snapshot(), window.controller.config)}
     assert {"diag.sub_latency", "diag.tr_counts", "diag.tr_cost"} <= labels
+
+
+def test_openrouter_account_card(window, isolated_user_state, monkeypatch):
+    from subwizard.translator import openrouter
+
+    page = _page(window, "translate")
+    assert not page.account_card.isVisibleTo(page)
+    page._engine.setCurrentIndex(1)  # OpenRouter, no key yet
+    assert page.account_card.isVisibleTo(page)
+    assert "OpenRouter" in page._account_status.text()  # "add your key" hint
+    assert "$5 → ~231" in page._account_plan.text()
+
+    info = openrouter.KeyInfo(5.0, 4.9, None, 0.1, 0.02, 3, 50)
+    monkeypatch.setattr(openrouter, "fetch_key_info", lambda key: info)
+    page._keys.setText("sk-or-v1-" + "b" * 40)
+    page._save.click()  # its own credential store entry, then the card refreshes
+    assert [user for _service, user in isolated_user_state.store] == ["openrouter_api_keys"]
+    assert wait_until(lambda: "$4.90" in page._account_status.text())
+    text = page._account_status.text()
+    assert "~227" in text and "3 / 50" in text

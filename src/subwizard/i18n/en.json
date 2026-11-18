@@ -529,5 +529,21 @@
   "translate.notice.no_openrouter_key": "No OpenRouter key and the fallback is off: subtitles will not be translated. Add a key or turn the fallback on.",
   "home.translator.openrouter": "OpenRouter · {model}",
   "home.translator.quota_openrouter": "The OpenRouter balance is used up or rate-limited; lines are translated by the fallback. Add credits at openrouter.ai/credits; OpenRouter is used again by itself once it answers.",
-  "wizard.summary.openrouter": "OpenRouter ({model})"
+  "wizard.summary.openrouter": "OpenRouter ({model})",
+  "translate.or.title": "OpenRouter account",
+  "translate.or.refresh": "Refresh",
+  "translate.or.credits": "Add credits",
+  "translate.or.loading": "Getting account info…",
+  "translate.or.no_key": "Once you add your OpenRouter key above, its limit, what is left and today's free requests show here.",
+  "translate.or.error": "Couldn't get the account info: {reason}",
+  "translate.or.limit": "Key limit ${limit} · left ${remaining} · spent today ${today}",
+  "translate.or.no_limit": "Spent with this key ${usage} (today ${today}). The key has no credit limit, so what is left is not shown here: see \"Add credits\", or set a limit on the key on openrouter.ai.",
+  "translate.or.hours": "What is left is {hours} hours of play with {model}.",
+  "translate.or.free": "Free models (names ending in :free) today: {used} / {limit} requests; resets at UTC midnight.",
+  "translate.or.plan": "If you add ({model}, assuming busy dialogue with ~{lines} new lines an hour, ~${per_hour}/hour): {top_ups}.",
+  "translate.or.top_up": "${usd} → {hours} hours",
+  "translate.or.free_rule": "Paid models have no daily request cap; only the balance runs out. Free models: {low} requests a day, or {high} a day once the account has bought ${threshold} or more in total (20 a minute).",
+  "translate.or.unknown_price": "No known price for {model}, so no estimate of hours.",
+  "translate.keys.openrouter": "OpenRouter API key",
+  "translate.keys.openrouter.placeholder": "sk-or-v1-… (paste and Add)"
 }
