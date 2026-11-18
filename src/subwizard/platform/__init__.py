@@ -52,11 +52,25 @@ def find_video_device(name: str) -> int | None:
 
 def exclude_from_capture(window_id: int) -> bool:
     """Keep a window (the PC-game overlay) out of screen captures, so OCR never reads
-    our own text. Windows only; False elsewhere."""
+    our own text. Windows and macOS; False elsewhere."""
     if sys.platform == "win32":
         from subwizard.platform.windows import window
 
         return window.exclude_from_capture(window_id)
+    if sys.platform == "darwin":
+        from subwizard.platform.macos import window as mac_window
+
+        return mac_window.exclude_from_capture(window_id)
+    return False
+
+
+def float_over_fullscreen(window_id: int) -> bool:
+    """macOS: keep the overlay window visible over fullscreen apps (their own Space).
+    Elsewhere always-on-top is enough: False, nothing to do."""
+    if sys.platform == "darwin":
+        from subwizard.platform.macos import window as mac_window
+
+        return mac_window.float_over_fullscreen(window_id)
     return False
 
 

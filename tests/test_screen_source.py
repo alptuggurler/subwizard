@@ -111,3 +111,19 @@ def test_permission_check_asks_only_when_denied(monkeypatch):
         monkeypatch.setattr(screen_access, "allowed", lambda s=state: s)
         assert platform.screen_capture_allowed() is expected
     assert asked == [1]  # denied twice (the source retries), asked once
+
+
+def test_overlay_window_helpers_route_to_macos(monkeypatch):
+    import sys
+
+    from subwizard import platform
+    from subwizard.platform.macos import window as mac_window
+
+    calls = []
+    monkeypatch.setattr(mac_window, "float_over_fullscreen", lambda v: calls.append(("f", v)) or True)
+    monkeypatch.setattr(mac_window, "exclude_from_capture", lambda v: calls.append(("x", v)) or True)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert platform.float_over_fullscreen(7) and platform.exclude_from_capture(7)
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert not platform.float_over_fullscreen(7)
+    assert calls == [("f", 7), ("x", 7)]

@@ -39,6 +39,7 @@ QT_FREE_MODULES = [
     "subwizard.translator.anthropic_api",
     "subwizard.platform.macos.dock",
     "subwizard.platform.macos.screen_access",
+    "subwizard.platform.macos.window",
     "subwizard.translator.deep",
     "subwizard.translator.echo",
     "subwizard.translator.gemini",

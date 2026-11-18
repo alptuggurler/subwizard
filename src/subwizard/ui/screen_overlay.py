@@ -4,7 +4,9 @@ A frameless, transparent, always-on-top window covering the captured monitor tha
 ignores the mouse and keyboard, so the game keeps every click. It draws only the
 subtitle (the game draws the picture) and repaints only when the subtitle or its
 style changes, never per frame, to stay out of the game's way. Works over
-borderless / windowed games; exclusive fullscreen hides every other window.
+borderless / windowed games; exclusive fullscreen hides every other window. On macOS
+the window also joins fullscreen apps' Spaces (a fullscreen browser or game) and stays
+out of screen grabs (platform/macos/window.py).
 """
 
 from __future__ import annotations
@@ -54,6 +56,7 @@ class ScreenOverlay(VideoView):
             self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.excluded = False
+        self.over_fullscreen = False  # macOS: shown in fullscreen apps' Spaces too
 
     def cover(self, region: dict[str, int] | None, number: int) -> QRect:
         screen = pick_screen(region, number)
@@ -65,6 +68,8 @@ class ScreenOverlay(VideoView):
         super().showEvent(event)
         if not self.excluded:
             self.excluded = platform.exclude_from_capture(int(self.winId()))
+        if sys.platform == "darwin" and not self.over_fullscreen:
+            self.over_fullscreen = platform.float_over_fullscreen(int(self.winId()))
 
     def paintEvent(self, event: QPaintEvent) -> None:
         frame = self._controller.latest_frame()
@@ -72,7 +77,7 @@ class ScreenOverlay(VideoView):
         if frame is not None:
             # The window *is* the captured monitor: frame pixels map onto all of it.
             self._draw_subtitle(painter, QRectF(self.rect()), frame)
-        self._draw_toast(painter)  # excluded from capture on Windows: OCR never reads it
+        self._draw_toast(painter)  # excluded from capture: OCR never reads it
         painter.end()
 
     # The base view's fullscreen / cursor / history handling does not apply here.
