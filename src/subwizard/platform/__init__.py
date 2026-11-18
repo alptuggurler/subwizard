@@ -85,7 +85,13 @@ def screen_capture_allowed() -> bool:
         return True
     from subwizard.platform.macos import screen_access
 
+    global _screen_access_asked
     if screen_access.allowed() is not False:
         return True
-    screen_access.request()
+    if not _screen_access_asked:  # the source retries; the prompt is shown once
+        _screen_access_asked = True
+        screen_access.request()
     return False
+
+
+_screen_access_asked = False

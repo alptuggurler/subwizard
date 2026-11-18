@@ -106,7 +106,8 @@ def test_permission_check_asks_only_when_denied(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
     asked = []
     monkeypatch.setattr(screen_access, "request", lambda: asked.append(1))
-    for state, expected in ((True, True), (None, True), (False, False)):
+    monkeypatch.setattr(platform, "_screen_access_asked", False)
+    for state, expected in ((True, True), (None, True), (False, False), (False, False)):
         monkeypatch.setattr(screen_access, "allowed", lambda s=state: s)
         assert platform.screen_capture_allowed() is expected
-    assert asked == [1]
+    assert asked == [1]  # denied twice (the source retries), asked once
