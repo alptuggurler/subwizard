@@ -3,7 +3,7 @@
 # kendisi kaydeder. Tum alanlar opsiyoneldir, yazilmayanlar varsayilan degeri alir.
 
 ui:
-  language: auto        # auto | tr | en
+  language: en          # en | tr | auto (sistem dili)
   theme: dark           # auto | dark | light
   close_to_tray: true   # kapatma butonu tepsiye kucultur
   perf_overlay: 'off'   # off | compact | detailed (F9 sirayla gecer)

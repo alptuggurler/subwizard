@@ -31,9 +31,20 @@ SECRET_PATTERNS = (
 SECRET_CONFIG_KEYS = {("web", "token")}
 
 
+IPV4 = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+KEEP_IPS = frozenset({"127.0.0.1", "0.0.0.0"})  # say nothing about the user's network
+
+
 def scrub(text: str) -> str:
+    """Keys and tokens masked; network addresses and the user's home folder (their
+    account name) left out, so a bundle can be posted in a public issue."""
     text = SECRET_PATTERNS[0].sub(lambda m: mask(m.group(0)), text)
-    return SECRET_PATTERNS[1].sub(lambda m: m.group(1) + mask(m.group(2)), text)
+    text = SECRET_PATTERNS[1].sub(lambda m: m.group(1) + mask(m.group(2)), text)
+    text = IPV4.sub(lambda m: m.group(0) if m.group(0) in KEEP_IPS else "<ip>", text)
+    home = str(Path.home())
+    if len(home) > 3:
+        text = text.replace(home, "~")
+    return text
 
 
 def _config_text(config: AppConfig) -> str:
@@ -71,7 +82,7 @@ def make_support_bundle(dest: Path, config: AppConfig, log_dir: Path,
     dest.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as z:
         z.writestr("system.txt", system_info())
-        z.writestr("config.yaml", _config_text(config))
+        z.writestr("config.yaml", scrub(_config_text(config)))
         if diagnostics:
             z.writestr("diagnostics.txt", scrub(diagnostics))
         if metrics_csv:

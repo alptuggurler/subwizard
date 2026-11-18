@@ -33,7 +33,7 @@ class _Section(BaseModel):
 
 
 class UIConfig(_Section):
-    language: Language = "auto"
+    language: Language = "en"  # auto = the system language
     theme: ThemeMode = "dark"
     close_to_tray: bool = True
     perf_overlay: PerfOverlay = "off"  # F9 cycles off -> compact -> detailed

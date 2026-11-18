@@ -78,6 +78,9 @@ class StatusCard(CardWidget):
         super().__init__()
         self._title = StrongBodyLabel()
         self._state = CaptionLabel()
+        # Long states (English is longer) wrap instead of making the page wider than the window.
+        self._title.setWordWrap(True)
+        self._state.setWordWrap(True)
         self._dot = StatusDot()
 
         icon_widget = IconWidget(icon)

@@ -73,3 +73,14 @@ def test_recorder_series_feeds_the_graphs_oldest_first():
     assert rec.series("audio_db", 60) == [-30.0, -12.0]
     assert rec.series("audio_db", 1) == [-12.0]
     assert rec.series("ram_proc_mb", 60) == [None, None]  # no gauge yet: a gap, not 0
+
+
+def test_scrub_leaves_out_network_addresses_and_the_account_name():
+    from pathlib import Path
+
+    home = str(Path.home())
+    text = scrub(f"web http://10.0.0.42:8787/ log {home}/AppData/x.log local 127.0.0.1 "
+                 "Windows-11-10.0.26200-SP0 SubWizard 0.1.0")  # fmt: skip
+    assert "10.0.0.42" not in text and "http://<ip>:8787/" in text
+    assert home not in text and "~/AppData/x.log" in text
+    assert "127.0.0.1" in text and "10.0.26200" in text and "0.1.0" in text  # not addresses

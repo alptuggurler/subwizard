@@ -24,6 +24,7 @@ from subwizard.config import load_config
 from subwizard.core.metrics import M
 
 DEFAULT_OUT = Path(__file__).resolve().parent.parent / "docs" / "screenshots"
+EXAMPLE_IP = "192.168.1.20"
 SETTLE_MS = 400  # lets page-switch animations finish before grabbing
 
 
@@ -48,6 +49,11 @@ def main() -> int:
                              "measures the pipeline itself, not the translation service")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+
+    # The Web page shows this PC's network address: published pictures show an example.
+    import subwizard.web.server as web_server
+
+    web_server.local_ip = lambda: EXAMPLE_IP
 
     if args.offline_translation:
         from subwizard.translator.deep import DeepTranslatorFallback

@@ -362,6 +362,6 @@ Her adımın sonunda **Kabul** maddeleri sağlanmadan sonrakine geçme.
 ## 8. İlham Alınan Projeler (sadece fikir; kod kopyalanmaz)
 | Proje | Lisans | Aldığımız fikirler |
 |---|---|---|
-| [Sefflex/GameTranslator](https://github.com/Sefflex/GameTranslator) | AGPL-3.0 | Görüntü TV'de kalır, çeviri ayrı ekranda (Mod B); ROI şablonları; `replace` modu; OBS overlay; PC ses kapatma; oyuna özel argo sözlüğü; panoya kopyalama |
-| [thanhkeke97/RSTGameTranslation](https://github.com/thanhkeke97/RSTGameTranslation) | README'ye bak | Çoklu alan; hariç bölgeler; ignore listesi; oyun profilleri + oyun bilgisi bağlamı; çoklu API key; yeniden çevir kısayolu; geçmiş penceresi; arka plan rengiyle orijinali silme |
-| [danily07/Translumo](https://github.com/danily07/translumo) | Apache-2.0 | Windows OCR'ın hızlı varsayılan olması; OCR alanını küçük tutma |
+| [sefflex/GameTranslator](https://gitlab.com/sefflex/GameTranslator) | AGPL-3.0 | Görüntü TV'de kalır, çeviri ayrı ekranda (Mod B); ROI şablonları; `replace` modu; OBS overlay; PC ses kapatma; oyuna özel argo sözlüğü; panoya kopyalama |
+| [thanhkeke97/RSTGameTranslation](https://github.com/thanhkeke97/RSTGameTranslation) | GPL-3.0 | Çoklu alan; hariç bölgeler; ignore listesi; oyun profilleri + oyun bilgisi bağlamı; çoklu API key; yeniden çevir kısayolu; geçmiş penceresi; arka plan rengiyle orijinali silme |
+| [ramjke/Translumo](https://github.com/ramjke/Translumo) | Apache-2.0 | Windows OCR'ın hızlı varsayılan olması; OCR alanını küçük tutma |
