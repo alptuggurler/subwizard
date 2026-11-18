@@ -249,11 +249,11 @@
   "appearance.visible": "Show subtitles",
   "appearance.visible.desc": "Translation keeps running, it is just not drawn (F10).",
   "appearance.position": "Position",
-  "appearance.position.desc": "Right over the English text (like the game's own), in a box over the subtitle area, at the top, or in place of the English text.",
+  "appearance.position.desc": "In a dark box over the English text (like a translated game subtitle), right over it without a box, in a box over the subtitle area, or at the top.",
   "appearance.position.above": "Right over the English text",
   "appearance.position.bottom": "In a box over the subtitle area",
   "appearance.position.top": "Top of the screen",
-  "appearance.position.replace": "Replace the original",
+  "appearance.position.replace": "In a box over the original",
   "appearance.font": "Font",
   "appearance.font.desc": "Empty: Segoe UI Variable → Segoe UI → Arial.",
   "appearance.size": "Text size",
@@ -272,7 +272,7 @@
   "appearance.outline": "Outline",
   "appearance.outline.desc": "A thin black edge around letters, for bright scenes.",
   "appearance.auto_bg": "Automatic background",
-  "appearance.auto_bg.desc": "In \"replace\" mode, cover the English text with the color around it.",
+  "appearance.auto_bg.desc": "In \"replace\" mode, the box takes the color around the English text instead of the background color.",
   "appearance.show_source": "Also show the English",
   "appearance.show_source.desc": "The original line in small type under the translation.",
   "history.search": "Search (English or Turkish)",
@@ -516,5 +516,6 @@
   "tray.pages": "Go to page",
   "tray.dock": "Show in Dock",
   "settings.dock": "Show in Dock",
-  "settings.dock.desc": "Off: SubWizard lives only in the menu bar (no Dock icon, no app menu). Everything stays reachable from the menu bar icon."
+  "settings.dock.desc": "Off: SubWizard lives only in the menu bar (no Dock icon, no app menu). Everything stays reachable from the menu bar icon.",
+  "appearance.preset.game_box": "Game subtitle box"
 }

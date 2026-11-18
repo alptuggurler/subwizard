@@ -249,11 +249,11 @@
   "appearance.visible": "Altyazıyı göster",
   "appearance.visible.desc": "Kapalıyken çeviri sürer, yalnızca ekrana çizilmez (F10).",
   "appearance.position": "Konum",
-  "appearance.position.desc": "İngilizcenin hemen üstünde (oyunun yazısı gibi), kutuda bölgenin üstünde, ekranın üstünde ya da İngilizcenin yerine.",
+  "appearance.position.desc": "İngilizcenin yerine koyu kutuda (çevrilmiş oyun altyazısı gibi), kutusuz hemen üstünde, kutuda bölgenin üstünde ya da ekranın üstünde.",
   "appearance.position.above": "İngilizcenin hemen üstünde",
   "appearance.position.bottom": "Kutuda, altyazı bölgesinin üstünde",
   "appearance.position.top": "Ekranın üstünde",
-  "appearance.position.replace": "Orijinalin yerine",
+  "appearance.position.replace": "Orijinalin yerine, kutuda",
   "appearance.font": "Font",
   "appearance.font.desc": "Boş bırakılırsa Segoe UI Variable → Segoe UI → Arial.",
   "appearance.size": "Yazı boyutu",
@@ -272,7 +272,7 @@
   "appearance.outline": "Kontur",
   "appearance.outline.desc": "Harflerin çevresinde ince siyah çizgi; açık sahnelerde okunurluk.",
   "appearance.auto_bg": "Otomatik arka plan",
-  "appearance.auto_bg.desc": "\"Orijinalin yerine\" modunda İngilizceyi çevresinin rengiyle örter.",
+  "appearance.auto_bg.desc": "\"Orijinalin yerine\" modunda kutu, arka plan rengi yerine İngilizce yazının çevresindeki rengi alır.",
   "appearance.show_source": "İngilizceyi de göster",
   "appearance.show_source.desc": "Çevirinin altında küçük puntoyla orijinal satır.",
   "history.search": "Ara (İngilizce ya da Türkçe)",
@@ -516,5 +516,6 @@
   "tray.pages": "Sayfaya git",
   "tray.dock": "Dock'ta göster",
   "settings.dock": "Dock'ta göster",
-  "settings.dock.desc": "Kapalı: SubWizard yalnızca üst barda durur (Dock simgesi ve uygulama menüsü yok). Her şeye üst bardaki simgeden ulaşılır."
+  "settings.dock.desc": "Kapalı: SubWizard yalnızca üst barda durur (Dock simgesi ve uygulama menüsü yok). Her şeye üst bardaki simgeden ulaşılır.",
+  "appearance.preset.game_box": "Oyun altyazı kutusu"
 }

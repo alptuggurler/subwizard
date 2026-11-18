@@ -262,9 +262,10 @@ class OverlayConfig(_Section):
     """How the Turkish subtitle looks on the video (SPEC 3.7). Sizes are % of the video."""
 
     visible: bool = True  # F10
-    # "replace" covers the English text with the translation: no extra room on screen.
+    # "replace" (default) covers the English text with the translation in a dark rounded box,
+    # like a game's own translated subtitle: no extra room on screen.
     # above: right over the English text, its size, no box (as if the game wrote it)
-    position: Literal["above", "bottom", "top", "replace"] = "above"
+    position: Literal["above", "bottom", "top", "replace"] = "replace"
     font_family: str = ""  # "" = Segoe UI Variable -> Segoe UI -> Arial
     font_size_pct: float = Field(3.5, gt=0, le=20)  # of the video height
     bold: bool = True
@@ -272,10 +273,10 @@ class OverlayConfig(_Section):
     margin_pct: float = Field(1.5, ge=0, le=20)  # gap to the region / screen edge
     text_color: str = "#FFFFFF"
     background_color: str = "#000000"
-    background_opacity: float = Field(0.65, ge=0, le=1)
+    background_opacity: float = Field(0.95, ge=0, le=1)  # hides the English under the box
     speaker_color: str = "#FFD24A"
     outline: bool = True
-    auto_bg: bool = True  # replace mode: cover the English text with its surroundings' color
+    auto_bg: bool = False  # replace mode: the box takes the color around the English text
     show_source: bool = False  # also show the English line, small
     history_lines: int = Field(10, ge=1, le=50)  # F12 panel
     # How lines enter and leave (pipeline/subtitle_stack.py): the line before the current

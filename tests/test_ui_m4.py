@@ -223,7 +223,7 @@ def test_replace_mode_never_makes_a_bigger_block_than_the_english_text():
     name line and a marker, larger than the text it covered."""
     from subwizard.ui.subtitle_paint import replace_layout
 
-    cfg = OverlayConfig(font_size_pct=4.5)
+    cfg = OverlayConfig(font_size_pct=4.5, auto_bg=True)  # the cover blends in: no padding
     view = SubtitleView(1, "Para olmadan olmaz.", "Lucia", "Not without the money.",
                         "mymemory", True, 0.0, 0.0)  # fmt: skip
     layout = replace_layout(cfg, view, 1920, 1080, area_w=520, area_h=48, lines=1)
@@ -247,7 +247,6 @@ def test_above_mode_sits_right_over_the_english_text_at_its_size():
 
     from subwizard.ui.subtitle_paint import above_layout, place_above
 
-    assert OverlayConfig().position == "above"
     cfg = OverlayConfig(font_size_pct=4.5)
     view = SubtitleView(1, "Hayır, onu polis için tutacağız.", "Simon Krieger",
                         "No, we keep him for the cops.", "gemini", False, 0.0, 0.0)  # fmt: skip
@@ -264,3 +263,21 @@ def test_above_mode_sits_right_over_the_english_text_at_its_size():
     # Never out of the picture at the edges.
     edge = place_above(QRectF(0, 10, 100, 40), video, 600, 60)
     assert edge.left() == 0 and edge.top() == 0
+
+
+def test_default_is_a_dark_box_over_the_english_text():
+    """Asked for by the user (how players see translated games): a dark rounded box where
+    the English line was, white text centered in it, with room above and below."""
+    from subwizard.controller import OVERLAY_PRESETS
+    from subwizard.ui.subtitle_paint import REPLACE_BOX_VPAD_EM, replace_layout
+
+    cfg = OverlayConfig()
+    assert cfg.position == "replace" and not cfg.auto_bg and cfg.background_opacity == 0.95
+    view = SubtitleView(1, "Hadi ama dostum. IAA, FIB, CC, Globopol.", None,
+                        "Come on, man. IAA, FIB, CC, Globopol.", "gemini", False, 0.0, 0.0)  # fmt: skip
+    layout = replace_layout(cfg, view, 1920, 1080, area_w=760, area_h=40, lines=1)
+    pad = 2 * layout.style.font_px * REPLACE_BOX_VPAD_EM
+    assert layout.box_h == pytest.approx(40 + pad)
+    assert layout.box_w >= 760  # at least as wide as the English line it hides
+    preset = OVERLAY_PRESETS["game_box"]
+    assert preset["position"] == "replace" and preset["auto_bg"] is False

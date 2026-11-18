@@ -45,6 +45,10 @@ SAVE_DEBOUNCE_MS = 400  # sliders fire many changes; write the file once they se
 PERF_OVERLAY_CYCLE: tuple[PerfOverlay, ...] = ("off", "compact", "detailed")
 # Appearance presets (SPEC 3.12): only the keys they change.
 OVERLAY_PRESETS: dict[str, dict[str, object]] = {
+    # The default look: a dark rounded box over the English line, like a translated game.
+    "game_box": {"position": "replace", "auto_bg": False, "text_color": "#FFFFFF",
+                 "background_color": "#000000", "background_opacity": 0.95, "outline": False,
+                 "bold": True, "speaker_color": "#FFD24A"},
     "netflix": {"text_color": "#FFFFFF", "background_opacity": 0.0, "outline": True,
                 "bold": False, "font_size_pct": 4.5, "speaker_color": "#FFFFFF"},
     "ingame": {"text_color": "#FFFFFF", "background_color": "#000000",

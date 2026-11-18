@@ -111,6 +111,7 @@ def fit_replace(text: str, families: tuple[str, ...], bold: bool, start_px: int,
 REPLACE_FILL = 0.8  # font height as a share of one English line's height
 REPLACE_BOX_PAD_EM = 0.5  # side room around the translation inside the cover
 REPLACE_RADIUS_EM = 0.3
+REPLACE_BOX_VPAD_EM = 0.35  # solid box (no auto_bg): room above and below the text
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,8 +140,11 @@ def replace_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video
                                           REPLACE_MIN_FONT_PX, area_w, max_width, area_h)  # fmt: skip
     style = replace(base, font_px=font_px, background=(0, 0, 0, 0), show_source=False,
                     max_width=round(text_w) + 2 * round(font_px * PADDING_EM) + 2)  # fmt: skip
+    box_h = max(area_h, text_h)
+    if not cfg.auto_bg:  # a visible box: some room around the text, like a game subtitle box
+        box_h += 2 * font_px * REPLACE_BOX_VPAD_EM
     return ReplaceLayout(flat, style, max(area_w, text_w + 2 * font_px * REPLACE_BOX_PAD_EM),
-                         max(area_h, text_h))  # fmt: skip
+                         box_h)  # fmt: skip
 
 
 def above_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video_h: float,

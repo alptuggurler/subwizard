@@ -157,7 +157,7 @@ translator:
 
 overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
   visible: true             # F10
-  position: above           # above (Ingilizcenin hemen ustu, kutusuz) | replace (orijinalin yerine) | bottom (kutuda, ustte) | top
+  position: replace         # replace (orijinalin yerine, koyu kutuda) | above (Ingilizcenin hemen ustu, kutusuz) | bottom (kutuda, ustte) | top
   font_family: ""           # bos = Segoe UI Variable -> Segoe UI -> Arial
   font_size_pct: 3.5        # video yuksekliginin %'si
   bold: true
@@ -165,10 +165,10 @@ overlay:                    # ekrandaki Turkce altyazi (boyutlar videonun %'si)
   margin_pct: 1.5
   text_color: "#FFFFFF"
   background_color: "#000000"
-  background_opacity: 0.65
+  background_opacity: 0.95
   speaker_color: "#FFD24A"
   outline: true
-  auto_bg: true             # replace modunda Ingilizce yazi cevre rengiyle kapatilir
+  auto_bg: false            # true: replace modunda kutu Ingilizce yazinin cevre rengini alir
   show_source: false        # Ingilizce satiri da kucuk goster
   history_lines: 10         # F12 paneli
   stack_lines: 2            # 1-3: onceki satir ustte kucuk ve soluk kalir (1 = yalnizca guncel satir)
