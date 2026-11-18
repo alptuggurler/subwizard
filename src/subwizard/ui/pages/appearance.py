@@ -22,15 +22,18 @@ from subwizard.pipeline.board import SubtitleView
 from subwizard.ui.pages.base import BasePage, SettingRow
 from subwizard.ui.subtitle_paint import (
     TURKISH_SAMPLE,
+    REPLACE_FILL,
     Style,
+    above_layout,
     paint_replace,
     place,
+    place_above,
     render_subtitle,
     replace_layout,
 )
 from subwizard.ui.widgets.value_slider import ValueSlider
 
-POSITIONS = ("bottom", "top", "replace")
+POSITIONS = ("above", "replace", "bottom", "top")
 COMBO_WIDTH = 220
 PREVIEW_HEIGHT = 240
 PREVIEW_ROI = (0.80, 0.95)  # where the "English subtitle" sits in the preview scene
@@ -103,6 +106,18 @@ class SubtitlePreview(QWidget):
             scene = PREVIEW_SCENE[1]
             paint_replace(p, cfg, area, (scene.red(), scene.green(), scene.blue()), layout,
                           pixmap, dpr)  # fmt: skip
+        elif cfg.position == "above":
+            # The same layout as on the video: right over the English line, its size.
+            text_w = min(video.width(), p.fontMetrics().horizontalAdvance(source) + 8)
+            # OCR boxes hug the letters: a box that tall gives the English font size.
+            text_h = font.pixelSize() / REPLACE_FILL
+            area = QRectF(english.center().x() - text_w / 2, english.center().y() - text_h / 2,
+                          text_w, text_h)  # fmt: skip
+            layout = above_layout(cfg, self.sample(), w, video.height(), area.width(),
+                                  area.height(), 1)  # fmt: skip
+            pixmap = render_subtitle(layout.view, layout.style, dpr, t("subtitle.fallback"))
+            box = place_above(area, video, pixmap.width() / dpr, pixmap.height() / dpr)
+            p.drawPixmap(box.topLeft(), pixmap)
         else:
             style = Style.from_config(cfg, round(w), round(video.height()))
             pixmap = render_subtitle(self.sample(), style, dpr, t("subtitle.fallback"))

@@ -32,7 +32,9 @@ from subwizard.sources.base import Frame
 from subwizard.ui.metrics_view import DASH, GRADE_COLORS, metric_rows
 from subwizard.ui.subtitle_paint import (
     Style,
+    above_layout,
     place,
+    place_above,
     paint_replace,
     render_subtitle,
     replace_layout,
@@ -279,19 +281,42 @@ class VideoView(QWidget):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         cover = None
-        if main is not None and cfg.position == "replace":
+        if main is not None and cfg.position in ("replace", "above"):
+            line_id = main.view.line_id
             cover = self._replace_area(frame, target) if main.current else None
             if cover is not None:
-                self._last_cover = cover
-            elif not main.current:
-                cover = self._last_cover  # fades out where it was, not at another place
-        if cover is not None:
+                self._last_cover = (line_id, cover)
+            elif self._last_cover is not None and (
+                    not main.current or self._last_cover[0] == line_id):  # fmt: skip
+                # The English left first, or the translation fades out: it stays where
+                # it was instead of jumping to another place.
+                cover = self._last_cover[1]
+        if cover is not None and cfg.position == "replace":
             self._draw_replace(painter, target, cover, main, dpr, used)
         else:
             style = Style.from_config(cfg, round(target.width()), round(target.height()))
-            position = "bottom" if cfg.position == "replace" else cfg.position
+            position = "bottom" if cfg.position in ("replace", "above") else cfg.position
             top_edge: float | None = None
-            if main is not None:
+            center_x = target.center().x()
+            if cover is not None:  # above: over the English text, at its size
+                area, _color, lines = cover
+                key = ("above", main.view, cfg.model_dump_json(), round(target.width()),
+                       round(target.height()), round(area.width() / 4),
+                       round(area.height() / 4), lines)  # fmt: skip
+                if self._fit_cache is None or self._fit_cache[0] != key:
+                    self._fit_cache = (key, above_layout(cfg, main.view, target.width(),
+                                                         target.height(), area.width(),
+                                                         area.height(), lines))  # fmt: skip
+                layout = self._fit_cache[1]
+                style = layout.style
+                pixmap = self._line_pixmap(layout.view, style, dpr, used)
+                w, h = pixmap.width() / dpr, pixmap.height() / dpr
+                box = place_above(area, target, w, h)
+                box.moveBottom(self._eased_bottom(box.bottom(), now, was_empty))
+                painter.setOpacity(main.opacity)
+                painter.drawPixmap(box.topLeft(), pixmap)
+                top_edge, center_x = box.top(), box.center().x()
+            elif main is not None:
                 pixmap = self._line_pixmap(main.view, style, dpr, used)
                 w, h = pixmap.width() / dpr, pixmap.height() / dpr
                 top, bottom = self._anchor(frame, main.view.line_id, roi.rect[1],
@@ -315,9 +340,8 @@ class VideoView(QWidget):
                     h = pixmap.height() / dpr * item.scale
                     top_edge -= gap + h
                     painter.setOpacity(item.opacity)
-                    painter.drawPixmap(
-                        QRectF(target.left() + (target.width() - w) / 2, top_edge, w, h),
-                        pixmap, QRectF(pixmap.rect()))  # fmt: skip
+                    painter.drawPixmap(QRectF(center_x - w / 2, top_edge, w, h),
+                                       pixmap, QRectF(pixmap.rect()))  # fmt: skip
         painter.restore()
         self._pixmaps = used
         if (self._stack.animating(now) or self._gliding) and not self._anim_timer.isActive():

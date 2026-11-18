@@ -98,7 +98,7 @@ def test_preset_and_options_are_saved_and_repaint_the_preview(window):
     c.apply_overlay_preset("high_contrast")
     assert c.config.overlay.text_color == "#FFFF00" and c.config.overlay.font_size_pct == 6.0
     assert page._size.slider.value() == 60
-    page._position.setCurrentIndex(2)
+    page._position.setCurrentIndex(1)
     assert c.config.overlay.position == "replace"
     c.flush()
     assert "replace" in window.config_path.read_text(encoding="utf-8")
@@ -238,3 +238,29 @@ def test_replace_mode_never_makes_a_bigger_block_than_the_english_text():
     fitted = replace_layout(cfg, long, 1920, 1080, area_w=300, area_h=48, lines=1)
     assert fitted.box_w > 300 and fitted.box_h == 48
     assert fitted.style.font_px < layout.style.font_px
+
+
+def test_above_mode_sits_right_over_the_english_text_at_its_size():
+    """Asked for by the user (a photo of the game): the translation right over the English
+    line, as large as it, the name inline, no box."""
+    from PySide6.QtCore import QRectF
+
+    from subwizard.ui.subtitle_paint import above_layout, place_above
+
+    assert OverlayConfig().position == "above"
+    cfg = OverlayConfig(font_size_pct=4.5)
+    view = SubtitleView(1, "Hayır, onu polis için tutacağız.", "Simon Krieger",
+                        "No, we keep him for the cops.", "gemini", False, 0.0, 0.0)  # fmt: skip
+    layout = above_layout(cfg, view, 1920, 1080, area_w=900, area_h=48, lines=1)
+    assert layout.view.text == "Simon Krieger: Hayır, onu polis için tutacağız."
+    assert layout.style.background[3] == 0 and layout.style.outline
+    assert layout.style.font_px == round(48 * 0.8)  # the English line's size
+    pixmap = render_subtitle(layout.view, layout.style, 1.0, "(yedek)")
+    area = QRectF(500, 900, 900, 48)
+    video = QRectF(0, 0, 1920, 1080)
+    box = place_above(area, video, pixmap.width(), pixmap.height())
+    assert box.bottom() == pytest.approx(area.top())  # touching the English text's top
+    assert box.center().x() == pytest.approx(area.center().x())
+    # Never out of the picture at the edges.
+    edge = place_above(QRectF(0, 10, 100, 40), video, 600, 60)
+    assert edge.left() == 0 and edge.top() == 0

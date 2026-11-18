@@ -262,7 +262,8 @@ class OverlayConfig(_Section):
 
     visible: bool = True  # F10
     # "replace" covers the English text with the translation: no extra room on screen.
-    position: Literal["bottom", "top", "replace"] = "replace"
+    # above: right over the English text, its size, no box (as if the game wrote it)
+    position: Literal["above", "bottom", "top", "replace"] = "above"
     font_family: str = ""  # "" = Segoe UI Variable -> Segoe UI -> Arial
     font_size_pct: float = Field(3.5, gt=0, le=20)  # of the video height
     bold: bool = True

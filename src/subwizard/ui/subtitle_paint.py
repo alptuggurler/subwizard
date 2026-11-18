@@ -143,6 +143,30 @@ def replace_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video
                          max(area_h, text_h))  # fmt: skip
 
 
+def above_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video_h: float,
+                 area_w: float, area_h: float, lines: int) -> ReplaceLayout:  # fmt: skip
+    """`above`: the translation right over the English text, as if the game wrote it:
+    the English text's size (the size setting is not used: it follows the game), the name
+    inline, no box, an outline so it reads on any scene. Wraps at the English width or the
+    width setting."""
+    text = f"{view.speaker}: {view.text}" if view.speaker else view.text
+    flat = replace(view, text=text, speaker=None, fallback=False)
+    px = max(REPLACE_MIN_FONT_PX, round(area_h / max(1, lines) * REPLACE_FILL))
+    max_width = max(area_w, video_w * cfg.max_width_pct / 100)
+    base = Style.from_config(cfg, round(video_w), round(video_h))
+    style = replace(base, font_px=px, background=(0, 0, 0, 0), show_source=False, outline=True,
+                    max_width=round(max_width))  # fmt: skip
+    return ReplaceLayout(flat, style, 0.0, 0.0)
+
+
+def place_above(area: QRectF, video: QRectF, w: float, h: float) -> QRectF:
+    """Centered over the English text, its bottom on the text's top (the pixmap's own
+    padding is the gap), kept inside the picture."""
+    x = min(max(video.left(), area.center().x() - w / 2), video.right() - w)
+    y = max(video.top(), area.top() - h)
+    return QRectF(x, y, w, h)
+
+
 def paint_replace(p: QPainter, cfg: OverlayConfig, area: QRectF, color: tuple[int, int, int],
                   layout: ReplaceLayout, pixmap: QPixmap, dpr: float) -> None:  # fmt: skip
     """`color` is the scene around the English text (auto_bg); the caller sets opacity."""
