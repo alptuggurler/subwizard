@@ -17,6 +17,11 @@ ilerler (SPEC 6); her biri bitince kabul maddeleri doğrulanır ve commit atıl�
   `claude-haiku-5-5`, düşünme kapalı, sistem prompt'u önbellekli, kendi anahtarı). Windows'ta gerçek
   anahtarla oyun oturumunda kullanıldı (~0,8 sn/satır; bağlantı açılışta `warm()` ile ısıtılır).
   Model çeviri yerine açıklama yazarsa (`prompt.is_chatter`) satır olduğu gibi gösterilir.
+  Gerçek maliyet: ~$0,04/saat (~566 giriş + ~25 çıkış token/satır); `usage.sqlite` Claude
+  Console ile birebir tuttu. Sistem prompt'u önbellek alt sınırının altında (önbellek devrede değil).
+- Replace modu (Windows'ta oyunda istendi): düz kutu çeviri kadar, yazı boyutu sabit
+  (`font_size_pct`), İngilizce metnin alt kenarına oturur; kapak yalnızca altyazıya ait OCR
+  satırlarından hesaplanır (`subtitle_paint.matches_source`).
 
 ## Komutlar
 ```

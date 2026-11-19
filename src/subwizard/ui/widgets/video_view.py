@@ -39,6 +39,7 @@ from subwizard.ui.subtitle_paint import (
     render_subtitle,
     replace_layout,
     surrounding_color,
+    matches_source,
     text_bounds,
 )
 from subwizard.utils import timing
@@ -284,14 +285,9 @@ class VideoView(QWidget):
         cover = None
         if main is not None and cfg.position in ("replace", "above"):
             line_id = main.view.line_id
-            cover = self._replace_area(frame, target) if main.current else None
-            if cover is not None:
-                self._last_cover = (line_id, cover)
-            elif self._last_cover is not None and (
-                    not main.current or self._last_cover[0] == line_id):  # fmt: skip
-                # The English left first, or the translation fades out: it stays where
-                # it was instead of jumping to another place.
-                cover = self._last_cover[1]
+            source = f"{main.view.speaker or ''} {main.view.source}"
+            fresh = self._replace_area(frame, target, source) if main.current else None
+            cover = self._pick_cover(line_id, fresh, main.current, cfg.position)
         if cover is not None and cfg.position == "replace":
             # A new place (one line -> two) glides there instead of jumping.
             area = QRectF(cover[0])
@@ -326,6 +322,9 @@ class VideoView(QWidget):
                 top, bottom = self._anchor(frame, main.view.line_id, roi.rect[1],
                                            roi.rect[1] + roi.rect[3])  # fmt: skip
                 box = place(position, w, h, target, top, bottom, cfg.margin_pct)
+                if cfg.position == "replace":
+                    # No English text seen yet: where the subtitles are, not above them.
+                    box.moveBottom(target.top() + bottom * target.height())
                 if position != "top":  # the bottom edge glides; the box grows upward
                     box.moveBottom(self._eased_bottom(box.bottom(), now, was_empty))
                 painter.setOpacity(main.opacity)
@@ -366,9 +365,11 @@ class VideoView(QWidget):
         painter.setOpacity(main.opacity)
         paint_replace(painter, cfg, area, color, layout, pixmap, dpr)
 
-    def _source_bounds(self, frame: Frame) -> tuple[int, int, int, int] | None:
+    def _source_bounds(self, frame: Frame, source: str = ""
+                       ) -> tuple[tuple[int, int, int, int], int] | None:  # fmt: skip
         """Frame pixels (x0, y0, x1, y1) around the English text of the last OCR result,
-        inside the subtitle region only (not an extra region, e.g. a name at the top)."""
+        inside the subtitle region only (not an extra region, e.g. a name at the top),
+        and its line count. With `source`, only the lines of that subtitle count."""
         c = self._controller
         tick = c.last_ocr
         if tick is None or not tick.lines:
@@ -376,9 +377,11 @@ class VideoView(QWidget):
         height, width = frame.image.shape[:2]
         strips = config_layout(c.config.roi, width, height)
         main = strips[0]
-        boxes = [b for b in (to_frame(line.box, strips) for line in tick.lines)
+        lines = [line for line in tick.lines if not source or matches_source(line.text, source)]
+        boxes = [b for b in (to_frame(line.box, strips) for line in lines)
                  if main.y0 <= b[1] + b[3] / 2 < main.y1]  # fmt: skip
-        return text_bounds(boxes, (0, 0))
+        bounds = text_bounds(boxes, (0, 0))
+        return None if bounds is None else (bounds, len(boxes))
 
     def _anchor(self, frame: Frame, line_id: int, roi_top: float, roi_bottom: float
                 ) -> tuple[float, float]:  # fmt: skip
@@ -386,24 +389,25 @@ class VideoView(QWidget):
         the English text itself, so a tall region (lower half of the screen) does not push
         the translation to the middle of the picture. Kept per line: the translation does
         not jump when the English leaves first. The region when OCR gave no boxes."""
-        bounds = self._source_bounds(frame)
-        if bounds is not None:
+        found = self._source_bounds(frame)
+        if found is not None:
+            bounds = found[0]
             height = frame.image.shape[0]
             self._anchor_cache = (line_id, (bounds[1] / height, bounds[3] / height))
         elif self._anchor_cache is None or self._anchor_cache[0] != line_id:
             return roi_top, roi_bottom
         return self._anchor_cache[1]
 
-    def _replace_area(self, frame: Frame, target: QRectF):  # noqa: ANN202
+    def _replace_area(self, frame: Frame, target: QRectF, source: str):  # noqa: ANN202
         """(widget rect over the English text, its surrounding color, line count) from the
-        last OCR result; None when there are no boxes (falls back to `bottom`)."""
+        last OCR result; None when there are no boxes of this subtitle on screen."""
         c = self._controller
-        bounds = self._source_bounds(frame)
-        if bounds is None:
+        found = self._source_bounds(frame, source)
+        if found is None:
             return None
+        bounds, lines = found
         width = frame.image.shape[1]
         line_id = c.subtitle.line_id if c.subtitle else -1
-        lines = len(c.last_ocr.lines)
         bounds, lines = self._steady_bounds(line_id, bounds, lines)
         if self._replace_cache is None or self._replace_cache[0] != (line_id, bounds):
             # Sampled once per line and position, not every frame.
@@ -415,6 +419,22 @@ class VideoView(QWidget):
                       (bounds[2] - bounds[0]) * scale + 2 * pad,
                       (bounds[3] - bounds[1]) * scale + 2 * pad)  # fmt: skip
         return area, color, lines
+
+    def _pick_cover(self, line_id: int, fresh: tuple | None, current: bool, position: str
+                    ) -> tuple | None:  # fmt: skip
+        """Where the translation goes: over the English text when OCR sees it; otherwise
+        where it was. The translation often arrives after the English has left (~1 s with
+        Claude); in replace mode it then takes the last line's place instead of jumping
+        above the subtitle region. `above` keeps the old rule (same line or fading out)."""
+        if fresh is not None:
+            self._last_cover = (line_id, fresh)
+            return fresh
+        last = self._last_cover
+        if last is None:
+            return None
+        if position == "replace" or not current or last[0] == line_id:
+            return last[1]
+        return None
 
     def _steady_bounds(self, line_id: int, bounds: tuple[int, int, int, int], lines: int
                        ) -> tuple[tuple[int, int, int, int], int]:  # fmt: skip

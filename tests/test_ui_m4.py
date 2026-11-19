@@ -126,6 +126,22 @@ def test_history_page_lists_searches_and_exports(window, tmp_path):
     assert c.history.get(1).bad
 
 
+def test_history_page_rebuilds_only_new_rows(window):
+    """Found on Windows: the whole table was rebuilt on every subtitle and froze the UI."""
+    c = window.controller
+    for i in range(1, 301):
+        c.history.add(SubtitleLine(i, f"Line number {i}.", None, float(i)))
+    page = _page(window, "history")
+    page.refresh()
+    first = page.table.item(0, 1)
+    c.history.add(SubtitleLine(301, "One more.", None, 301.0))
+    c.historyChanged.emit()
+    assert page._dirty  # hidden page: nothing rebuilt, only marked
+    page.refresh()
+    assert page.table.rowCount() == 301 and page.table.item(0, 1) is first
+    assert page.table.item(300, 1).text() == "One more."
+
+
 def test_history_retranslate_uses_current_settings(window):
     c = window.controller
     c.history.add(SubtitleLine(5, "Get in the car.", "JASON", 1.0))
@@ -267,7 +283,8 @@ def test_above_mode_sits_right_over_the_english_text_at_its_size():
 
 def test_default_is_a_dark_box_over_the_english_text():
     """Asked for by the user (how players see translated games): a dark rounded box where
-    the English line was, white text centered in it, with room above and below."""
+    the English line was, white text centered in it, with room above and below. Later:
+    the box is only as big as the translation and the font size does not change."""
     from subwizard.controller import OVERLAY_PRESETS
     from subwizard.ui.subtitle_paint import REPLACE_BOX_VPAD_EM, replace_layout
 
@@ -276,8 +293,13 @@ def test_default_is_a_dark_box_over_the_english_text():
     view = SubtitleView(1, "Hadi ama dostum. IAA, FIB, CC, Globopol.", None,
                         "Come on, man. IAA, FIB, CC, Globopol.", "gemini", False, 0.0, 0.0)  # fmt: skip
     layout = replace_layout(cfg, view, 1920, 1080, area_w=760, area_h=40, lines=1)
-    pad = 2 * layout.style.font_px * REPLACE_BOX_VPAD_EM
-    assert layout.box_h == pytest.approx(40 + pad)
-    assert layout.box_w >= 760  # at least as wide as the English line it hides
+    px = round(1080 * cfg.font_size_pct / 100)
+    assert layout.style.font_px == px
+    pad = 2 * px * REPLACE_BOX_VPAD_EM
+    one_line = layout.box_h - pad
+    # Whatever OCR saw (two lines, junk above): same font, same box.
+    big = replace_layout(cfg, view, 1920, 1080, area_w=1500, area_h=300, lines=2)
+    assert big.style.font_px == px and big.box_h == layout.box_h and big.box_w == layout.box_w
+    assert one_line < 2 * px and layout.box_w < 1920  # just around the text
     preset = OVERLAY_PRESETS["game_box"]
     assert preset["position"] == "replace" and preset["auto_bg"] is False

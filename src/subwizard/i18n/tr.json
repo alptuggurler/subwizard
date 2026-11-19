@@ -76,7 +76,7 @@
   "home.card.source.file": "Video dosyası",
   "home.card.source.screen": "Ekran",
   "home.card.audio": "Ses",
-  "home.status_line": "Kaynak {source} FPS · Çizim {render} FPS · Kare yaşı {age} ms",
+  "home.status_line": "Kaynak {source} FPS · Oyun {game} FPS · Çizim {render} FPS · Kare yaşı {age} ms",
   "home.mode_mismatch": "İstenen {requested} → gerçekleşen {actual}.",
   "source.state.stopped": "Durdu",
   "source.state.connecting": "Bağlanıyor…",
@@ -555,5 +555,6 @@
   "home.translator.anthropic": "Claude · {model}",
   "home.translator.quota_anthropic": "Claude API kredisi bitti ya da istek sınırına takıldı; satırlar yedek çevirmenle çevriliyor. Kredi yüklemek için: platform.claude.com → Billing. Claude cevap verince kendiliğinden yeniden kullanılır.",
   "wizard.summary.anthropic": "Claude ({model})",
-  "error.screen_permission": "macOS ekran kaydı izni yok: izin olmadan yalnızca masaüstü arka planı görünür, oyun ya da tarayıcı okunamaz. Sistem Ayarları → Gizlilik ve Güvenlik → Ekran ve Sistem Sesi Kaydı'nda SubWizard'ı başlattığınız uygulamaya (örn. Terminal) izin verin, sonra o uygulamayı kapatıp açın ve SubWizard'ı yeniden başlatın."
+  "error.screen_permission": "macOS ekran kaydı izni yok: izin olmadan yalnızca masaüstü arka planı görünür, oyun ya da tarayıcı okunamaz. Sistem Ayarları → Gizlilik ve Güvenlik → Ekran ve Sistem Sesi Kaydı'nda SubWizard'ı başlattığınız uygulamaya (örn. Terminal) izin verin, sonra o uygulamayı kapatıp açın ve SubWizard'ı yeniden başlatın.",
+  "home.capture_fps": "{mode} · {fps} FPS (oyun {game})"
 }

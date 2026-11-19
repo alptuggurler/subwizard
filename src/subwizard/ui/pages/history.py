@@ -20,6 +20,7 @@ COLUMNS = ("time", "source", "translation", "engine")
 TABLE_MIN_HEIGHT = 420
 REFRESH_DEBOUNCE_MS = 150  # many lines can finish at once; refresh the table once
 BAD_MARK = "⚠ "
+HEADER_SAMPLE_ROWS = 50  # time/engine column width from a sample, not every row
 
 
 class HistoryPage(BasePage):
@@ -60,6 +61,7 @@ class HistoryPage(BasePage):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setResizeContentsPrecision(HEADER_SAMPLE_ROWS)
         self.body.addWidget(self.table)
         self._status = CaptionLabel()
         self.body.addWidget(self._status)
@@ -68,31 +70,55 @@ class HistoryPage(BasePage):
         self._timer.setSingleShot(True)
         self._timer.setInterval(REFRESH_DEBOUNCE_MS)
         self._timer.timeout.connect(self.refresh)
-        controller.translated.connect(self._timer.start)
-        controller.subtitleChanged.connect(self._timer.start)
-        controller.historyChanged.connect(self._timer.start)
+        self._rows: list[tuple] = []  # what the table shows now: (line_id, *cells)
+        self._dirty = False
+        controller.translated.connect(self._schedule)
+        controller.subtitleChanged.connect(self._schedule)
+        controller.historyChanged.connect(self._schedule)
         self.retranslate()
 
     def showEvent(self, event) -> None:  # noqa: ANN001
         super().showEvent(event)
-        self.refresh()
+        if self._dirty:
+            self.refresh()
+
+    def _schedule(self) -> None:
+        # Found on Windows: rebuilding hundreds of rows on every subtitle froze the UI,
+        # also while another page was open. Hidden: only remember to refresh.
+        if self.isVisible():
+            self._timer.start()
+        else:
+            self._dirty = True
+
+    @staticmethod
+    def _cells(e: HistoryEntry) -> tuple:
+        engine = e.engine + (f" {t('subtitle.fallback')}" if e.fallback else "")
+        return (e.line_id, e.clock, e.source,
+                (BAD_MARK if e.bad else "") + (e.translation or DASH), engine or DASH)  # fmt: skip
 
     def refresh(self) -> None:
+        self._dirty = False
         entries = self.controller.history.search(self._search.text())
         selected = {e.line_id for e in self._selected()}
         self._shown = entries
-        self.table.setRowCount(len(entries))
-        for row, e in enumerate(entries):
-            engine = e.engine + (f" {t('subtitle.fallback')}" if e.fallback else "")
-            cells = (e.clock, e.source, (BAD_MARK if e.bad else "") + (e.translation or DASH),
-                     engine or DASH)  # fmt: skip
-            for col, text in enumerate(cells):
-                item = QTableWidgetItem(text)
-                item.setData(Qt.ItemDataRole.UserRole, e.line_id)
-                self.table.setItem(row, col, item)
-            if e.line_id in selected:
-                self.table.selectRow(row)
-        self.table.resizeRowsToContents()
+        rows = [self._cells(e) for e in entries]
+        old = self._rows
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.setRowCount(len(rows))
+            for row, cells in enumerate(rows):
+                if row < len(old) and old[row] == cells:
+                    continue  # only new or changed rows are rebuilt and measured
+                for col, text in enumerate(cells[1:]):
+                    item = QTableWidgetItem(text)
+                    item.setData(Qt.ItemDataRole.UserRole, cells[0])
+                    self.table.setItem(row, col, item)
+                self.table.resizeRowToContents(row)
+                if cells[0] in selected:
+                    self.table.selectRow(row)
+        finally:
+            self.table.setUpdatesEnabled(True)
+        self._rows = rows
         self._status.setText(t("history.count", n=len(entries),
                                total=len(self.controller.history.entries())))  # fmt: skip
 

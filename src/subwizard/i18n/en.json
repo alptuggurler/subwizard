@@ -76,7 +76,7 @@
   "home.card.source.file": "Video file",
   "home.card.source.screen": "Screen",
   "home.card.audio": "Audio",
-  "home.status_line": "Source {source} FPS · Render {render} FPS · Frame age {age} ms",
+  "home.status_line": "Source {source} FPS · Game {game} FPS · Render {render} FPS · Frame age {age} ms",
   "home.mode_mismatch": "Requested {requested} → got {actual}.",
   "source.state.stopped": "Stopped",
   "source.state.connecting": "Connecting…",
@@ -555,5 +555,6 @@
   "home.translator.anthropic": "Claude · {model}",
   "home.translator.quota_anthropic": "The Claude API credit is used up or rate-limited; lines are translated by the fallback. Buy credits at platform.claude.com → Billing; Claude is used again by itself once it answers.",
   "wizard.summary.anthropic": "Claude ({model})",
-  "error.screen_permission": "No macOS Screen Recording permission: without it only the desktop wallpaper comes through, not the game or the browser. In System Settings → Privacy & Security → Screen & System Audio Recording, allow the app you start SubWizard from (e.g. Terminal), then quit and reopen that app and start SubWizard again."
+  "error.screen_permission": "No macOS Screen Recording permission: without it only the desktop wallpaper comes through, not the game or the browser. In System Settings → Privacy & Security → Screen & System Audio Recording, allow the app you start SubWizard from (e.g. Terminal), then quit and reopen that app and start SubWizard again.",
+  "home.capture_fps": "{mode} · {fps} FPS (game {game})"
 }

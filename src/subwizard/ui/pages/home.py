@@ -203,7 +203,10 @@ class HomePage(BasePage):
         capture_text = t(f"source.state.{source_state}")
         actual = snap.gauge(M.SOURCE_ACTUAL)
         if source_state == SourceState.RUNNING and actual is not None:
-            capture_text = f"{actual} · {snap.rate(M.SOURCE_FPS).short:.0f} FPS"
+            # A console sends a 30 FPS game as 60 Hz: the card's FPS is not the game's.
+            capture_text = t("home.capture_fps", mode=actual,
+                             fps=f"{snap.rate(M.SOURCE_FPS).short:.0f}",
+                             game=f"{snap.rate(M.SOURCE_GAME_FPS).short:.0f}")  # fmt: skip
         self._capture_card.set_content(
             t(f"home.card.source.{c.config.source.kind}"), capture_text, SOURCE_GRADES[source_state]
         )
@@ -228,6 +231,7 @@ class HomePage(BasePage):
                 t(
                     "home.status_line",
                     source=f"{snap.rate(M.SOURCE_FPS).short:.1f}",
+                    game=f"{snap.rate(M.SOURCE_GAME_FPS).short:.1f}",
                     render=f"{snap.rate(M.RENDER_FPS).short:.1f}",
                     age=f"{age.mean:.1f}",
                 )

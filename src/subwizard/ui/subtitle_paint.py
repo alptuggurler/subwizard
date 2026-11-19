@@ -13,6 +13,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+import math
+import re
+
 import numpy as np
 from PySide6.QtCore import QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
@@ -132,19 +135,27 @@ def replace_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video
     covers."""
     text = f"{view.speaker}: {view.text}" if view.speaker else view.text
     flat = replace(view, text=text, speaker=None, fallback=False)
+    base = Style.from_config(cfg, round(video_w), round(video_h))
+    if not cfg.auto_bg:
+        # A visible box (asked for by the user): the size setting, always the same, and a
+        # box just around the translation, not around whatever OCR saw in the region.
+        px = round(video_h * cfg.font_size_pct / 100)
+        _px, text_w, text_h = fit_replace(text, base.families, cfg.bold, px, px,
+                                          video_w * cfg.max_width_pct / 100,
+                                          video_w * cfg.max_width_pct / 100, math.inf)  # fmt: skip
+        style = replace(base, font_px=px, background=(0, 0, 0, 0), show_source=False,
+                        max_width=round(text_w) + 2 * round(px * PADDING_EM) + 2)  # fmt: skip
+        return ReplaceLayout(flat, style, text_w + 2 * px * REPLACE_BOX_PAD_EM,
+                             text_h + 2 * px * REPLACE_BOX_VPAD_EM)  # fmt: skip
     start_px = min(round(video_h * cfg.font_size_pct / 100),
                    round(area_h / max(1, lines) * REPLACE_FILL))  # fmt: skip
     max_width = max(area_w, video_w * cfg.max_width_pct / 100)
-    base = Style.from_config(cfg, round(video_w), round(video_h))
     font_px, text_w, text_h = fit_replace(text, base.families, cfg.bold, start_px,
                                           REPLACE_MIN_FONT_PX, area_w, max_width, area_h)  # fmt: skip
     style = replace(base, font_px=font_px, background=(0, 0, 0, 0), show_source=False,
                     max_width=round(text_w) + 2 * round(font_px * PADDING_EM) + 2)  # fmt: skip
-    box_h = max(area_h, text_h)
-    if not cfg.auto_bg:  # a visible box: some room around the text, like a game subtitle box
-        box_h += 2 * font_px * REPLACE_BOX_VPAD_EM
     return ReplaceLayout(flat, style, max(area_w, text_w + 2 * font_px * REPLACE_BOX_PAD_EM),
-                         box_h)  # fmt: skip
+                         max(area_h, text_h))  # fmt: skip
 
 
 def above_layout(cfg: OverlayConfig, view: SubtitleView, video_w: float, video_h: float,
@@ -174,7 +185,8 @@ def place_above(area: QRectF, video: QRectF, w: float, h: float) -> QRectF:
 def paint_replace(p: QPainter, cfg: OverlayConfig, area: QRectF, color: tuple[int, int, int],
                   layout: ReplaceLayout, pixmap: QPixmap, dpr: float) -> None:  # fmt: skip
     """`color` is the scene around the English text (auto_bg); the caller sets opacity."""
-    box = QRectF(area.center().x() - layout.box_w / 2, area.center().y() - layout.box_h / 2,
+    # On the English text's bottom edge: the subtitle line stays put whatever is above it.
+    box = QRectF(area.center().x() - layout.box_w / 2, area.bottom() - layout.box_h,
                  layout.box_w, layout.box_h)  # fmt: skip
     fill = QColor(*color) if cfg.auto_bg else QColor(cfg.background_color)
     if not cfg.auto_bg:
@@ -263,6 +275,20 @@ def place(position: str, box_w: float, box_h: float, video: QRectF, roi_top: flo
         return QRectF(x, above, box_w, box_h)
     below = video.top() + roi_bottom * video.height() + gap
     return QRectF(x, min(below, video.bottom() - box_h), box_w, box_h)
+
+
+_WORD = re.compile(r"[a-z]{2,}")
+
+
+def matches_source(line_text: str, source: str) -> bool:
+    """True when an OCR line is part of the subtitle being shown: at least half of its
+    words are in the English line. Other text in the region (HUD, a sign, a name OCR read
+    as junk) must not stretch the replace cover over half the picture."""
+    words = _WORD.findall(line_text.lower())
+    if not words:
+        return False
+    known = set(_WORD.findall(source.lower()))
+    return sum(word in known for word in words) * 2 >= len(words)
 
 
 def text_bounds(boxes: list[tuple[int, int, int, int]], origin: tuple[int, int]
