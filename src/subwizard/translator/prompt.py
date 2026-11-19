@@ -16,8 +16,21 @@ DEFAULT_SYSTEM_PROMPT = (
     "ve önceki birkaç satırın bağlamı verilecek. Yalnızca son satırı doğal, akıcı, konuşma "
     "diline uygun Türkçeye çevir. Argo, küfür ve esprileri sansürlemeden, Türkçede karşılığı "
     "olan en doğal ifadeyle aktar. Özel isimleri (karakter, mekân, marka) çevirme. Açıklama, "
-    "tırnak veya ek metin ekleme; yalnızca çeviriyi döndür."
+    "tırnak veya ek metin ekleme; yalnızca çeviriyi döndür. Metin ekrandan OCR ile okunur: "
+    "baştaki/sondaki anlamsız harf dizilerini (ör. \"MUIOGL WI\") at. Satırda çevrilecek bir "
+    "şey yoksa satırı olduğu gibi geri döndür; asla soru sorma ya da açıklama yazma."
 )
+
+CHATTER_WORDS = ("çevrilecek", "çevrilebilir", "paylaşır", "paylaşırsan", "bağlam", "orijinal metn")
+
+
+def is_chatter(source: str, reply: str) -> bool:
+    """True when the model talked about the line instead of translating it ("Bu satır
+    çevrilebilir bir metin içermiyor...", seen with OCR junk like "YhG")."""
+    if len(reply) <= max(60, 3 * len(source)):
+        return False
+    low = reply.lower()
+    return any(word in low for word in CHATTER_WORDS)
 
 
 def system_prompt(override: str, profile: GameProfile | None = None) -> str:

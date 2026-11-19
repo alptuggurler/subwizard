@@ -97,6 +97,7 @@ class VideoView(QWidget):
         self._anim_timer.setInterval(ANIMATION_TICK_MS)
         self._anim_timer.timeout.connect(self._animate)
         self._replace_cache: tuple | None = None
+        self._steady: tuple | None = None  # replace mode: (line_id, grown bounds, lines)
         self._anchor_cache: tuple[int, tuple[float, float]] | None = None
         self.show_history = False  # F12
         self.fullscreen = False
@@ -292,7 +293,10 @@ class VideoView(QWidget):
                 # it was instead of jumping to another place.
                 cover = self._last_cover[1]
         if cover is not None and cfg.position == "replace":
-            self._draw_replace(painter, target, cover, main, dpr, used)
+            # A new place (one line -> two) glides there instead of jumping.
+            area = QRectF(cover[0])
+            area.moveBottom(self._eased_bottom(area.bottom(), now, was_empty))
+            self._draw_replace(painter, target, (area, *cover[1:]), main, dpr, used)
         else:
             style = Style.from_config(cfg, round(target.width()), round(target.height()))
             position = "bottom" if cfg.position in ("replace", "above") else cfg.position
@@ -399,6 +403,8 @@ class VideoView(QWidget):
             return None
         width = frame.image.shape[1]
         line_id = c.subtitle.line_id if c.subtitle else -1
+        lines = len(c.last_ocr.lines)
+        bounds, lines = self._steady_bounds(line_id, bounds, lines)
         if self._replace_cache is None or self._replace_cache[0] != (line_id, bounds):
             # Sampled once per line and position, not every frame.
             self._replace_cache = ((line_id, bounds), surrounding_color(frame.image, bounds))
@@ -408,7 +414,22 @@ class VideoView(QWidget):
         area = QRectF(target.left() + bounds[0] * scale - pad, target.top() + bounds[1] * scale - pad,
                       (bounds[2] - bounds[0]) * scale + 2 * pad,
                       (bounds[3] - bounds[1]) * scale + 2 * pad)  # fmt: skip
-        return area, color, len(c.last_ocr.lines)
+        return area, color, lines
+
+    def _steady_bounds(self, line_id: int, bounds: tuple[int, int, int, int], lines: int
+                       ) -> tuple[tuple[int, int, int, int], int]:  # fmt: skip
+        """While the same line is on screen the cover only grows: OCR boxes move a few
+        pixels from read to read and a fading line is sometimes read in part, which made
+        the box shake up and down. A new line (or text somewhere else) starts afresh."""
+        prev = self._steady
+        if prev is not None and prev[0] == line_id:
+            (x0, y0, x1, y1), prev_lines = prev[1], prev[2]
+            if bounds[1] < y1 and y0 < bounds[3]:  # overlaps vertically: same text block
+                bounds = (min(x0, bounds[0]), min(y0, bounds[1]),
+                          max(x1, bounds[2]), max(y1, bounds[3]))  # fmt: skip
+                lines = max(lines, prev_lines)
+        self._steady = (line_id, bounds, lines)
+        return bounds, lines
 
     def _draw_history(self, painter: QPainter) -> None:
         """F12: the last few lines, for subtitles that went by too fast."""

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
@@ -269,6 +269,14 @@ class TranslatorConfig(_Section):
     # spacing, punctuation) uses the cached translation instead of a new request.
     loose_cache: bool = True
     prices: dict[str, ModelPrice] = Field(default_factory=_default_prices)
+
+    @field_validator("prices", mode="after")
+    @classmethod
+    def _add_missing_prices(cls, prices: dict[str, ModelPrice]) -> dict[str, ModelPrice]:
+        # A config.yaml written by an older version lists only the models it knew; a model
+        # added later (claude-haiku-5-5) would otherwise be priced at $0 and escape the
+        # daily limit. The user's own entries win.
+        return {**_default_prices(), **prices}
     # Gemini / OpenRouter / Claude stop for the day once today's cost reaches this (USD; the
     # fallback translates instead). 0 = no limit.
     daily_limit_usd: float = Field(0.0, ge=0)

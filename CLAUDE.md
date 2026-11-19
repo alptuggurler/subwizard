@@ -14,8 +14,9 @@ ilerler (SPEC 6); her biri bitince kabul maddeleri doğrulanır ve commit atıl�
 - OpenRouter: `translator/openrouter.py` (`engine: openrouter`, ön ödemeli, kendi anahtarı). Gerçek
   anahtarla henüz denenmedi (testler sahte HTTP ile).
 - Claude API: `translator/anthropic_api.py` (`engine: anthropic`, resmi `anthropic` SDK, varsayılan
-  `claude-haiku-5-5`, düşünme kapalı, sistem prompt'u önbellekli, kendi anahtarı). Gerçek anahtarla
-  henüz denenmedi (testler sahte SDK istemcisiyle).
+  `claude-haiku-5-5`, düşünme kapalı, sistem prompt'u önbellekli, kendi anahtarı). Windows'ta gerçek
+  anahtarla oyun oturumunda kullanıldı (~0,8 sn/satır; bağlantı açılışta `warm()` ile ısıtılır).
+  Model çeviri yerine açıklama yazarsa (`prompt.is_chatter`) satır olduğu gibi gösterilir.
 
 ## Komutlar
 ```

@@ -94,13 +94,34 @@ def test_errors_become_reasons_and_overload_is_retried_once():
 def test_build_engines_uses_claude_keys(monkeypatch):
     monkeypatch.setattr("subwizard.translator.service.load_api_keys",
                         lambda p="gemini": ([KEY], "test") if p == "anthropic" else ([], ""))  # fmt: skip
+    warmed = []
+    monkeypatch.setattr(AnthropicTranslator, "warm", lambda self: warmed.append(self))
     config = AppConfig()
     config.translator.engine = "anthropic"
     primary, fallback, note = build_engines(config)
     assert primary.name == "anthropic" and primary.model == "claude-haiku-5-5"
     assert fallback.name == "deep" and note == ""
+    assert warmed == [primary]  # the connection is opened at start
     primary.close()
     assert secrets.provider_for("anthropic") == "anthropic"
+
+
+def test_warm_opens_connection_without_tokens():
+    client = FakeClient()
+    looked_up = []
+    client.models = SimpleNamespace(retrieve=looked_up.append)
+    engine(client).warm().join(2)
+    assert looked_up == ["claude-haiku-5-5"] and client.calls == []  # no message sent
+
+
+def test_warm_failure_is_only_logged():
+    client = FakeClient()
+
+    def fail(_model):
+        raise RuntimeError("offline")
+
+    client.models = SimpleNamespace(retrieve=fail)
+    engine(client).warm().join(2)  # no exception
 
 
 def test_cost_from_the_price_table_and_the_daily_limit(tmp_path):

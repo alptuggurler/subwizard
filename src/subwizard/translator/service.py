@@ -24,7 +24,7 @@ from subwizard.translator.base import (
 from subwizard.profiles import DEFAULT, GameProfile, glossary_violations, load_profile
 from subwizard.ocr.vision import HANDOFF
 from subwizard.translator.cache import CachedTranslation, TranslationCache, cache_key, loose_key
-from subwizard.translator.prompt import system_prompt
+from subwizard.translator.prompt import is_chatter, system_prompt
 from subwizard.translator.ollama import FallbackChain
 from subwizard.translator.spend import SpendLedger
 from subwizard.utils import timing
@@ -188,6 +188,11 @@ class TranslationService:
                 self._set_quota(False)
                 if primary.name in PRICED_ENGINES:  # the local model and test mode are free
                     result = self._account(result)
+                if is_chatter(request.text, result.text):
+                    log.warning("%s çeviri yerine açıklama yazdı, satır olduğu gibi "
+                                "gösteriliyor: %r -> %r", result.engine, request.text,
+                                result.text)  # fmt: skip
+                    result = replace(result, text=request.text)
                 cost = result.cost_usd
                 log.info("Çeviri (%s, %.0f ms, %d+%d token, $%.5f): %r -> %r",
                          result.engine, result.latency_ms, result.input_tokens,
@@ -305,10 +310,12 @@ def build_engines(
         from subwizard.translator.anthropic_api import AnthropicTranslator
 
         log.info("Claude API çeviriyor (%s).", tr.anthropic_model)
-        return AnthropicTranslator(
+        claude = AnthropicTranslator(
             keys, model=tr.anthropic_model, timeout_s=tr.timeout_s, retries=tr.retries,
             prompt=tr.system_prompt, profile=profile,
-        ), fallback, ""  # fmt: skip
+        )  # fmt: skip
+        claude.warm()
+        return claude, fallback, ""
     keys, _source = load_api_keys()
     if not keys:
         log.warning("Gemini API anahtarı yok; yedek çevirmen kullanılacak.")

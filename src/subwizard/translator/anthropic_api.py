@@ -19,6 +19,7 @@ Checked against platform.claude.com/docs and anthropic 2.10 on 2026-11-18:
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -95,6 +96,23 @@ class AnthropicTranslator(BaseTranslator):
             text, self.name, latency_ms,
             input_tokens=prompt_tokens, output_tokens=usage.output_tokens, cached_tokens=cached,
         )  # fmt: skip
+
+    def warm(self) -> threading.Thread:
+        """Open the HTTPS connection in the background (a free model lookup, no tokens),
+        so the first subtitle does not also pay for DNS + TLS. On Windows the first line
+        took ~1.2 s, the following ones ~0.8 s."""
+
+        def run() -> None:
+            started = timing.now()
+            try:
+                self._client.models.retrieve(self.model)
+                log.info("Claude API bağlantısı hazır (%.0f ms).", timing.ms_since(started))
+            except Exception as exc:  # noqa: BLE001 - only a log line; translate() reports
+                log.warning("Claude API bağlantısı önceden kurulamadı: %s", brief(exc))
+
+        thread = threading.Thread(target=run, name="anthropic-warm", daemon=True)
+        thread.start()
+        return thread
 
     def close(self) -> None:
         self._client.close()
